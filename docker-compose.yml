@@ -1,5 +1,5 @@
 # WARNING!
-# This is a development version of THE Appwrite docker-compose.yml file.
+# This is a development version of the docker-compose.yml file.
 # Avoid using this file in your production environment.
 # We're exposing here sensitive ports and mounting code volumes for rapid development and debugging of the server stack.
 
@@ -17,8 +17,8 @@ services:
       - 9509:80
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - appwrite-functions:/storage/functions:rw
-      - appwrite-builds:/storage/builds:rw
+      - ./tests/resources/functions:/storage/functions:rw
+      - openruntime-builds:/storage/builds:rw
       - /tmp:/tmp:rw
     environment:
       - OPENRUNTIMES_ENV
@@ -41,5 +41,4 @@ networks:
   runtimes:
 
 volumes:
-  appwrite-functions:
-  appwrite-builds:
+  openruntime-builds:

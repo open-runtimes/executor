@@ -10,6 +10,12 @@ RUN composer install --ignore-platform-reqs --optimize-autoloader \
     
 FROM phpswoole/swoole:php8.0-alpine
 
+RUN \
+  apk update \
+  && apk add --no-cache \
+  docker-cli \
+  docker-compose
+
 WORKDIR /usr/local/
 
 # Add Source Code
@@ -21,4 +27,4 @@ COPY --from=composer /usr/local/src/vendor /usr/local/vendor
 
 EXPOSE 80
 
-CMD [ "php", "app/http.php", "-dopcache.preload=opcache.preload=/usr/src/code/app/preload.php" ]
+CMD [ "php", "app/http.php" ]
