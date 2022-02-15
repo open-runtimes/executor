@@ -43,6 +43,12 @@ final class ExecutorTest extends TestCase
         $this->assertEquals('Missing executor key', $response['body']['message']);
     }
 
+    public function testUnknownRoute()
+    {
+        $response = $this->client->call(Client::METHOD_GET, '/unknown', [], []);
+        $this->assertEquals(404, $response['headers']['status-code']);
+        $this->assertEquals('Not Found', $response['body']['message']);
+    }
 
     public function testGetRuntimes(): void
     {
