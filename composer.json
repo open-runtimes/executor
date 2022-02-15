@@ -11,13 +11,12 @@
     ],
     "autoload": {
         "psr-4": {
-            "OpenRuntimes\\Executor": "src/OpenRuntimes/Executor"
+            "OpenRuntimes\\Executor\\": "src/OpenRuntimes/Executor"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Tests\\E2E\\": "tests/e2e",
-            "Appwrite\\Tests\\": "tests/extensions"
+            "Tests\\": "tests"
         }
     },
     "repositories": [
@@ -46,7 +45,8 @@
         "utopia-php/registry": "0.5.*",
         "utopia-php/preloader": "0.2.*",
         "utopia-php/swoole": "0.3.*",
-        "utopia-php/orchestration": "0.3.*"
+        "utopia-php/orchestration": "0.3.*",
+        "appwrite/php-runtimes": "dev-refactor"
     },
     "require-dev": {
         "phpunit/phpunit": "9.5.10",
