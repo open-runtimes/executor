@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "60597af4ab50ebdc08c8cd74b74dfe96",
+    "content-hash": "e9f574a1c08e0116f07c2b19a1b9d7e8",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -4114,14 +4114,7 @@
         "ext-imagick": "*",
         "ext-mbstring": "*",
         "ext-json": "*",
-        "ext-yaml": "*",
-        "ext-dom": "*",
-        "ext-redis": "*",
-        "ext-swoole": "*",
-        "ext-pdo": "*",
-        "ext-openssl": "*",
-        "ext-zlib": "*",
-        "ext-sockets": "*"
+        "ext-swoole": "*"
     },
     "platform-dev": [],
     "platform-overrides": {

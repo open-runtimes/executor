@@ -76,7 +76,7 @@ function logError(Throwable $error, string $action, Utopia\Route $route = null)
     $logger = $register->get('logger');
 
     if ($logger) {
-        $version = App::getEnv('_APP_VERSION', 'UNKNOWN');
+        $version = App::getEnv('OPENRUNTIMES_VERSION', 'UNKNOWN');
 
         $log = new Log();
         $log->setNamespace("executor");
@@ -99,7 +99,7 @@ function logError(Throwable $error, string $action, Utopia\Route $route = null)
 
         $log->setAction($action);
 
-        $isProduction = App::getEnv('_APP_ENV', 'development') === 'production';
+        $isProduction = App::getEnv('OPENRUNTIMES_ENV', 'development') === 'production';
         $log->setEnvironment($isProduction ? Log::ENVIRONMENT_PRODUCTION : Log::ENVIRONMENT_STAGING);
 
         $responseCode = $logger->addLog($log);
@@ -174,9 +174,9 @@ App::post('/v1/runtimes')
             $container = 'build-' . $runtimeId;
             $vars = array_map(fn ($v) => strval($v), $vars);
             $orchestration
-                ->setCpus(App::getEnv('_APP_FUNCTIONS_CPUS', 0))
-                ->setMemory(App::getEnv('_APP_FUNCTIONS_MEMORY', 256))
-                ->setSwap(App::getEnv('_APP_FUNCTIONS_MEMORY_SWAP', 256));
+                ->setCpus(App::getEnv('OPENRUNTIMES_FUNCTIONS_CPUS', 0))
+                ->setMemory(App::getEnv('OPENRUNTIMES_FUNCTIONS_MEMORY', 256))
+                ->setSwap(App::getEnv('OPENRUNTIMES_FUNCTIONS_MEMORY_SWAP', 256));
             
             $buildId = $orchestration->run(
                 image: $baseImage,
@@ -234,7 +234,7 @@ App::post('/v1/runtimes')
                 command: ['sh', '-c', 'cd /usr/local/src && ./build.sh'],
                 stdout: $buildStdout,
                 stderr: $buildStderr,
-                timeout: App::getEnv('_APP_FUNCTIONS_BUILD_TIMEOUT', 900)
+                timeout: App::getEnv('OPENRUNTIMES_FUNCTIONS_BUILD_TIMEOUT', 900)
             );
 
             if (!$buildSuccess) {
@@ -270,7 +270,7 @@ App::post('/v1/runtimes')
              */
             $outputPath = $device->getPath(\uniqid() . '.' . \pathinfo('code.tar.gz', PATHINFO_EXTENSION));
 
-            if (App::getEnv('_APP_STORAGE_DEVICE', Storage::DEVICE_LOCAL) === Storage::DEVICE_LOCAL) {
+            if (App::getEnv('OPENRUNTIMES_STORAGE_DEVICE', Storage::DEVICE_LOCAL) === Storage::DEVICE_LOCAL) {
                 if (!$device->move($tmpBuild, $outputPath)) {
                     throw new Exception('Failed to move built code to storage', 500);
                 }
@@ -333,9 +333,9 @@ App::post('/v1/runtimes')
             $vars = array_map(fn ($v) => strval($v), $vars);
 
             $orchestration
-                ->setCpus(App::getEnv('_APP_FUNCTIONS_CPUS', '1'))
-                ->setMemory(App::getEnv('_APP_FUNCTIONS_MEMORY', '256'))
-                ->setSwap(App::getEnv('_APP_FUNCTIONS_MEMORY_SWAP', '256'));
+                ->setCpus(App::getEnv('OPENRUNTIMES_FUNCTIONS_CPUS', '1'))
+                ->setMemory(App::getEnv('OPENRUNTIMES_FUNCTIONS_MEMORY', '256'))
+                ->setSwap(App::getEnv('OPENRUNTIMES_FUNCTIONS_MEMORY_SWAP', '256'));
 
             $id = $orchestration->run(
                 image: $baseImage,
@@ -355,7 +355,7 @@ App::post('/v1/runtimes')
                 throw new Exception('Failed to create runtime', 500);
             }
 
-            $orchestration->networkConnect($container, App::getEnv('_APP_EXECUTOR_RUNTIME_NETWORK', 'openruntimes'));
+            $orchestration->networkConnect($container, App::getEnv('OPENRUNTIMES_EXECUTOR_RUNTIME_NETWORK', 'openruntimes'));
 
             $executionEnd = \microtime(true);
 
@@ -501,13 +501,13 @@ App::post('/v1/execution')
                     'file' => $entrypoint,
                     'env' => $vars,
                     'payload' => $data,
-                    'timeout' => $timeout ?? (int) App::getEnv('_APP_FUNCTIONS_TIMEOUT', 900)
+                    'timeout' => $timeout ?? (int) App::getEnv('OPENRUNTIMES_FUNCTIONS_TIMEOUT', 900)
                 ]);
                 \curl_setopt($ch, CURLOPT_URL, "http://" . $container . ":3000/");
                 \curl_setopt($ch, CURLOPT_POST, true);
                 \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
                 \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout ?? (int) App::getEnv('_APP_FUNCTIONS_TIMEOUT', 900));
+                \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout ?? (int) App::getEnv('OPENRUNTIMES_FUNCTIONS_TIMEOUT', 900));
                 \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
         
                 \curl_setopt($ch, CURLOPT_HTTPHEADER, [
@@ -609,7 +609,7 @@ App::error(function ($error, $response) {
         'file' => $error->getFile(),
         'line' => $error->getLine(),
         'trace' => $error->getTrace(),
-        'version' => App::getEnv('_APP_VERSION', 'UNKNOWN'),
+        'version' => App::getEnv('OPENRUNTIMES_VERSION', 'UNKNOWN'),
     ];
 
     $response
@@ -627,7 +627,7 @@ App::init(function ($request, $response) {
          throw new Exception('Missing executor key', 401);
      }
 
-     if ($secretKey !== App::getEnv('_APP_EXECUTOR_SECRET', '')) {
+     if ($secretKey !== App::getEnv('OPENRUNTIMES_EXECUTOR_SECRET', '')) {
         throw new Exception('Missing executor key', 401);
      }
 }, ['request', 'response']);
@@ -641,7 +641,7 @@ $http->on('start', function ($http) {
      * Warmup: make sure images are ready to run fast 🚀
      */
     $runtimes = new Runtimes();
-    $allowList = empty(App::getEnv('_APP_FUNCTIONS_RUNTIMES')) ? [] : \explode(',', App::getEnv('_APP_FUNCTIONS_RUNTIMES'));
+    $allowList = empty(App::getEnv('OPENRUNTIMES_FUNCTIONS_RUNTIMES')) ? [] : \explode(',', App::getEnv('OPENRUNTIMES_FUNCTIONS_RUNTIMES'));
     $runtimes = $runtimes->getAll(true, $allowList);
     foreach ($runtimes as $runtime) {
         go(function () use ($runtime, $orchestrationPool) {

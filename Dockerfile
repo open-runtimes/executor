@@ -21,4 +21,4 @@ COPY --from=composer /usr/local/src/vendor /usr/local/vendor
 
 EXPOSE 80
 
-CMD [ "php", "app/http.php"]
+CMD [ "php", "app/http.php", "-dopcache.preload=opcache.preload=/usr/src/code/app/preload.php" ]
