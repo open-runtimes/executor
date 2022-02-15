@@ -1,0 +1,44 @@
+# WARNING!
+# This is a development version of the docker-compose.yml file.
+# Avoid using this file in your production environment.
+# We're exposing here sensitive ports and mounting code volumes for rapid development and debugging of the server stack.
+
+version: '3'
+
+services:
+  openruntimes-executor:
+    container_name: openruntimes-executor
+    stop_signal: SIGINT
+    build:
+      context: .
+    networks:
+      runtimes:
+    ports:
+      - 9509:80
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./tests/resources/functions:/storage/functions:rw
+      - openruntime-builds:/storage/builds:rw
+      - /tmp:/tmp:rw
+    environment:
+      - OPENRUNTIMES_ENV
+      - OPENRUNTIMES_FUNCTIONS_TIMEOUT
+      - OPENRUNTIMES_FUNCTIONS_BUILD_TIMEOUT
+      - OPENRUNTIMES_FUNCTIONS_CONTAINERS
+      - OPENRUNTIMES_FUNCTIONS_RUNTIMES
+      - OPENRUNTIMES_FUNCTIONS_CPUS
+      - OPENRUNTIMES_FUNCTIONS_MEMORY
+      - OPENRUNTIMES_FUNCTIONS_MEMORY_SWAP
+      - OPENRUNTIMES_EXECUTOR_SECRET
+      - OPENRUNTIMES_EXECUTOR_RUNTIME_NETWORK
+      - OPENRUNTIMES_LOGGING_PROVIDER
+      - OPENRUNTIMES_LOGGING_CONFIG
+      - OPENRUNTIMES_INACTIVE_THRESHOLD
+      - DOCKERHUB_PULL_USERNAME
+      - DOCKERHUB_PULL_PASSWORD
+
+networks:
+  runtimes:
+
+volumes:
+  openruntime-builds:
