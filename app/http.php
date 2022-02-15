@@ -622,7 +622,7 @@ App::error(function ($error, $response) {
 }, ['error', 'response']);
 
 App::init(function ($request, $response) {
-     $secretKey = $request->getHeader('x-appwrite-executor-key', '');
+     $secretKey = $request->getHeader('x-openruntimes-executor-key', '');
      if (empty($secretKey)) {
          throw new Exception('Missing executor key', 401);
      }

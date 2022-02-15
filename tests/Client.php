@@ -28,7 +28,7 @@ class Client
      *
      * @var string
      */
-    protected $endpoint = 'https://appwrite.test/v1';
+    protected $endpoint = 'http://openruntimes-executor/v1';
 
     /**
      * Global Headers
@@ -36,8 +36,7 @@ class Client
      * @var array
      */
     protected $headers = [
-        'content-type' => '',
-        'x-sdk-version' => 'appwrite:php:v1.0.7',
+        'content-type' => ''
     ];
 
     /**
@@ -48,25 +47,7 @@ class Client
     }
 
     /**
-     * Set Project
-     *
-     * Your Appwrite project ID. You can find your project ID in your Appwrite console project settings.
-     *
-     * @param string $value
-     *
-     * @return self $this
-     */
-    public function setProject(string $value): self
-    {
-        $this->addHeader('X-Appwrite-Project', $value);
-
-        return $this;
-    }
-
-    /**
      * Set Key
-     *
-     * Your Appwrite project secret key. You can can create a new API key from your Appwrite console API keys dashboard.
      *
      * @param string $value
      *
@@ -74,35 +55,7 @@ class Client
      */
     public function setKey(string $value): self
     {
-        $this->addHeader('X-Appwrite-Key', $value);
-
-        return $this;
-    }
-
-    /**
-     * Set Locale
-     *
-     * @param string $value
-     *
-     * @return self $this
-     */
-    public function setLocale(string $value): self
-    {
-        $this->addHeader('X-Appwrite-Locale', $value);
-
-        return $this;
-    }
-
-    /**
-     * Set Mode
-     *
-     * @param string $value
-     *
-     * @return self $this
-     */
-    public function setMode(string $value): self
-    {
-        $this->addHeader('X-Appwrite-Mode', $value);
+        $this->addHeader('x-openruntimes-executor-key', $value);
 
         return $this;
     }

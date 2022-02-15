@@ -7,6 +7,10 @@
         {
             "name": "Eldad Fux",
             "email": "eldad@appwrite.io"
+        },
+        {
+            "name": "Christy Jacob",
+            "email": "christy@appwrite.io"
         }
     ],
     "autoload": {

@@ -27,14 +27,20 @@ final class ExecutorTest extends TestCase
 
         $this->client
             ->setEndpoint($this->endpoint)
-            ->addHeader('Content-Type', 'application/json')
-            ->addHeader('x-appwrite-executor-key', 'a-random-secret');
-        ;
+            ->setKey('a-random-secret');
     }
 
     protected function tearDown(): void
     {
         $this->client = null;
+    }
+
+    public function testUnauthorized()
+    {
+        $this->client->setKey('');
+        $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
+        $this->assertEquals(401, $response['headers']['status-code']);
+        $this->assertEquals('Missing executor key', $response['body']['message']);
     }
 
 
