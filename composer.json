@@ -35,6 +35,7 @@
         "utopia-php/framework": "0.19.*",
         "utopia-php/logger": "0.1.*",
         "utopia-php/cli": "0.11.*",
+        "utopia-php/storage": "0.5.*",
         "utopia-php/registry": "0.5.*",
         "utopia-php/preloader": "0.2.*",
         "utopia-php/swoole": "0.3.*",

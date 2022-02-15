@@ -27,6 +27,8 @@ final class ExecutorTest extends TestCase
 
         $this->client
             ->setEndpoint($this->endpoint)
+            ->addHeader('Content-Type', 'application/json')
+            ->addHeader('x-appwrite-executor-key', 'a-random-secret');
         ;
     }
 
@@ -36,28 +38,10 @@ final class ExecutorTest extends TestCase
     }
 
 
-    public function testRuntimeExample(): void
+    public function testGetRuntimes(): void
     {
-        $response = $this->client->call([
-            'id' => 1
-        ]);
-
-        self::assertEquals(200, $response['code']);
-        self::assertEquals('Hello Open Runtimes 👋', $response['body']['message']);
-        self::assertEquals('1', $response['body']['todo']['userId']);
-        self::assertEquals('1', $response['body']['todo']['id']);
-        self::assertEquals('delectus aut autem', $response['body']['todo']['title']);
-        self::assertEquals(false, $response['body']['todo']['completed']);
-
-        $response = $this->call([
-            'payload' => '{"id":"2"}'
-        ]);
-
-        self::assertEquals(200, $response['code']);
-        self::assertEquals('Hello Open Runtimes 👋', $response['body']['message']);
-        self::assertEquals('1', $response['body']['todo']['userId']);
-        self::assertEquals('2', $response['body']['todo']['id']);
-        self::assertEquals('quis ut nam facilis et officia qui', $response['body']['todo']['title']);
-        self::assertEquals(false, $response['body']['todo']['completed']);
+        $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals(0, count($response['body']));
     }
 } 

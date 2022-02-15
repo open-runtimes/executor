@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e9f574a1c08e0116f07c2b19a1b9d7e8",
+    "content-hash": "d30906cd86a6901e0b1da37e23db2a22",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -382,6 +382,58 @@
                 "source": "https://github.com/utopia-php/registry/tree/0.5.0"
             },
             "time": "2021-03-10T10:45:22+00:00"
+        },
+        {
+            "name": "utopia-php/storage",
+            "version": "0.5.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/utopia-php/storage.git",
+                "reference": "e672aa3fc2a8ba689aff65f68ff29f1d608223b8"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/utopia-php/storage/zipball/e672aa3fc2a8ba689aff65f68ff29f1d608223b8",
+                "reference": "e672aa3fc2a8ba689aff65f68ff29f1d608223b8",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.4",
+                "utopia-php/framework": "0.*.*"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9.3",
+                "vimeo/psalm": "4.0.1"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Utopia\\Storage\\": "src/Storage"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Eldad Fux",
+                    "email": "eldad@appwrite.io"
+                }
+            ],
+            "description": "A simple Storage library to manage application storage",
+            "keywords": [
+                "framework",
+                "php",
+                "storage",
+                "upf",
+                "utopia"
+            ],
+            "support": {
+                "issues": "https://github.com/utopia-php/storage/issues",
+                "source": "https://github.com/utopia-php/storage/tree/0.5.1"
+            },
+            "time": "2021-12-13T15:17:14+00:00"
         },
         {
             "name": "utopia-php/swoole",
