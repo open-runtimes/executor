@@ -18,6 +18,8 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./tests/resources/functions:/storage/functions:rw
+      - ./app:/usr/local/app:rw
+      # - ./vendor/utopia-php/orchestration:/usr/local/vendor/utopia-php/orchestration:rw
       - openruntime-builds:/storage/builds:rw
       - /tmp:/tmp:rw
     environment:
@@ -34,8 +36,8 @@ services:
       - OPENRUNTIMES_LOGGING_PROVIDER
       - OPENRUNTIMES_LOGGING_CONFIG
       - OPENRUNTIMES_INACTIVE_THRESHOLD
-      - DOCKERHUB_PULL_USERNAME
-      - DOCKERHUB_PULL_PASSWORD
+      - OPENRUNTIMES_DOCKERHUB_PULL_USERNAME
+      - OPENRUNTIMES_DOCKERHUB_PULL_PASSWORD
 
 networks:
   runtimes:

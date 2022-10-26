@@ -20,7 +20,6 @@ WORKDIR /usr/local/
 
 # Add Source Code
 COPY ./app /usr/local/app
-COPY ./src /usr/local/src
 COPY ./tests /usr/local/tests
 
 COPY --from=composer /usr/local/src/vendor /usr/local/vendor
