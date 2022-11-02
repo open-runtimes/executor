@@ -3,19 +3,9 @@
     "description": "Serverless runtimes executor for container based environments ⚡️",
     "type": "project",
     "license": "MIT",
-    "authors": [
-        {
-            "name": "Eldad Fux",
-            "email": "eldad@appwrite.io"
-        },
-        {
-            "name": "Christy Jacob",
-            "email": "christy@appwrite.io"
-        }
-    ],
     "autoload": {
         "psr-4": {
-            "OpenRuntimes\\Executor\\": "src/OpenRuntimes/Executor"
+            "OpenRuntimes\\": "src/"
         }
     },
     "autoload-dev": {
@@ -23,17 +13,15 @@
             "Tests\\": "tests"
         }
     },
-    "repositories": [
-        {
-            "url": "https://github.com/appwrite/runtimes.git",
-            "type": "git"
-        }
-    ],
+    "scripts": {
+        "lint": "./vendor/bin/pint --preset psr12 --test",
+        "format": "./vendor/bin/pint --preset psr12",
+        "check": "./vendor/bin/phpstan analyse --level max app src tests",
+        "test": "./vendor/bin/phpunit --configuration phpunit.xml --debug"
+    },
     "require": {
         "php": ">=8.0.0",
         "ext-curl": "*",
-        "ext-imagick": "*",
-        "ext-mbstring": "*",
         "ext-json": "*",
         "ext-swoole": "*",
         "utopia-php/framework": "0.21.*",
@@ -48,9 +36,10 @@
         "appwrite/php-runtimes": "dev-feat-upgrade-system-version as 0.11.0"
     },
     "require-dev": {
-        "phpunit/phpunit": "9.5.10",
         "swoole/ide-helper": "4.8.5",
-        "vimeo/psalm": "4.13.1"
+        "phpunit/phpunit": "^9.3",
+        "laravel/pint": "1.2.*",
+        "phpstan/phpstan": "1.8.*"
     },
     "config": {
         "platform": {

@@ -6,15 +6,15 @@ use Exception;
 
 class Client
 {
-    const METHOD_GET = 'GET';
-    const METHOD_POST = 'POST';
-    const METHOD_PUT = 'PUT';
-    const METHOD_PATCH = 'PATCH';
-    const METHOD_DELETE = 'DELETE';
-    const METHOD_HEAD = 'HEAD';
-    const METHOD_OPTIONS = 'OPTIONS';
-    const METHOD_CONNECT = 'CONNECT';
-    const METHOD_TRACE = 'TRACE';
+    public const METHOD_GET = 'GET';
+    public const METHOD_POST = 'POST';
+    public const METHOD_PUT = 'PUT';
+    public const METHOD_PATCH = 'PATCH';
+    public const METHOD_DELETE = 'DELETE';
+    public const METHOD_HEAD = 'HEAD';
+    public const METHOD_OPTIONS = 'OPTIONS';
+    public const METHOD_CONNECT = 'CONNECT';
+    public const METHOD_TRACE = 'TRACE';
 
     /**
      * Is Self Signed Certificates Allowed?
@@ -141,7 +141,7 @@ class Client
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36');
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0); 
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
         curl_setopt($ch, CURLOPT_TIMEOUT, 15);
         curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders) {
             $len = strlen($header);
@@ -170,18 +170,18 @@ class Client
         $responseType   = $responseHeaders['content-type'] ?? '';
         $responseStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-        if($decode) {
+        if ($decode) {
             switch (substr($responseType, 0, strpos($responseType, ';'))) {
                 case 'application/json':
                     $json = json_decode($responseBody, true);
-    
+
                     if ($json === null) {
                         throw new Exception('Failed to parse response: '.$responseBody);
                     }
-    
+
                     $responseBody = $json;
                     $json = null;
-                break;
+                    break;
             }
         }
 

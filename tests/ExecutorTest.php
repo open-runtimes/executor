@@ -10,7 +10,6 @@ error_reporting(E_ALL);
 
 final class ExecutorTest extends TestCase
 {
-
     /**
      * @var Client
      */
@@ -82,7 +81,7 @@ final class ExecutorTest extends TestCase
             'runtime' => 'php-8.0',
             'baseImage' => 'php-runtime:8.0',
         ];
-        
+
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
         $this->assertEquals('ready', $response['body']['status']);
@@ -102,14 +101,14 @@ final class ExecutorTest extends TestCase
         /** Delete runtime */
         $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
-        
+
         /** Delete non existent runtime */
         $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test', [], []);
         $this->assertEquals(404, $response['headers']['status-code']);
         $this->assertEquals('Runtime not found', $response['body']['message']);
     }
 
-    public function testCreateExecution(): void 
+    public function testCreateExecution(): void
     {
         $params = [
             'runtimeId' => "test",
@@ -119,7 +118,7 @@ final class ExecutorTest extends TestCase
             'runtime' => 'php-8.0',
             'baseImage' => 'php-runtime:8.0',
         ];
-        
+
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
         $this->assertEquals('ready', $response['body']['status']);
@@ -143,4 +142,4 @@ final class ExecutorTest extends TestCase
         var_dump($response);
         $this->assertEquals(201, $response['headers']['status-code']);
     }
-} 
+}
