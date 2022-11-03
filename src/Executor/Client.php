@@ -5,6 +5,8 @@ namespace OpenRuntimes\Executor;
 use Exception;
 use Utopia\App;
 
+// TODO: @Meldiron There should be no getEnv in here
+
 class Client
 {
     public const METHOD_GET = 'GET';
@@ -17,11 +19,14 @@ class Client
     public const METHOD_CONNECT = 'CONNECT';
     public const METHOD_TRACE = 'TRACE';
 
-    private $endpoint;
+    private string $endpoint;
 
-    private $selfSigned = false;
+    private bool $selfSigned = false;
 
-    protected $headers = [
+    /**
+     * @var array<string,mixed>
+     */
+    protected array $headers = [
         'content-type' => '',
     ];
 
@@ -64,7 +69,7 @@ class Client
         $route = "/runtimes";
         $headers = [
             'content-type' => 'application/json',
-            'x-appwrite-executor-key' => $key ?? App::getEnv('_APP_FUNCTIONS_PROXY_SECRET', '')
+            'x-appwrite-executor-key' => $key ?? App::getEnv('OPEN_RUNTIMES_EXECUTOR_SECRET', '')
         ];
         $params = [
             'runtimeId' => $runtimeId,
@@ -78,7 +83,7 @@ class Client
             'commands' => $commands
         ];
 
-        $timeout  = (int) App::getEnv('_APP_FUNCTIONS_BUILD_TIMEOUT', 900);
+        $timeout  = (int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_BUILD_TIMEOUT', 900);
 
         $response = $this->call(self::METHOD_POST, $route, $headers, $params, true, $timeout);
 
@@ -102,7 +107,7 @@ class Client
         $route = "/runtimes/$runtimeId";
         $headers = [
             'content-type' =>  'application/json',
-            'x-appwrite-executor-key' => App::getEnv('_APP_FUNCTIONS_PROXY_SECRET', '')
+            'x-appwrite-executor-key' => App::getEnv('OPEN_RUNTIMES_EXECUTOR_SECRET', '')
         ];
 
         $params = [];
@@ -142,7 +147,7 @@ class Client
         $route = "/execution";
         $headers = [
             'content-type' =>  'application/json',
-            'x-appwrite-executor-key' => App::getEnv('_APP_FUNCTIONS_PROXY_SECRET', '')
+            'x-appwrite-executor-key' => App::getEnv('OPEN_RUNTIMES_EXECUTOR_SECRET', '')
         ];
         $params = [
             // execution-related
@@ -194,6 +199,10 @@ class Client
         $responseStatus     = -1;
         $responseType       = '';
         $responseBody       = '';
+
+        if($ch === false) {
+            throw new Exception('Could not prepare CURL request.', 500);
+        }
 
         switch ($headers['content-type']) {
             case 'application/json':

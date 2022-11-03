@@ -1,5 +1,5 @@
 tasks:
-  - name: PHP preparations
+  - name: openruntimes/executor
     init: |
       docker compose pull
       docker compose build

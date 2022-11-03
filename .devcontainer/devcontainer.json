@@ -1,5 +1,5 @@
 {
-    "name": "PHP preparations",
+    "name": "openruntimes/executor",
     "onCreateCommand": "composer install --ignore-platform-reqs",
     "extensions": [
         "ms-azuretools.vscode-docker",

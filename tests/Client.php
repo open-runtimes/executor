@@ -21,21 +21,21 @@ class Client
      *
      * @var bool
      */
-    protected $selfSigned = false;
+    protected bool $selfSigned = false;
 
     /**
      * Service host name
      *
      * @var string
      */
-    protected $endpoint = 'http://openruntimes-executor/v1';
+    protected string $endpoint = 'http://openruntimes-executor/v1';
 
     /**
      * Global Headers
      *
-     * @var array
+     * @var array<string,mixed>
      */
-    protected $headers = [
+    protected array $headers = [
         'content-type' => ''
     ];
 
@@ -108,7 +108,7 @@ class Client
      * @return array|string
      * @throws Exception
      */
-    public function call(string $method, string $path = '', array $headers = [], array $params = [], bool $decode = true)
+    public function call(string $method, string $path = '', array $headers = [], array $params = [], bool $decode = true): array
     {
         $headers            = array_merge($this->headers, $headers);
         $ch                 = curl_init($this->endpoint . $path . (($method == self::METHOD_GET && !empty($params)) ? '?' . http_build_query($params) : ''));
@@ -116,6 +116,10 @@ class Client
         $responseStatus     = -1;
         $responseType       = '';
         $responseBody       = '';
+
+        if($ch === false) {
+            throw new Exception('Could not prepare CURL request.', 500);
+        }
 
         switch ($headers['content-type']) {
             case 'application/json':

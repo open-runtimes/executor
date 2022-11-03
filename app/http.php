@@ -39,9 +39,6 @@ use Utopia\Validator\Text;
 
 Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
 
-// TODO: @Meldiron Should be ENV variable
-const MAINTENANCE_INTERVAL = 3600; // 3600 seconds = 1 hour
-
 /**
 * Create a Swoole table to store runtime information
 */
@@ -60,8 +57,8 @@ $activeRuntimes->create();
  * Create orchestration pool
  */
 $orchestrationPool = new ConnectionPool(function () {
-    $dockerUser = App::getEnv('DOCKERHUB_PULL_USERNAME', null);
-    $dockerPass = App::getEnv('DOCKERHUB_PULL_PASSWORD', null);
+    $dockerUser = App::getEnv('OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_USERNAME', null);
+    $dockerPass = App::getEnv('OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_PASSWORD', null);
     $orchestration = new Orchestration(new DockerCLI($dockerUser, $dockerPass));
     return $orchestration;
 }, 10);
@@ -69,8 +66,8 @@ $orchestrationPool = new ConnectionPool(function () {
 /**
  * Create logger instance
  */
-$providerName = App::getEnv('_APP_LOGGING_PROVIDER', '');
-$providerConfig = App::getEnv('_APP_LOGGING_CONFIG', '');
+$providerName = App::getEnv('OPEN_RUNTIMES_EXECUTOR_LOGGING_PROVIDER', '');
+$providerConfig = App::getEnv('OPEN_RUNTIMES_EXECUTOR_LOGGING_CONFIG', '');
 $logger = null;
 
 if (!empty($providerName) && !empty($providerConfig) && Logger::hasProvider($providerName)) {
@@ -108,7 +105,7 @@ function logError(Throwable $error, string $action, Utopia\Route $route = null)
 
         $log->setAction($action);
 
-        $isProduction = App::getEnv('_APP_ENV', 'development') === 'production';
+        $isProduction = App::getEnv('OPEN_RUNTIMES_EXECUTOR_ENV', 'development') === 'production';
         $log->setEnvironment($isProduction ? Log::ENVIRONMENT_PRODUCTION : Log::ENVIRONMENT_STAGING);
 
         $responseCode = $logger->addLog($log);
@@ -123,43 +120,43 @@ function logError(Throwable $error, string $action, Utopia\Route $route = null)
 
 function getStorageDevice($root): Device
 {
-    switch (App::getEnv('_APP_STORAGE_DEVICE', Storage::DEVICE_LOCAL)) {
+    switch (App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_DEVICE', Storage::DEVICE_LOCAL)) {
         case Storage::DEVICE_LOCAL:
         default:
             return new Local($root);
         case Storage::DEVICE_S3:
-            $s3AccessKey = App::getEnv('_APP_STORAGE_S3_ACCESS_KEY', '');
-            $s3SecretKey = App::getEnv('_APP_STORAGE_S3_SECRET', '');
-            $s3Region = App::getEnv('_APP_STORAGE_S3_REGION', '');
-            $s3Bucket = App::getEnv('_APP_STORAGE_S3_BUCKET', '');
+            $s3AccessKey = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_ACCESS_KEY', '');
+            $s3SecretKey = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_SECRET', '');
+            $s3Region = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_REGION', '');
+            $s3Bucket = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_BUCKET', '');
             $s3Acl = 'private';
             return new S3($root, $s3AccessKey, $s3SecretKey, $s3Bucket, $s3Region, $s3Acl);
         case Storage::DEVICE_DO_SPACES:
-            $doSpacesAccessKey = App::getEnv('_APP_STORAGE_DO_SPACES_ACCESS_KEY', '');
-            $doSpacesSecretKey = App::getEnv('_APP_STORAGE_DO_SPACES_SECRET', '');
-            $doSpacesRegion = App::getEnv('_APP_STORAGE_DO_SPACES_REGION', '');
-            $doSpacesBucket = App::getEnv('_APP_STORAGE_DO_SPACES_BUCKET', '');
+            $doSpacesAccessKey = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_ACCESS_KEY', '');
+            $doSpacesSecretKey = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_SECRET', '');
+            $doSpacesRegion = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_REGION', '');
+            $doSpacesBucket = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_BUCKET', '');
             $doSpacesAcl = 'private';
             return new DOSpaces($root, $doSpacesAccessKey, $doSpacesSecretKey, $doSpacesBucket, $doSpacesRegion, $doSpacesAcl);
         case Storage::DEVICE_BACKBLAZE:
-            $backblazeAccessKey = App::getEnv('_APP_STORAGE_BACKBLAZE_ACCESS_KEY', '');
-            $backblazeSecretKey = App::getEnv('_APP_STORAGE_BACKBLAZE_SECRET', '');
-            $backblazeRegion = App::getEnv('_APP_STORAGE_BACKBLAZE_REGION', '');
-            $backblazeBucket = App::getEnv('_APP_STORAGE_BACKBLAZE_BUCKET', '');
+            $backblazeAccessKey = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_ACCESS_KEY', '');
+            $backblazeSecretKey = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_SECRET', '');
+            $backblazeRegion = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_REGION', '');
+            $backblazeBucket = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_BUCKET', '');
             $backblazeAcl = 'private';
             return new Backblaze($root, $backblazeAccessKey, $backblazeSecretKey, $backblazeBucket, $backblazeRegion, $backblazeAcl);
         case Storage::DEVICE_LINODE:
-            $linodeAccessKey = App::getEnv('_APP_STORAGE_LINODE_ACCESS_KEY', '');
-            $linodeSecretKey = App::getEnv('_APP_STORAGE_LINODE_SECRET', '');
-            $linodeRegion = App::getEnv('_APP_STORAGE_LINODE_REGION', '');
-            $linodeBucket = App::getEnv('_APP_STORAGE_LINODE_BUCKET', '');
+            $linodeAccessKey = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_ACCESS_KEY', '');
+            $linodeSecretKey = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_SECRET', '');
+            $linodeRegion = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_REGION', '');
+            $linodeBucket = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_BUCKET', '');
             $linodeAcl = 'private';
             return new Linode($root, $linodeAccessKey, $linodeSecretKey, $linodeBucket, $linodeRegion, $linodeAcl);
         case Storage::DEVICE_WASABI:
-            $wasabiAccessKey = App::getEnv('_APP_STORAGE_WASABI_ACCESS_KEY', '');
-            $wasabiSecretKey = App::getEnv('_APP_STORAGE_WASABI_SECRET', '');
-            $wasabiRegion = App::getEnv('_APP_STORAGE_WASABI_REGION', '');
-            $wasabiBucket = App::getEnv('_APP_STORAGE_WASABI_BUCKET', '');
+            $wasabiAccessKey = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_ACCESS_KEY', '');
+            $wasabiSecretKey = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_SECRET', '');
+            $wasabiRegion = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_REGION', '');
+            $wasabiBucket = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_BUCKET', '');
             $wasabiAcl = 'private';
             return new Wasabi($root, $wasabiAccessKey, $wasabiSecretKey, $wasabiBucket, $wasabiRegion, $wasabiAcl);
     }
@@ -253,9 +250,9 @@ App::post('/v1/runtimes')
             ]);
             $variables = array_map(fn ($v) => strval($v), $variables);
             $orchestration
-                ->setCpus((int) App::getEnv('_APP_FUNCTIONS_CPUS', 0))
-                ->setMemory((int) App::getEnv('_APP_FUNCTIONS_MEMORY', 0))
-                ->setSwap((int) App::getEnv('_APP_FUNCTIONS_MEMORY_SWAP', 0));
+                ->setCpus((int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_CPUS', 0))
+                ->setMemory((int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_MEMORY', 0))
+                ->setSwap((int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_MEMORY_SWAP', 0));
 
             /** Keep the container alive if we have commands to be executed */
             $entrypoint = !empty($commands) ? [
@@ -284,7 +281,7 @@ App::post('/v1/runtimes')
                 throw new Exception('Failed to create build container', 500);
             }
 
-            $orchestration->networkConnect($runtimeId, App::getEnv('OPEN_RUNTIMES_NETWORK', 'executor_runtimes'));
+            $orchestration->networkConnect($runtimeId, App::getEnv('OPEN_RUNTIMES_EXECUTOR_NETWORK', 'executor_runtimes'));
 
             /**
              * Execute any commands if they were provided
@@ -295,7 +292,7 @@ App::post('/v1/runtimes')
                     command: $commands,
                     stdout: $stdout,
                     stderr: $stderr,
-                    timeout: App::getEnv('_APP_FUNCTIONS_BUILD_TIMEOUT', 900)
+                    timeout: App::getEnv('OPEN_RUNTIMES_EXECUTOR_BUILD_TIMEOUT', 900)
                 );
 
                 if (!$status) {
@@ -359,7 +356,8 @@ App::post('/v1/runtimes')
             // Silently try to kill container
             try {
                 $orchestration->remove($containerId, true);
-            } catch(Throwable $th) {}
+            } catch(Throwable $th) {
+            }
 
             $orchestrationPool->put($orchestration);
 
@@ -477,7 +475,7 @@ App::post('/v1/execution')
     ->param('runtimeId', '', new Text(64), 'The runtimeID to execute.')
     ->param('payload', '', new Text(8192), 'Data to be forwarded to the function, this is user specified.', true)
     ->param('variables', [], new Assoc(), 'Environment variables required for the build and execution.', true)
-    ->param('timeout', 15, new Range(1, (int) App::getEnv('_APP_FUNCTIONS_TIMEOUT', 900)), 'Function maximum execution time in seconds.', true)
+    ->param('timeout', 15, new Range(1, (int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_MAX_TIMEOUT', "900")), 'Function maximum execution time in seconds.', true)
     // Runtime-related
     ->param('image', '', new Text(128), 'Base image name of the runtime.', true)
     ->param('source', '', new Text(0), 'Path to source files.', true)
@@ -496,7 +494,7 @@ App::post('/v1/execution')
 
             // Prepare runtime
             if (!$activeRuntimes->exists($activeRuntimeId)) {
-                if(empty($image) || empty($source) || empty($entrypoint)) {
+                if (empty($image) || empty($source) || empty($entrypoint)) {
                     throw new Exception('Runtime not found. Please start it first or provide runtime-related parameters.', 401);
                 }
 
@@ -510,7 +508,7 @@ App::post('/v1/execution')
                             image: $image,
                             variables: $variables,
                             entrypoint: $entrypoint,
-                            key: App::getEnv('_APP_EXECUTOR_SECRET', '')
+                            key: App::getEnv('OPEN_RUNTIMES_EXECUTOR_SECRET', '')
                         );
 
                         break;
@@ -560,9 +558,10 @@ App::post('/v1/execution')
                 $errNo = -1;
                 $executorResponse = '';
 
-                $timeout ??= (int) App::getEnv('_APP_FUNCTIONS_TIMEOUT', 900);
+                $timeout ??= (int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_MAX_TIMEOUT', 900);
 
                 $ch = \curl_init();
+
                 $body = \json_encode([
                     'variables' => $variables,
                     'payload' => $payload,
@@ -681,7 +680,7 @@ App::setMode(App::MODE_TYPE_PRODUCTION); // Define Mode
 $http = new Server("0.0.0.0", 80);
 
 $payloadSize = 6 * (1024 * 1024); // 6MB
-$workerNumber = swoole_cpu_num() * intval(App::getEnv('_APP_WORKER_PER_CORE', 6));
+$workerNumber = swoole_cpu_num() * intval(App::getEnv('OPEN_RUNTIMES_EXECUTOR_WORKER_PER_CORE', 6));
 
 $http
     ->set([
@@ -750,7 +749,7 @@ App::init()
     ->inject('request')
     ->action(function (Request $request) {
         $secretKey = $request->getHeader('x-appwrite-executor-key', '');
-        if (empty($secretKey) || $secretKey !== App::getEnv('_APP_EXECUTOR_SECRET', '')) {
+        if (empty($secretKey) || $secretKey !== App::getEnv('OPEN_RUNTIMES_EXECUTOR_SECRET', '')) {
             throw new Exception('Missing executor key', 401);
         }
     });
@@ -771,7 +770,7 @@ $http->on('start', function ($http) {
         $orchestrationPool->put($orchestration);
     }
 
-    if(\count($orphans) === 0) {
+    if (\count($orphans) === 0) {
         Console::log("No orphan runtimes found.");
     }
 
@@ -799,7 +798,7 @@ $http->on('start', function ($http) {
      */
     Console::info('Pulling runtime images...');
     $runtimes = new Runtimes('v2');
-    $allowList = empty(App::getEnv('_APP_FUNCTIONS_RUNTIMES')) ? [] : \explode(',', App::getEnv('_APP_FUNCTIONS_RUNTIMES'));
+    $allowList = empty(App::getEnv('OPEN_RUNTIMES_EXECUTOR_RUNTIMES')) ? [] : \explode(',', App::getEnv('OPEN_RUNTIMES_EXECUTOR_RUNTIMES'));
     $runtimes = $runtimes->getAll(true, $allowList);
     $callables = [];
     foreach ($runtimes as $runtime) {
@@ -841,7 +840,7 @@ $http->on('start', function ($http) {
                     throw new Exception('Missing executor key', 401);
                 }
 
-                if ($secretKey !== App::getEnv('_APP_EXECUTOR_SECRET', '')) {
+                if ($secretKey !== App::getEnv('OPEN_RUNTIMES_EXECUTOR_SECRET', '')) {
                     throw new Exception('Missing executor key', 401);
                 }
 
@@ -922,13 +921,14 @@ $http->on('start', function ($http) {
     });
 
     /**
-     * Run a maintenance worker every MAINTENANCE_INTERVAL seconds to remove inactive runtimes
+     * Run a maintenance worker every X seconds to remove inactive runtimes
      */
     Console::info('Starting maintenance interval...');
-    Timer::tick(MAINTENANCE_INTERVAL * 1000, function () use ($orchestrationPool, $activeRuntimes) {
+    $interval = (int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
+    Timer::tick($interval * 1000, function () use ($orchestrationPool, $activeRuntimes) {
         Console::info("Running maintenance task ...");
         foreach ($activeRuntimes as $activeRuntimeId => $runtime) {
-            $inactiveThreshold = \time() - App::getEnv('_APP_FUNCTIONS_INACTIVE_THRESHOLD', 60);
+            $inactiveThreshold = \time() - App::getEnv('OPEN_RUNTIMES_EXECUTOR_INACTIVE_TRESHOLD', 60);
             if ($runtime['updated'] < $inactiveThreshold) {
                 go(function () use ($activeRuntimeId, $runtime, $orchestrationPool, $activeRuntimes) {
                     try {

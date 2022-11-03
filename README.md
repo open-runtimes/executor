@@ -1,5 +1,10 @@
 # Executor
 
+TODO:
+
+- Address TODOs in code
+- Write proper documentation (readme, contributing, code of conduct)
+
 Execute + Cold Start:
 
 ```bash

@@ -1,18 +1,14 @@
-name: "Tester"
+name: "Tests"
 
 on: [pull_request]
 jobs:
   tests:
-    name: Tester
+    name: Tests
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 2
-
-    - run: git checkout HEAD^2
+    - name: Check out the repo
+      uses: actions/checkout@v2
 
     - name: Start Test Stack
       run:  |
