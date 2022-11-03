@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Appwrite\Runtimes\Runtimes;
+use OpenRuntimes\Executor\Client;
 use Swoole\ConnectionPool;
 use Swoole\Http\Request as SwooleRequest;
 use Swoole\Http\Response as SwooleResponse;
@@ -34,6 +35,8 @@ use Utopia\Validator\Boolean;
 use Utopia\Validator\Range;
 use Utopia\Validator\Text;
 
+// TODO: @Meldiron Rename all env variables
+
 Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
 
 // TODO: @Meldiron Should be ENV variable
@@ -52,6 +55,7 @@ $activeRuntimes->column('status', Table::TYPE_STRING, 128);
 $activeRuntimes->column('key', Table::TYPE_STRING, 256);
 $activeRuntimes->create();
 
+// TODO: @Meldiron Use utopia/pools
 /**
  * Create orchestration pool
  */
@@ -61,7 +65,6 @@ $orchestrationPool = new ConnectionPool(function () {
     $orchestration = new Orchestration(new DockerCLI($dockerUser, $dockerPass));
     return $orchestration;
 }, 10);
-
 
 /**
  * Create logger instance
@@ -81,7 +84,7 @@ function logError(Throwable $error, string $action, Utopia\Route $route = null)
     global $logger;
 
     if ($logger) {
-        $version = App::getEnv('_APP_VERSION', 'UNKNOWN');
+        $version = App::getEnv('OPEN_RUNTIMES_EXECUTOR_VERSION', 'UNKNOWN');
 
         $log = new Log();
         $log->setNamespace("executor");
@@ -165,19 +168,18 @@ function getStorageDevice($root): Device
 App::post('/v1/runtimes')
     ->desc("Create a new runtime server")
     ->param('runtimeId', '', new Text(64), 'Unique runtime ID.')
+    ->param('image', '', new Text(128), 'Base image name of the runtime.')
     ->param('source', '', new Text(0), 'Path to source files.')
+    ->param('entrypoint', '', new Text(256), 'Entrypoint of the code file.')
     ->param('destination', '', new Text(0), 'Destination folder to store build files into.', true)
-    ->param('vars', [], new Assoc(), 'Environment Variables required for the build.')
-    ->param('commands', [], new ArrayList(new Text(1024), 100), 'Commands required to build the container. Maximum of 100 commands are allowed, each 1024 characters long.')
-    ->param('runtime', '', new Text(128), 'Runtime for the cloud function.')
-    ->param('baseImage', '', new Text(128), 'Base image name of the runtime.')
-    ->param('entrypoint', '', new Text(256), 'Entrypoint of the code file.', true)
-    ->param('remove', false, new Boolean(), 'Remove a runtime after execution.')
+    ->param('variables', [], new Assoc(), 'Environment Variables required for the build.', true)
+    ->param('commands', [], new ArrayList(new Text(1024), 100), 'Commands required to build the container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('workdir', '', new Text(256), 'Working directory.', true)
+    ->param('remove', false, new Boolean(), 'Remove a runtime after execution.', true)
     ->inject('orchestrationPool')
     ->inject('activeRuntimes')
     ->inject('response')
-    ->action(function (string $runtimeId, string $source, string $destination, array $vars, array $commands, string $runtime, string $baseImage, string $entrypoint, bool $remove, string $workdir, $orchestrationPool, $activeRuntimes, Response $response) {
+    ->action(function (string $runtimeId, string $image, string $source, string $entrypoint, string $destination, array $variables, array $commands, string $workdir, bool $remove, ConnectionPool $orchestrationPool, Table $activeRuntimes, Response $response) {
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
@@ -244,12 +246,12 @@ App::post('/v1/runtimes')
             /**
              * Create container
              */
-            $vars = \array_merge($vars, [
+            $variables = \array_merge($variables, [
                 'INTERNAL_RUNTIME_KEY' => $secret,
                 'INTERNAL_RUNTIME_ENTRYPOINT' => $entrypoint,
                 'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
             ]);
-            $vars = array_map(fn ($v) => strval($v), $vars);
+            $variables = array_map(fn ($v) => strval($v), $variables);
             $orchestration
                 ->setCpus((int) App::getEnv('_APP_FUNCTIONS_CPUS', 0))
                 ->setMemory((int) App::getEnv('_APP_FUNCTIONS_MEMORY', 0))
@@ -263,18 +265,13 @@ App::post('/v1/runtimes')
             ] : [];
 
             $containerId = $orchestration->run(
-                image: $baseImage,
+                image: $image,
                 name: $runtimeId,
                 hostname: $runtimeHostname,
-                vars: $vars,
+                vars: $variables,
                 command: $entrypoint,
                 labels: [
-                    'openruntimes-id' => $runtimeId,
-                    'openruntimes-hostname' => $runtimeHostname,
-                    'openruntimes-type' => 'runtime',
                     'openruntimes-executor' => System::getHostname(),
-                    'openruntimes-created' => strval($startTimeUnix),
-                    'openruntimes-runtime' => $runtime
                 ],
                 workdir: $workdir,
                 volumes: [
@@ -287,7 +284,7 @@ App::post('/v1/runtimes')
                 throw new Exception('Failed to create build container', 500);
             }
 
-            $orchestration->networkConnect($runtimeId, App::getEnv('OPEN_RUNTIMES_NETWORK', 'appwrite_runtimes'));
+            $orchestration->networkConnect($runtimeId, App::getEnv('OPEN_RUNTIMES_NETWORK', 'executor_runtimes'));
 
             /**
              * Execute any commands if they were provided
@@ -358,30 +355,38 @@ App::post('/v1/runtimes')
         } catch (Throwable $th) {
             Console::error('Build failed: ' . $th->getMessage() . $stdout);
 
+            $activeRuntimes->del($activeRuntimeId);
+            // Silently try to kill container
+            try {
+                $orchestration->remove($containerId, true);
+            } catch(Throwable $th) {}
+
+            $orchestrationPool->put($orchestration);
+
             throw new Exception($th->getMessage() . $stdout, 500);
-        } finally {
-            // Container cleanup
-            if ($remove) {
-                if (!empty($containerId)) {
-                    // If container properly created
-                    $orchestration->remove($containerId, true);
+        }
+
+        // Container cleanup
+        if ($remove) {
+            if (!empty($containerId)) {
+                // If container properly created
+                $orchestration->remove($containerId, true);
+                $activeRuntimes->del($activeRuntimeId);
+            } else {
+                // If whole creation failed, but container might have been initialized
+                try {
+                    // Try to remove with contaier name instead of ID
+                    $orchestration->remove($runtimeId, true);
                     $activeRuntimes->del($activeRuntimeId);
-                } else {
-                    // If whole creation failed, but container might have been initialized
-                    try {
-                        // Try to remove with contaier name instead of ID
-                        $orchestration->remove($runtimeId, true);
-                        $activeRuntimes->del($activeRuntimeId);
-                    } catch (Throwable $th) {
-                        // If fails, means initialization also failed.
-                        // Contianer is not there, no need to remove
-                    }
+                } catch (Throwable $th) {
+                    // If fails, means initialization also failed.
+                    // Contianer is not there, no need to remove
                 }
             }
-
-            // Release orchestration back to pool, we are done with it
-            $orchestrationPool->put($orchestration);
         }
+
+        // Release orchestration back to pool, we are done with it
+        $orchestrationPool->put($orchestration);
 
         $response
             ->setStatusCode(Response::STATUS_CODE_CREATED)
@@ -468,46 +473,43 @@ App::delete('/v1/runtimes/:runtimeId')
 
 App::post('/v1/execution')
     ->desc('Create an execution')
-    // execution-related
+    // Execution-related
     ->param('runtimeId', '', new Text(64), 'The runtimeID to execute.')
-    ->param('vars', [], new Assoc(), 'Environment variables required for the build and execution.')
-    ->param('data', '', new Text(8192), 'Data to be forwarded to the function, this is user specified.', true)
-    ->param('timeout', 15, new Range(1, (int) App::getEnv('_APP_FUNCTIONS_TIMEOUT', 900)), 'Function maximum execution time in seconds.')
-    // runtime-related
-    // TODO: @Meldiron these are all optional I think?
-    ->param('source', '', new Text(0), 'Path to source files.')
-    ->param('runtime', '', new Text(128), 'Runtime for the cloud function.')
-    ->param('baseImage', '', new Text(128), 'Base image name of the runtime.')
+    ->param('payload', '', new Text(8192), 'Data to be forwarded to the function, this is user specified.', true)
+    ->param('variables', [], new Assoc(), 'Environment variables required for the build and execution.', true)
+    ->param('timeout', 15, new Range(1, (int) App::getEnv('_APP_FUNCTIONS_TIMEOUT', 900)), 'Function maximum execution time in seconds.', true)
+    // Runtime-related
+    ->param('image', '', new Text(128), 'Base image name of the runtime.', true)
+    ->param('source', '', new Text(0), 'Path to source files.', true)
     ->param('entrypoint', '', new Text(256), 'Entrypoint of the code file.', true)
     ->inject('activeRuntimes')
     ->inject('response')
     ->action(
-        function (string $runtimeId, array $vars, string $data, $timeout, string $source, string $runtime, string $baseImage, string $entrypoint, $activeRuntimes, Response $response) {
+        function (string $runtimeId, string $payload, array $variables, int $timeout, string $image, string $source, string $entrypoint, Table $activeRuntimes, Response $response) {
             $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
             $originalRuntimeId = $runtimeId; // Used in Docker (createRuntime request)
             $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
-            $vars = \array_merge($vars, [
+            $variables = \array_merge($variables, [
                 'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
             ]);
 
-            // TODO: @Meldiron Better code structure so this can be function call and not HTTP request
             // Prepare runtime
             if (!$activeRuntimes->exists($activeRuntimeId)) {
-                $executor = new Executor('http://localhost/v1');
+                if(empty($image) || empty($source) || empty($entrypoint)) {
+                    throw new Exception('Runtime not found. Please start it first or provide runtime-related parameters.', 401);
+                }
+
+                $executor = new Client('http://localhost/v1');
 
                 for ($i = 0; $i < 5; $i++) {
                     try {
-                        [ $projectId, $deploymentId ] = \explode('-', $originalRuntimeId);
-                        $runtimeResponse = $executor->createRuntime(
-                            projectId: $projectId,
-                            deploymentId: $deploymentId,
+                        $executor->createRuntime(
+                            runtimeId: $originalRuntimeId,
                             source: $source,
-                            runtime: $runtime,
-                            baseImage: $baseImage,
-                            vars: $vars,
+                            image: $image,
+                            variables: $variables,
                             entrypoint: $entrypoint,
-                            commands: [],
                             key: App::getEnv('_APP_EXECUTOR_SECRET', '')
                         );
 
@@ -550,7 +552,7 @@ App::post('/v1/execution')
             $executionStart = \microtime(true);
 
             // Prepare request to executor
-            $sendExecuteRequest = function () use ($vars, $data, $secret, $hostname, &$executionStart, &$timeout) {
+            $sendExecuteRequest = function () use ($variables, $payload, $secret, $hostname, &$executionStart, &$timeout) {
                 // Restart execution timer to not could failed attempts
                 $executionStart = \microtime(true);
 
@@ -562,9 +564,9 @@ App::post('/v1/execution')
 
                 $ch = \curl_init();
                 $body = \json_encode([
-                    'variables' => $vars,
-                    'payload' => $data,
-                    'timeout' => $timeout
+                    'variables' => $variables,
+                    'payload' => $payload,
+                    'timeout' => $timeout // TODO: @Meldiron Why do we need timeout here?
                 ]);
 
                 \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000/");
@@ -732,7 +734,7 @@ App::error()
             'file' => $error->getFile(),
             'line' => $error->getLine(),
             'trace' => $error->getTrace(),
-            'version' => App::getEnv('_APP_VERSION', 'UNKNOWN')
+            'version' => App::getEnv('OPEN_RUNTIMES_EXECUTOR_VERSION', 'UNKNOWN')
         ];
 
         $response
@@ -748,11 +750,7 @@ App::init()
     ->inject('request')
     ->action(function (Request $request) {
         $secretKey = $request->getHeader('x-appwrite-executor-key', '');
-        if (empty($secretKey)) {
-            throw new Exception('Missing executor key', 401);
-        }
-
-        if ($secretKey !== App::getEnv('_APP_EXECUTOR_SECRET', '')) {
+        if (empty($secretKey) || $secretKey !== App::getEnv('_APP_EXECUTOR_SECRET', '')) {
             throw new Exception('Missing executor key', 401);
         }
     });
@@ -763,8 +761,73 @@ $http->on('start', function ($http) {
     global $activeRuntimes;
 
     /**
+     * Remove residual runtimes
+     */
+    Console::info('Removing orphan runtimes...');
+    try {
+        $orchestration = $orchestrationPool->get();
+        $orphans = $orchestration->list(['label' => 'openruntimes-executor=' . System::getHostname()]);
+    } finally {
+        $orchestrationPool->put($orchestration);
+    }
+
+    if(\count($orphans) === 0) {
+        Console::log("No orphan runtimes found.");
+    }
+
+    $callables = [];
+    foreach ($orphans as $runtime) {
+        $callables[] = function () use ($runtime, $orchestrationPool) {
+            try {
+                $orchestration = $orchestrationPool->get();
+                $orchestration->remove($runtime->getName(), true);
+                Console::success("Successfully removed {$runtime->getName()}");
+            } catch (\Throwable $th) {
+                Console::error('Orphan runtime deletion failed: ' . $th->getMessage());
+            } finally {
+                $orchestrationPool->put($orchestration);
+            }
+        };
+    }
+
+    Swoole\Coroutine\batch($callables);
+
+    Console::success("Done.");
+
+    /**
+     * Warmup: make sure images are ready to run fast 🚀
+     */
+    Console::info('Pulling runtime images...');
+    $runtimes = new Runtimes('v2');
+    $allowList = empty(App::getEnv('_APP_FUNCTIONS_RUNTIMES')) ? [] : \explode(',', App::getEnv('_APP_FUNCTIONS_RUNTIMES'));
+    $runtimes = $runtimes->getAll(true, $allowList);
+    $callables = [];
+    foreach ($runtimes as $runtime) {
+        $callables[] =function () use ($runtime, $orchestrationPool) {
+            try {
+                $orchestration = $orchestrationPool->get();
+                Console::log('Warming up ' . $runtime['name'] . ' ' . $runtime['version'] . ' environment...');
+                $response = $orchestration->pull($runtime['image']);
+                if ($response) {
+                    Console::info("Successfully Warmed up {$runtime['name']} {$runtime['version']}!");
+                } else {
+                    Console::warning("Failed to Warmup {$runtime['name']} {$runtime['version']}!");
+                }
+            } catch (\Throwable $th) {
+            } finally {
+                $orchestrationPool->put($orchestration);
+            }
+        };
+    }
+
+    Swoole\Coroutine\batch($callables);
+
+    Console::success("Done.");
+
+    /**
      * Start separate HTTP server for Health API
      */
+    Console::info('Starting Health HTTP server...');
     \go(function () use ($orchestrationPool) {
         $healthServer = new Swoole\Coroutine\Http\Server('0.0.0.0', 3000, false);
 
@@ -840,55 +903,6 @@ $http->on('start', function ($http) {
     });
 
     /**
-     * Warmup: make sure images are ready to run fast 🚀
-     */
-    $runtimes = new Runtimes('v2');
-    $allowList = empty(App::getEnv('_APP_FUNCTIONS_RUNTIMES')) ? [] : \explode(',', App::getEnv('_APP_FUNCTIONS_RUNTIMES'));
-    $runtimes = $runtimes->getAll(true, $allowList);
-    foreach ($runtimes as $runtime) {
-        go(function () use ($runtime, $orchestrationPool) {
-            try {
-                $orchestration = $orchestrationPool->get();
-                Console::info('Warming up ' . $runtime['name'] . ' ' . $runtime['version'] . ' environment...');
-                $response = $orchestration->pull($runtime['image']);
-                if ($response) {
-                    Console::success("Successfully Warmed up {$runtime['name']} {$runtime['version']}!");
-                } else {
-                    Console::warning("Failed to Warmup {$runtime['name']} {$runtime['version']}!");
-                }
-            } catch (\Throwable $th) {
-            } finally {
-                $orchestrationPool->put($orchestration);
-            }
-        });
-    }
-
-    /**
-     * Remove residual runtimes
-     */
-    Console::info('Removing orphan runtimes...');
-    try {
-        $orchestration = $orchestrationPool->get();
-        $orphans = $orchestration->list(['label' => 'openruntimes-executor=' . System::getHostname()]);
-    } finally {
-        $orchestrationPool->put($orchestration);
-    }
-
-    foreach ($orphans as $runtime) {
-        go(function () use ($runtime, $orchestrationPool) {
-            try {
-                $orchestration = $orchestrationPool->get();
-                $orchestration->remove($runtime->getName(), true);
-                Console::success("Successfully removed {$runtime->getName()}");
-            } catch (\Throwable $th) {
-                Console::error('Orphan runtime deletion failed: ' . $th->getMessage());
-            } finally {
-                $orchestrationPool->put($orchestration);
-            }
-        });
-    }
-
-    /**
      * Register handlers for shutdown
      */
     @Process::signal(SIGINT, function () use ($http) {
@@ -910,8 +924,9 @@ $http->on('start', function ($http) {
     /**
      * Run a maintenance worker every MAINTENANCE_INTERVAL seconds to remove inactive runtimes
      */
+    Console::info('Starting maintenance interval...');
     Timer::tick(MAINTENANCE_INTERVAL * 1000, function () use ($orchestrationPool, $activeRuntimes) {
-        Console::warning("Running maintenance task ...");
+        Console::info("Running maintenance task ...");
         foreach ($activeRuntimes as $activeRuntimeId => $runtime) {
             $inactiveThreshold = \time() - App::getEnv('_APP_FUNCTIONS_INACTIVE_THRESHOLD', 60);
             if ($runtime['updated'] < $inactiveThreshold) {
@@ -929,9 +944,11 @@ $http->on('start', function ($http) {
                 });
             }
         }
+        Console::success("Done.");
     });
-});
 
+    Console::success('Done.');
+});
 
 $http->on('beforeShutdown', function () {
     global $orchestrationPool;
@@ -955,7 +972,6 @@ $http->on('beforeShutdown', function () {
         });
     }
 });
-
 
 $http->on('request', function (SwooleRequest $swooleRequest, SwooleResponse $swooleResponse) {
     $request = new Request($swooleRequest);

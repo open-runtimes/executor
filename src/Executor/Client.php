@@ -38,30 +38,26 @@ class Client
      *
      * Launches a runtime container for a deployment ready for execution
      *
-     * @param string $projectId
-     * @param string $deploymentId
+     * @param string $runtimeId
      * @param string $source
-     * @param string $runtime
-     * @param string $baseImage
+     * @param string $image
      * @param bool $remove
      * @param string $entrypoint
      * @param string $workdir
      * @param string $destinaction
      * @param string $network
-     * @param array $vars
+     * @param array $variables
      * @param array $commands
      */
     public function createRuntime(
-        string $projectId,
-        string $deploymentId,
+        string $runtimeId,
         string $source,
-        string $runtime,
-        string $baseImage,
+        string $image,
         bool $remove = false,
         string $entrypoint = '',
         string $workdir = '',
         string $destination = '',
-        array $vars = [],
+        array $variables = [],
         array $commands = [],
         string $key = null
     ) {
@@ -71,14 +67,13 @@ class Client
             'x-appwrite-executor-key' => $key ?? App::getEnv('_APP_FUNCTIONS_PROXY_SECRET', '')
         ];
         $params = [
-            'runtimeId' => $projectId . '-' . $deploymentId,
+            'runtimeId' => $runtimeId,
             'source' => $source,
             'destination' => $destination,
-            'runtime' => $runtime,
-            'baseImage' => $baseImage,
+            'image' => $image,
             'entrypoint' => $entrypoint,
             'workdir' => $workdir,
-            'vars' => $vars,
+            'variables' => $variables,
             'remove' => $remove,
             'commands' => $commands
         ];
@@ -100,12 +95,10 @@ class Client
      *
      * Deletes a runtime and cleans up any containers remaining.
      *
-     * @param string $projectId
-     * @param string $deploymentId
+     * @param string $runtimeId
      */
-    public function deleteRuntime(string $projectId, string $deploymentId)
+    public function deleteRuntime(string $runtimeId)
     {
-        $runtimeId = "$projectId-$deploymentId";
         $route = "/runtimes/$runtimeId";
         $headers = [
             'content-type' =>  'application/json',
@@ -127,27 +120,23 @@ class Client
     /**
      * Create an execution
      *
-     * @param string $projectId
-     * @param string $deploymentId
+     * @param string $runtimeId
      * @param string $path
-     * @param array $vars
+     * @param array $variables
      * @param string $entrypoint
      * @param string $data
-     * @param string runtime
-     * @param string $baseImage
+     * @param string $image
      * @param int $timeout
      *
      * @return array
      */
     public function createExecution(
-        string $projectId,
-        string $deploymentId,
+        string $runtimeId,
         string $path,
-        array $vars,
+        array $variables,
         string $entrypoint,
         string $data,
-        string $runtime,
-        string $baseImage,
+        string $image,
         $timeout
     ) {
         $route = "/execution";
@@ -157,20 +146,15 @@ class Client
         ];
         $params = [
             // execution-related
-            'runtimeId' => "$projectId-$deploymentId",
-            'vars' => $vars,
+            'runtimeId' => $runtimeId,
+            'variables' => $variables,
             'data' => $data,
             'timeout' => $timeout,
 
             // runtime-related
-            'deploymentId' => $deploymentId,
-            'projectId' => $projectId,
             'source' => $path,
-            'runtime' => $runtime,
-            'baseImage' => $baseImage,
-            'vars' => $vars,
-            'entrypoint' => $entrypoint,
-            'commands' => []
+            'image' => $image,
+            'entrypoint' => $entrypoint
         ];
 
         /* Add 2 seconds as a buffer to the actual timeout value since there can be a slight variance*/
