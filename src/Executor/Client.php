@@ -200,7 +200,7 @@ class Client
         $responseType       = '';
         $responseBody       = '';
 
-        if($ch === false) {
+        if ($ch === false) {
             throw new Exception('Could not prepare CURL request.', 500);
         }
 
