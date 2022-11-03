@@ -16,6 +16,7 @@ use Utopia\App;
 use Utopia\CLI\Console;
 use Utopia\Logger\Log;
 use Utopia\Logger\Logger;
+use Utopia\Logger\Adapter;
 use Utopia\Orchestration\Adapter\DockerCLI;
 use Utopia\Orchestration\Orchestration;
 use Utopia\Storage\Device;
@@ -36,6 +37,7 @@ use Utopia\Validator\Range;
 use Utopia\Validator\Text;
 
 // TODO: @Meldiron Rename all env variables
+// TODO: @Meldiron give all action types
 
 Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
 
@@ -57,8 +59,8 @@ $activeRuntimes->create();
  * Create orchestration pool
  */
 $orchestrationPool = new ConnectionPool(function () {
-    $dockerUser = App::getEnv('OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_USERNAME', null);
-    $dockerPass = App::getEnv('OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_PASSWORD', null);
+    $dockerUser = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_USERNAME', '');
+    $dockerPass = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_PASSWORD', '');
     $orchestration = new Orchestration(new DockerCLI($dockerUser, $dockerPass));
     return $orchestration;
 }, 10);
@@ -66,26 +68,30 @@ $orchestrationPool = new ConnectionPool(function () {
 /**
  * Create logger instance
  */
-$providerName = App::getEnv('OPEN_RUNTIMES_EXECUTOR_LOGGING_PROVIDER', '');
-$providerConfig = App::getEnv('OPEN_RUNTIMES_EXECUTOR_LOGGING_CONFIG', '');
+$providerName = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_LOGGING_PROVIDER', '');
+$providerConfig = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_LOGGING_CONFIG', '');
 $logger = null;
 
 if (!empty($providerName) && !empty($providerConfig) && Logger::hasProvider($providerName)) {
     $classname = '\\Utopia\\Logger\\Adapter\\' . \ucfirst($providerName);
+    /**
+     * @var Adapter $adapter
+     */
     $adapter = new $classname($providerConfig);
+    // TODO: @Meldiron Replace with switch/case as usual
     $logger = new Logger($adapter);
 }
 
-function logError(Throwable $error, string $action, Utopia\Route $route = null)
+function logError(Throwable $error, string $action, Utopia\Route $route = null): void
 {
     global $logger;
 
     if ($logger) {
-        $version = App::getEnv('OPEN_RUNTIMES_EXECUTOR_VERSION', 'UNKNOWN');
+        $version = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_VERSION', 'UNKNOWN');
 
         $log = new Log();
         $log->setNamespace("executor");
-        $log->setServer(\gethostname());
+        $log->setServer(\gethostname() !== false ? \gethostname() : null);
         $log->setVersion($version);
         $log->setType(Log::TYPE_ERROR);
         $log->setMessage($error->getMessage());
@@ -105,7 +111,7 @@ function logError(Throwable $error, string $action, Utopia\Route $route = null)
 
         $log->setAction($action);
 
-        $isProduction = App::getEnv('OPEN_RUNTIMES_EXECUTOR_ENV', 'development') === 'production';
+        $isProduction = ((string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_ENV', 'development')) === 'production';
         $log->setEnvironment($isProduction ? Log::ENVIRONMENT_PRODUCTION : Log::ENVIRONMENT_STAGING);
 
         $responseCode = $logger->addLog($log);
@@ -118,45 +124,45 @@ function logError(Throwable $error, string $action, Utopia\Route $route = null)
     Console::error('[Error] Line: ' . $error->getLine());
 }
 
-function getStorageDevice($root): Device
+function getStorageDevice(string $root): Device
 {
     switch (App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_DEVICE', Storage::DEVICE_LOCAL)) {
         case Storage::DEVICE_LOCAL:
         default:
             return new Local($root);
         case Storage::DEVICE_S3:
-            $s3AccessKey = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_ACCESS_KEY', '');
-            $s3SecretKey = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_SECRET', '');
-            $s3Region = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_REGION', '');
-            $s3Bucket = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_BUCKET', '');
+            $s3AccessKey = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_ACCESS_KEY', '');
+            $s3SecretKey = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_SECRET', '');
+            $s3Region = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_REGION', '');
+            $s3Bucket = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_BUCKET', '');
             $s3Acl = 'private';
             return new S3($root, $s3AccessKey, $s3SecretKey, $s3Bucket, $s3Region, $s3Acl);
         case Storage::DEVICE_DO_SPACES:
-            $doSpacesAccessKey = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_ACCESS_KEY', '');
-            $doSpacesSecretKey = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_SECRET', '');
-            $doSpacesRegion = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_REGION', '');
-            $doSpacesBucket = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_BUCKET', '');
+            $doSpacesAccessKey = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_ACCESS_KEY', '');
+            $doSpacesSecretKey = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_SECRET', '');
+            $doSpacesRegion = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_REGION', '');
+            $doSpacesBucket = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_BUCKET', '');
             $doSpacesAcl = 'private';
             return new DOSpaces($root, $doSpacesAccessKey, $doSpacesSecretKey, $doSpacesBucket, $doSpacesRegion, $doSpacesAcl);
         case Storage::DEVICE_BACKBLAZE:
-            $backblazeAccessKey = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_ACCESS_KEY', '');
-            $backblazeSecretKey = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_SECRET', '');
-            $backblazeRegion = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_REGION', '');
-            $backblazeBucket = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_BUCKET', '');
+            $backblazeAccessKey = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_ACCESS_KEY', '');
+            $backblazeSecretKey = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_SECRET', '');
+            $backblazeRegion = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_REGION', '');
+            $backblazeBucket = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_BUCKET', '');
             $backblazeAcl = 'private';
             return new Backblaze($root, $backblazeAccessKey, $backblazeSecretKey, $backblazeBucket, $backblazeRegion, $backblazeAcl);
         case Storage::DEVICE_LINODE:
-            $linodeAccessKey = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_ACCESS_KEY', '');
-            $linodeSecretKey = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_SECRET', '');
-            $linodeRegion = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_REGION', '');
-            $linodeBucket = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_BUCKET', '');
+            $linodeAccessKey = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_ACCESS_KEY', '');
+            $linodeSecretKey = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_SECRET', '');
+            $linodeRegion = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_REGION', '');
+            $linodeBucket = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_BUCKET', '');
             $linodeAcl = 'private';
             return new Linode($root, $linodeAccessKey, $linodeSecretKey, $linodeBucket, $linodeRegion, $linodeAcl);
         case Storage::DEVICE_WASABI:
-            $wasabiAccessKey = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_ACCESS_KEY', '');
-            $wasabiSecretKey = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_SECRET', '');
-            $wasabiRegion = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_REGION', '');
-            $wasabiBucket = App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_BUCKET', '');
+            $wasabiAccessKey = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_ACCESS_KEY', '');
+            $wasabiSecretKey = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_SECRET', '');
+            $wasabiRegion = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_REGION', '');
+            $wasabiBucket = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_BUCKET', '');
             $wasabiAcl = 'private';
             return new Wasabi($root, $wasabiAccessKey, $wasabiSecretKey, $wasabiBucket, $wasabiRegion, $wasabiAcl);
     }
@@ -250,9 +256,9 @@ App::post('/v1/runtimes')
             ]);
             $variables = array_map(fn ($v) => strval($v), $variables);
             $orchestration
-                ->setCpus((int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_CPUS', 0))
-                ->setMemory((int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_MEMORY', 0))
-                ->setSwap((int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_MEMORY_SWAP', 0));
+                ->setCpus((int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_CPUS', '0'))
+                ->setMemory((int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_MEMORY', '0'))
+                ->setSwap((int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_MEMORY_SWAP', '0'));
 
             /** Keep the container alive if we have commands to be executed */
             $entrypoint = !empty($commands) ? [

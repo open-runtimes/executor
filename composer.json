@@ -16,7 +16,7 @@
     "scripts": {
         "lint": "./vendor/bin/pint --preset psr12 --test",
         "format": "./vendor/bin/pint --preset psr12",
-        "check": "./vendor/bin/phpstan analyse --level max app src tests",
+        "check": "./vendor/bin/phpstan analyse --level 8 app src tests",
         "test": "./vendor/bin/phpunit --configuration phpunit.xml --debug"
     },
     "require": {
