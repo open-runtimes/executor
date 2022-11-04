@@ -104,17 +104,19 @@ $register->set('activeRuntimes', function () {
 });
 
 /** Set Resources */
-App::setResource('register', function() use (&$register) { return $register; });
+App::setResource('register', function () use (&$register) {
+    return $register;
+});
 
-App::setResource('orchestrationPool', function(Registry $register) {
+App::setResource('orchestrationPool', function (Registry $register) {
     return $register->get('orchestrationPool');
 }, ['register']);
 
-App::setResource('activeRuntimes', function(Registry $register) {
+App::setResource('activeRuntimes', function (Registry $register) {
     return $register->get('activeRuntimes');
 }, ['register']);
 
-App::setResource('logger', function(Registry $register) {
+App::setResource('logger', function (Registry $register) {
     return $register->get('logger');
 }, ['register']);
 
@@ -574,9 +576,9 @@ App::post('/v1/execution')
 
                     // No error
                     if ($errNo === 0) {
-                        if($statusCode >= 400) {
+                        if ($statusCode >= 400) {
                             $body = \json_decode($error, true);
-                            throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $body['message' ?? $error], 500);
+                            throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . ($body['message'] ?? $error), 500);
                         }
                         break;
                     }
@@ -746,51 +748,50 @@ App::post('/v1/execution')
         }
     );
 
-    App::get('/v1/health')
-    ->desc("Get health status of host machine and runtimes.")
-    ->inject('orchestrationPool')
-    ->inject('response')
-    ->action(function (Pool $orchestrationPool, Response $response) {
-        // TODO: @Meldiron Interval, here just read from Table.
+App::get('/v1/health')
+->desc("Get health status of host machine and runtimes.")
+->inject('orchestrationPool')
+->inject('response')
+->action(function (Pool $orchestrationPool, Response $response) {
+    // TODO: @Meldiron Interval, here just read from Table.
 
-        $output = [
-            'status' => 'pass'
-        ];
+    $output = [
+        'status' => 'pass'
+    ];
 
-        /** @phpstan-ignore-next-line */
-        Swoole\Coroutine\batch(
-            [
-                function () use (&$output) {
-                    $output['hostUsage'] = System::getCPUUsage(5);
-                },
-                function () use (&$output, $orchestrationPool) {
-                    $functionsUsage = [];
+    /** @phpstan-ignore-next-line */
+    Swoole\Coroutine\batch(
+        [
+            function () use (&$output) {
+                $output['hostUsage'] = System::getCPUUsage(5);
+            },
+            function () use (&$output, $orchestrationPool) {
+                $functionsUsage = [];
 
-                    try {
-                        $connection = $orchestrationPool->pop();
-                        $orchestration = $connection->getResource();
-                        $containerUsages = $orchestration->getStats(
-                            filters: [ 'label' => 'openruntimes-executor=' . System::getHostname() ],
-                            cycles: 3
-                        );
+                try {
+                    $connection = $orchestrationPool->pop();
+                    $orchestration = $connection->getResource();
+                    $containerUsages = $orchestration->getStats(
+                        filters: [ 'label' => 'openruntimes-executor=' . System::getHostname() ],
+                        cycles: 3
+                    );
 
-                        foreach ($containerUsages as $containerUsage) {
-                            $functionsUsage[$containerUsage['name']] = $containerUsage['cpu'] * 100;
-                        }
-                    } finally {
-                        isset($connection) && $orchestrationPool->push($connection);
+                    foreach ($containerUsages as $containerUsage) {
+                        $functionsUsage[$containerUsage['name']] = $containerUsage['cpu'] * 100;
                     }
-
-                    $output['functionsUsage'] = $functionsUsage;
+                } finally {
+                    isset($connection) && $orchestrationPool->push($connection);
                 }
-            ]
-        );
 
-        $response
-            ->setStatusCode(Response::STATUS_CODE_OK)
-            ->json($output);
-     
-    });
+                $output['functionsUsage'] = $functionsUsage;
+            }
+        ]
+    );
+
+    $response
+        ->setStatusCode(Response::STATUS_CODE_OK)
+        ->json($output);
+});
 
 
 /** Set callbacks */
@@ -852,7 +853,7 @@ App::init()
 
 /** @phpstan-ignore-next-line */
 Co\run(
-    function() use($register) {
+    function () use ($register) {
         $orchestrationPool = $register->get('orchestrationPool');
         $activeRuntimes = $register->get('activeRuntimes');
 
