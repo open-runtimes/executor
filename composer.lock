@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "97d73da096b8de96d43dfafdbc3b505b",
+    "content-hash": "ee0463f1636d88b591eeec6e584705b5",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -348,6 +348,60 @@
                 "source": "https://github.com/utopia-php/orchestration/tree/feat-usage-stats"
             },
             "time": "2022-10-16T14:31:23+00:00"
+        },
+        {
+            "name": "utopia-php/pools",
+            "version": "dev-upgrade-cli",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/utopia-php/pools.git",
+                "reference": "88a2c1ed2badbfdf2787ce0a12def2c988fc1097"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/utopia-php/pools/zipball/88a2c1ed2badbfdf2787ce0a12def2c988fc1097",
+                "reference": "88a2c1ed2badbfdf2787ce0a12def2c988fc1097",
+                "shasum": ""
+            },
+            "require": {
+                "ext-mongodb": "*",
+                "ext-pdo": "*",
+                "ext-redis": "*",
+                "php": ">=8.0",
+                "utopia-php/cli": "0.13.*"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9.4",
+                "vimeo/psalm": "4.0.1"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Utopia\\Pools\\": "src/Pools"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Team Appwrite",
+                    "email": "team@appwrite.io"
+                }
+            ],
+            "description": "A simple library to manage connection pools",
+            "keywords": [
+                "framework",
+                "php",
+                "pools",
+                "utopia"
+            ],
+            "support": {
+                "issues": "https://github.com/utopia-php/pools/issues",
+                "source": "https://github.com/utopia-php/pools/tree/upgrade-cli"
+            },
+            "time": "2022-11-04T08:33:04+00:00"
         },
         {
             "name": "utopia-php/preloader",
@@ -2470,6 +2524,12 @@
             "alias_normalized": "0.6.0.0"
         },
         {
+            "package": "utopia-php/pools",
+            "version": "dev-upgrade-cli",
+            "alias": "0.2.0",
+            "alias_normalized": "0.2.0.0"
+        },
+        {
             "package": "utopia-php/system",
             "version": "dev-feat-cpu-usage",
             "alias": "0.5.0",
@@ -2478,6 +2538,7 @@
     ],
     "minimum-stability": "stable",
     "stability-flags": {
+        "utopia-php/pools": 20,
         "utopia-php/system": 20,
         "utopia-php/orchestration": 20,
         "appwrite/php-runtimes": 20
@@ -2494,5 +2555,5 @@
     "platform-overrides": {
         "php": "8.0"
     },
-    "plugin-api-version": "2.2.0"
+    "plugin-api-version": "2.3.0"
 }

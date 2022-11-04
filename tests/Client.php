@@ -16,54 +16,17 @@ class Client
     public const METHOD_CONNECT = 'CONNECT';
     public const METHOD_TRACE = 'TRACE';
 
-    /**
-     * Is Self Signed Certificates Allowed?
-     *
-     * @var bool
-     */
     protected bool $selfSigned = false;
 
-    /**
-     * Service host name
-     *
-     * @var string
-     */
-    protected string $endpoint = 'http://openruntimes-executor/v1';
+    protected string $endpoint = '';
 
     /**
-     * Global Headers
-     *
-     * @var array<string,mixed>
+     * @var array<string, string>
      */
     protected array $headers = [
         'content-type' => ''
     ];
 
-    /**
-     * SDK constructor.
-     */
-    public function __construct()
-    {
-    }
-
-    /**
-     * Set Key
-     *
-     * @param string $value
-     *
-     * @return self $this
-     */
-    public function setKey(string $value): self
-    {
-        $this->addHeader('x-openruntimes-executor-key', $value);
-
-        return $this;
-    }
-
-    /**
-     * @param bool $status true
-     * @return self $this
-     */
     public function setSelfSigned(bool $status = true): self
     {
         $this->selfSigned = $status;
@@ -71,55 +34,44 @@ class Client
         return $this;
     }
 
-    /**
-     * @param mixed $endpoint
-     * @return self $this
-     */
-    public function setEndpoint($endpoint): self
+    public function setEndpoint(string $endpoint): self
     {
         $this->endpoint = $endpoint;
 
         return $this;
     }
 
-    /**
-     * @param string $key
-     * @param string $value
-     *
-     * @return self $this
-     */
+    public function getEndpoint(): string
+    {
+        return $this->endpoint;
+    }
+
     public function addHeader(string $key, string $value): self
     {
-        $this->headers[strtolower($key)] = strtolower($value);
+        $this->headers[strtolower($key)] = $value;
 
         return $this;
     }
 
+
     /**
-     * Call
-     *
-     * Make an API call
-     *
-     * @param string $method
-     * @param string $path
-     * @param array $params
-     * @param array $headers
-     * @param bool $decode
-     * @return array|string
-     * @throws Exception
+     * @param array<string, string> $headers
+     * @param array<string, mixed> $params
+     * @return array<string, mixed>
      */
     public function call(string $method, string $path = '', array $headers = [], array $params = [], bool $decode = true): array
     {
         $headers            = array_merge($this->headers, $headers);
         $ch                 = curl_init($this->endpoint . $path . (($method == self::METHOD_GET && !empty($params)) ? '?' . http_build_query($params) : ''));
+
+        if (!$ch) {
+            throw new Exception('Could not prepare CURL request.');
+        }
+
         $responseHeaders    = [];
         $responseStatus     = -1;
         $responseType       = '';
         $responseBody       = '';
-
-        if ($ch === false) {
-            throw new Exception('Could not prepare CURL request.', 500);
-        }
 
         switch ($headers['content-type']) {
             case 'application/json':
@@ -140,6 +92,7 @@ class Client
             unset($headers[$i]);
         }
 
+        curl_setopt($ch, CURLOPT_PATH_AS_IS, 1);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
@@ -175,12 +128,18 @@ class Client
         $responseStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
         if ($decode) {
-            switch (substr($responseType, 0, strpos($responseType, ';'))) {
+            $strpos = strpos($responseType, ';');
+            $strpos = \is_bool($strpos) ? 0 : $strpos;
+            switch (substr($responseType, 0, $strpos)) {
                 case 'application/json':
+                    if (\is_bool($responseBody)) {
+                        throw new Exception('Response is not a valid JSON.');
+                    }
+
                     $json = json_decode($responseBody, true);
 
                     if ($json === null) {
-                        throw new Exception('Failed to parse response: '.$responseBody);
+                        throw new Exception('Failed to parse response: ' . $responseBody);
                     }
 
                     $responseBody = $json;
@@ -198,7 +157,7 @@ class Client
         $responseHeaders['status-code'] = $responseStatus;
 
         if ($responseStatus === 500) {
-            echo 'Server error('.$method.': '.$path.'. Params: '.json_encode($params).'): '.json_encode($responseBody)."\n";
+            echo 'Server error(' . $method . ': ' . $path . '. Params: ' . json_encode($params) . '): ' . json_encode($responseBody) . '\n';
         }
 
         return [
@@ -208,10 +167,7 @@ class Client
     }
 
     /**
-     * Parse Cookie String
-     *
-     * @param string $cookie
-     * @return array
+     * @return array<string,mixed>
      */
     public function parseCookie(string $cookie): array
     {
@@ -223,11 +179,8 @@ class Client
     }
 
     /**
-     * Flatten params array to PHP multiple format
-     *
-     * @param array $data
-     * @param string $prefix
-     * @return array
+     * @param array<string,mixed> $data
+     * @return array<string,mixed>
      */
     protected function flatten(array $data, string $prefix = ''): array
     {
@@ -244,5 +197,19 @@ class Client
         }
 
         return $output;
+    }
+
+    /**
+     * Set Key
+     *
+     * @param string $value
+     *
+     * @return self $this
+     */
+    public function setKey(string $value): self
+    {
+        $this->addHeader('authorization', 'Bearer ' . $value);
+
+        return $this;
     }
 }

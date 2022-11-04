@@ -4,18 +4,13 @@ namespace Tests;
 
 use PHPUnit\Framework\TestCase;
 
-// TODO: @Meldiron Write more proper tests
-
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+// TODO: @Meldiron Write more tests (validators mainly)
 
 final class ExecutorTest extends TestCase
 {
-    /**
-     * @var Client
-     */
-    protected $client;
+    protected Client $client;
+
+    protected string $key;
 
     /**
      * @var string
@@ -26,116 +21,164 @@ final class ExecutorTest extends TestCase
     {
         $this->client = new Client();
 
+        $this->key = 'executor-secret-key';
+
         $this->client
             ->setEndpoint($this->endpoint)
             ->addHeader('Content-Type', 'application/json')
-            ->setKey('a-random-secret');
-    }
-    public function testUnauthorized(): void
-    {
-        $this->client->setKey('');
-        $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
-        $this->assertEquals(401, $response['headers']['status-code']);
-        $this->assertEquals('Missing executor key', $response['body']['message']);
+            ->setKey($this->key);
     }
 
-    public function testUnknownRoute(): void
+    public function testErrors(): void
     {
         $response = $this->client->call(Client::METHOD_GET, '/unknown', [], []);
         $this->assertEquals(404, $response['headers']['status-code']);
         $this->assertEquals('Not Found', $response['body']['message']);
-    }
 
-    public function testGetRuntimes(): void
-    {
         $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(0, count($response['body']));
-    }
 
-    public function testGetRuntime(): void
-    {
         $response = $this->client->call(Client::METHOD_GET, '/runtimes/id', [], []);
         $this->assertEquals(404, $response['headers']['status-code']);
         $this->assertEquals('Runtime not found', $response['body']['message']);
-    }
 
-    public function testDeleteRuntime(): void
-    {
         $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test', [], []);
         $this->assertEquals(404, $response['headers']['status-code']);
         $this->assertEquals('Runtime not found', $response['body']['message']);
+
+        $this->client->setKey('');
+        $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
+        $this->assertEquals(401, $response['headers']['status-code']);
+        $this->assertEquals('Missing executor key', $response['body']['message']);
+        $this->client->setKey($this->key);
     }
 
-    public function testCreateRuntime(): void
+    /**
+     * @return array<string,mixed>
+     */
+    public function testBuild(): array
     {
+        /** Build runtime */
         $params = [
-            'runtimeId' => "test",
-            'source' => '/storage/functions/php-fn.tar.gz',
+            'runtimeId' => 'test-build',
+            'source' => '/storage/functions/php.tar.gz',
             'destination' => '/storage/builds/test',
-            'vars' => [],
-            'runtime' => 'php-8.0',
-            'baseImage' => 'php-runtime:8.0',
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v2-8.0',
+            'workdir' => '/usr/code',
+            'commands' => [
+                'sh', '-c',
+                'tar -zxf /tmp/code.tar.gz -C /usr/code && \
+                cd /usr/local/src/ && ./build.sh'
+            ]
         ];
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
         $this->assertEquals('ready', $response['body']['status']);
-        $this->assertEquals('Build Successful!', $response['body']['stdout']);
+        $this->assertIsString($response['body']['outputPath']);
+        $this->assertIsString($response['body']['stderr']);
+        $this->assertIsString($response['body']['stdout']);
+        $this->assertIsInt($response['body']['duration']);
+        $this->assertIsInt($response['body']['startTimeUnix']);
+        $this->assertIsInt($response['body']['endTimeUnix']);
+
+        $outputPath = $response['body']['outputPath'];
 
         /** List runtimes */
         $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(1, count($response['body']));
-        $this->assertEquals('runtime-test', $response['body'][0]['name']);
+        $this->assertEquals('test-build', $response['body'][0]['name']);
 
         /** Get runtime */
-        $response = $this->client->call(Client::METHOD_GET, '/runtimes/test', [], []);
+        $response = $this->client->call(Client::METHOD_GET, '/runtimes/test-build', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
-        $this->assertEquals('runtime-test', $response['body']['name']);
+        $this->assertEquals('test-build', $response['body']['name']);
 
         /** Delete runtime */
-        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test', [], []);
+        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-build', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
 
         /** Delete non existent runtime */
-        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test', [], []);
+        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-build', [], []);
         $this->assertEquals(404, $response['headers']['status-code']);
         $this->assertEquals('Runtime not found', $response['body']['message']);
+
+        /** Self-deleting build */
+        $params['runtimeId'] = 'test-build-selfdelete';
+        $params['remove'] = true;
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(201, $response['headers']['status-code']);
+        $this->assertEquals('ready', $response['body']['status']);
+
+        $response = $this->client->call(Client::METHOD_GET, '/runtimes/test-build-selfdelete', [], []);
+        $this->assertEquals(404, $response['headers']['status-code']);
+
+        return [ 'path' => $outputPath ];
     }
 
-    public function testCreateExecution(): void
+    /**
+     * @depends testBuild
+     *
+     * @param array<string,mixed> $data
+     */
+    public function testExecute(array $data): void
     {
+        // TODO: @Meldiron test timeout execution. Timeout build too?
+
+        /** Execute on running runtime */
         $params = [
-            'runtimeId' => "test",
-            'source' => '/storage/functions/php-fn.tar.gz',
-            'destination' => '/storage/builds/test',
-            'vars' => [],
-            'runtime' => 'php-8.0',
-            'baseImage' => 'php-runtime:8.0',
+            'runtimeId' => 'test-exec',
+            'source' => $data['path'],
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v2-8.0',
         ];
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
         $this->assertEquals('ready', $response['body']['status']);
-        $this->assertEquals('Build Successful!', $response['body']['stdout']);
-        $outputPath = $response['body']['outputPath'];
-        $this->assertNotEmpty($outputPath);
 
-        /** Create Execution */
-        $params = [
-            'runtimeId' => 'test',
-            'path' => $outputPath,
-            'vars' => [],
-            'data' => '',
-            'runtime' => 'php-8.0',
+        $response = $this->client->call(Client::METHOD_POST, '/execution', [], [
+            'runtimeId' => 'test-exec',
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals(200, $response['body']['statusCode']);
+        $this->assertEquals('completed', $response['body']['status']);
+        $this->assertEquals('log1', $response['body']['stdout']);
+        $this->assertIsString($response['body']['stderr']);
+        $this->assertEmpty($response['body']['stderr']);
+        $this->assertIsFloat($response['body']['duration']);
+        $this->assertLessThan(0.5, $response['body']['duration']);
+        $this->assertEquals('{"payload":"","variable":"","unicode":"Unicode magic: êä"}', $response['body']['response']);
+
+        /** Execute witn data and variables */
+        $response = $this->client->call(Client::METHOD_POST, '/execution', [], [
+            'runtimeId' => 'test-exec',
+            'payload' => 'test payload',
+            'variables' => [
+                'customVariable' => 'mySecret'
+            ]
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals('{"payload":"test payload","variable":"mySecret","unicode":"Unicode magic: êä"}', $response['body']['response']);
+
+        /** Delete runtime */
+        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec', [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
+
+        /** Execute on new runtime */
+        $response = $this->client->call(Client::METHOD_POST, '/execution', [], [
+            'runtimeId' => 'test-exec-coldstart',
+            'source' => $data['path'],
             'entrypoint' => 'index.php',
-            'timeout' => 15,
-            'baseImage' => 'php-runtime:8.0',
-        ];
+            'image' => 'openruntimes/php:v2-8.0',
+        ]);
 
-        $response = $this->client->call(Client::METHOD_POST, '/execution', [], $params);
-        var_dump($response);
-        $this->assertEquals(201, $response['headers']['status-code']);
+        $this->assertEquals(200, $response['headers']['status-code']);
     }
 }
