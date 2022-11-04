@@ -5,8 +5,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use Appwrite\Runtimes\Runtimes;
 use Swoole\Http\Request as SwooleRequest;
 use Swoole\Http\Response as SwooleResponse;
-use Swoole\Http\Server;
-use Swoole\Process;
+use Swoole\Coroutine\Http\Server;
 use Swoole\Runtime;
 use Swoole\Table;
 use Swoole\Timer;
@@ -41,6 +40,8 @@ use Utopia\Registry\Registry;
 
 Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
 
+App::setMode((string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_ENV', App::MODE_TYPE_PRODUCTION));
+
 // Setup Registry
 $register = new Registry();
 
@@ -71,7 +72,7 @@ $register->set('logger', function () {
  * Create orchestration pool
  */
 $register->set('orchestrationPool', function () {
-    $pool = new Pool('orchestration-pool', 10, function () {
+    $pool = new Pool('orchestration-pool', 30, function () {
         $dockerUser = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_USERNAME', '');
         $dockerPass = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_PASSWORD', '');
         $orchestration = new Orchestration(new DockerCLI($dockerUser, $dockerPass));
@@ -89,6 +90,7 @@ $register->set('orchestrationPool', function () {
 */
 $register->set('activeRuntimes', function () {
     $table = new Table(1024);
+
     $table->column('id', Table::TYPE_STRING, 256);
     $table->column('created', Table::TYPE_INT, 8);
     $table->column('updated', Table::TYPE_INT, 8);
@@ -100,6 +102,21 @@ $register->set('activeRuntimes', function () {
 
     return $table;
 });
+
+/** Set Resources */
+App::setResource('register', function() use (&$register) { return $register; });
+
+App::setResource('orchestrationPool', function(Registry $register) {
+    return $register->get('orchestrationPool');
+}, ['register']);
+
+App::setResource('activeRuntimes', function(Registry $register) {
+    return $register->get('activeRuntimes');
+}, ['register']);
+
+App::setResource('logger', function(Registry $register) {
+    return $register->get('logger');
+}, ['register']);
 
 function logError(Throwable $error, string $action, Logger $logger = null, Utopia\Route $route = null): void
 {
@@ -217,7 +234,7 @@ App::post('/v1/runtimes')
         $containerId = '';
         $stdout = '';
         $stderr = '';
-        $startTimeUnix = \time();
+        $startTimeUnix = \microtime(true);
         $endTimeUnix = 0;
         $connection = $orchestrationPool->pop();
         $orchestration = $connection->getResource();
@@ -229,8 +246,8 @@ App::post('/v1/runtimes')
                 'id' => $containerId,
                 'name' => $activeRuntimeId,
                 'hostname' => $runtimeHostname,
-                'created' => $startTimeUnix,
-                'updated' => $endTimeUnix,
+                'created' => (int) $startTimeUnix,
+                'updated' => \time(),
                 'status' => 'pending',
                 'key' => $secret,
             ]);
@@ -349,15 +366,15 @@ App::post('/v1/runtimes')
                 $stdout = 'Build Successful!';
             }
 
-            $endTimeUnix = \time();
+            $endTimeUnix = \microtime(true);
             $duration = $endTimeUnix - $startTimeUnix;
 
             $container = array_merge($container, [
                 'status' => 'ready',
                 'stdout' => \mb_strcut($stdout, 0, 1000000), // Limit to 1MB
                 'stderr' => \mb_strcut($stderr, 0, 1000000), // Limit to 1MB
-                'startTimeUnix' => $startTimeUnix,
-                'endTimeUnix' => $endTimeUnix,
+                'startTimeUnix' => (int) $startTimeUnix,
+                'endTimeUnix' => (int) $endTimeUnix,
                 'duration' => $duration,
             ]);
 
@@ -366,8 +383,8 @@ App::post('/v1/runtimes')
                     'id' => $containerId,
                     'name' => $activeRuntimeId,
                     'hostname' => $runtimeHostname,
-                    'created' => $startTimeUnix,
-                    'updated' => $endTimeUnix,
+                    'created' => (int) $startTimeUnix,
+                    'updated' => \time(),
                     'status' => 'Up ' . \round($duration, 2) . 's',
                     'key' => $secret,
                 ]);
@@ -420,8 +437,6 @@ App::get('/v1/runtimes')
         foreach ($activeRuntimes as $runtime) {
             $runtimes[] = $runtime;
         }
-
-        \var_dump($runtimes);
 
         $response
             ->setStatusCode(Response::STATUS_CODE_OK)
@@ -478,8 +493,6 @@ App::delete('/v1/runtimes/:runtimeId')
             ->send();
     });
 
-// TODO: @Meldiron Might be useful to have 'remove' in createExecution
-
 App::post('/v1/execution')
     ->desc('Create an execution')
     // Execution-related
@@ -496,7 +509,6 @@ App::post('/v1/execution')
     ->action(
         function (string $runtimeId, string $payload, array $variables, int $timeout, string $image, string $source, string $entrypoint, Table $activeRuntimes, Response $response) {
             $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
-            $originalRuntimeId = $runtimeId; // Used in Docker (createRuntime request)
             $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
             $variables = \array_merge($variables, [
@@ -510,7 +522,7 @@ App::post('/v1/execution')
                 }
 
                 // Prepare request to executor
-                $sendCreateRuntimeRequest = function () use ($image, $source, $entrypoint, $variables) {
+                $sendCreateRuntimeRequest = function () use ($activeRuntimeId, $image, $source, $entrypoint, $variables) {
                     $statusCode = 0;
                     $errNo = -1;
                     $executorResponse = '';
@@ -518,6 +530,7 @@ App::post('/v1/execution')
                     $ch = \curl_init();
 
                     $body = \json_encode([
+                        'runtimeId' => $activeRuntimeId,
                         'image' => $image,
                         'source' => $source,
                         'entrypoint' => $entrypoint,
@@ -561,6 +574,10 @@ App::post('/v1/execution')
 
                     // No error
                     if ($errNo === 0) {
+                        if($statusCode >= 400) {
+                            $body = \json_decode($error, true);
+                            throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $body['message' ?? $error], 500);
+                        }
                         break;
                     }
 
@@ -619,7 +636,7 @@ App::post('/v1/execution')
                 $body = \json_encode([
                     'variables' => $variables,
                     'payload' => $payload,
-                    'timeout' => $timeout // TODO: @Meldiron Why do we need timeout here?
+                    'headers' => [] // TODO: @Meldiron Forward headers when becomes relevant (Appwrite proxy)
                 ]);
 
                 \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000/");
@@ -729,29 +746,52 @@ App::post('/v1/execution')
         }
     );
 
-App::setMode(App::MODE_TYPE_PRODUCTION); // Define Mode
+    App::get('/v1/health')
+    ->desc("Get health status of host machine and runtimes.")
+    ->inject('orchestrationPool')
+    ->inject('response')
+    ->action(function (Pool $orchestrationPool, Response $response) {
+        // TODO: @Meldiron Interval, here just read from Table.
 
-$http = new Server("0.0.0.0", 80);
+        $output = [
+            'status' => 'pass'
+        ];
 
-$payloadSize = 6 * (1024 * 1024); // 6MB
-$workerNumber = swoole_cpu_num() * intval(App::getEnv('OPEN_RUNTIMES_EXECUTOR_WORKER_PER_CORE', 6));
+        /** @phpstan-ignore-next-line */
+        Swoole\Coroutine\batch(
+            [
+                function () use (&$output) {
+                    $output['hostUsage'] = System::getCPUUsage(5);
+                },
+                function () use (&$output, $orchestrationPool) {
+                    $functionsUsage = [];
 
-$http
-    ->set([
-        'worker_num' => $workerNumber,
-        'open_http2_protocol' => true,
-        // 'document_root' => __DIR__.'/../public',
-        // 'enable_static_handler' => true,
-        'http_compression' => true,
-        'http_compression_level' => 6,
-        'package_max_length' => $payloadSize,
-        'buffer_output_size' => $payloadSize,
-    ]);
+                    try {
+                        $connection = $orchestrationPool->pop();
+                        $orchestration = $connection->getResource();
+                        $containerUsages = $orchestration->getStats(
+                            filters: [ 'label' => 'openruntimes-executor=' . System::getHostname() ],
+                            cycles: 3
+                        );
 
-/** Set Resources */
-App::setResource('orchestrationPool', fn () => $register->get('orchestrationPool'));
-App::setResource('activeRuntimes', fn () => $register->get('activeRuntimes'));
-App::setResource('logger', fn () => $register->get('logger'));
+                        foreach ($containerUsages as $containerUsage) {
+                            $functionsUsage[$containerUsage['name']] = $containerUsage['cpu'] * 100;
+                        }
+                    } finally {
+                        isset($connection) && $orchestrationPool->push($connection);
+                    }
+
+                    $output['functionsUsage'] = $functionsUsage;
+                }
+            ]
+        );
+
+        $response
+            ->setStatusCode(Response::STATUS_CODE_OK)
+            ->json($output);
+     
+    });
+
 
 /** Set callbacks */
 App::error()
@@ -810,216 +850,152 @@ App::init()
         }
     });
 
+/** @phpstan-ignore-next-line */
+Co\run(
+    function() use($register) {
+        $orchestrationPool = $register->get('orchestrationPool');
+        $activeRuntimes = $register->get('activeRuntimes');
 
-$http->on('start', function ($http) use ($register) {
-    $orchestrationPool = $register->get('orchestrationPool');
-    $activeRuntimes = $register->get('activeRuntimes');
+        /**
+         * Remove residual runtimes
+         */
+        Console::info('Removing orphan runtimes...');
+        try {
+            $connection = $orchestrationPool->pop();
+            $orchestration = $connection->getResource();
+            $orphans = $orchestration->list(['label' => 'openruntimes-executor=' . System::getHostname()]);
+        } finally {
+            isset($connection) && $orchestrationPool->push($connection);
+        }
 
-    /**
-     * Remove residual runtimes
-     */
-    Console::info('Removing orphan runtimes...');
-    try {
-        $connection = $orchestrationPool->pop();
-        $orchestration = $connection->getResource();
-        $orphans = $orchestration->list(['label' => 'openruntimes-executor=' . System::getHostname()]);
-    } finally {
-        isset($connection) && $orchestrationPool->push($connection);
-    }
+        if (\count($orphans) === 0) {
+            Console::log("No orphan runtimes found.");
+        }
 
-    if (\count($orphans) === 0) {
-        Console::log("No orphan runtimes found.");
-    }
-
-    $callables = [];
-    foreach ($orphans as $runtime) {
-        $callables[] = function () use ($runtime, $orchestrationPool) {
-            try {
-                $connection = $orchestrationPool->pop();
-                $orchestration = $connection->getResource();
-                $orchestration->remove($runtime->getName(), true);
-                Console::success("Successfully removed {$runtime->getName()}");
-            } catch (\Throwable $th) {
-                Console::error('Orphan runtime deletion failed: ' . $th->getMessage());
-            } finally {
-                isset($connection) && $orchestrationPool->push($connection);
-            }
-        };
-    }
-
-    /** @phpstan-ignore-next-line */
-    Swoole\Coroutine\batch(
-        $callables
-    );
-
-    Console::success("Done.");
-
-    /**
-     * Warmup: make sure images are ready to run fast 🚀
-     */
-    Console::info('Pulling runtime images...');
-    $runtimes = new Runtimes('v2');
-    $allowList = empty(App::getEnv('OPEN_RUNTIMES_EXECUTOR_RUNTIMES')) ? [] : \explode(',', App::getEnv('OPEN_RUNTIMES_EXECUTOR_RUNTIMES'));
-    $runtimes = $runtimes->getAll(true, $allowList);
-    $callables = [];
-    foreach ($runtimes as $runtime) {
-        $callables[] = function () use ($runtime, $orchestrationPool) {
-            try {
-                $connection = $orchestrationPool->pop();
-                $orchestration = $connection->getResource();
-                Console::log('Warming up ' . $runtime['name'] . ' ' . $runtime['version'] . ' environment...');
-                $response = $orchestration->pull($runtime['image']);
-                if ($response) {
-                    Console::info("Successfully Warmed up {$runtime['name']} {$runtime['version']}!");
-                } else {
-                    Console::warning("Failed to Warmup {$runtime['name']} {$runtime['version']}!");
+        $callables = [];
+        foreach ($orphans as $runtime) {
+            $callables[] = function () use ($runtime, $orchestrationPool) {
+                try {
+                    $connection = $orchestrationPool->pop();
+                    $orchestration = $connection->getResource();
+                    $orchestration->remove($runtime->getName(), true);
+                    Console::success("Successfully removed {$runtime->getName()}");
+                } catch (\Throwable $th) {
+                    Console::error('Orphan runtime deletion failed: ' . $th->getMessage());
+                } finally {
+                    isset($connection) && $orchestrationPool->push($connection);
                 }
-            } finally {
-                isset($connection) && $orchestrationPool->push($connection);
-            }
-        };
-    }
+            };
+        }
 
-    /** @phpstan-ignore-next-line */
-    Swoole\Coroutine\batch(
-        $callables
-    );
+        /** @phpstan-ignore-next-line */
+        Swoole\Coroutine\batch(
+            $callables
+        );
 
-    Console::success("Done.");
+        Console::success("Done.");
 
-    /**
-     * Start separate HTTP server for Health API
-     */
-    Console::info('Starting Health HTTP server...');
-    \go(function () use ($orchestrationPool, $register) {
-        $healthServer = new Swoole\Coroutine\Http\Server('0.0.0.0', 3000, false);
-
-        // Get usage stats of host machine CPU usage from 0 to 100.
-        $healthServer->handle('/v1/health', function (SwooleRequest $swooleRequest, SwooleResponse $swooleResponse) use ($orchestrationPool, $register) {
-            try {
-                $secretKey = \explode(' ', $swooleRequest->header['authorization'] ?? '')[1] ?? '';
-                if (empty($secretKey)) {
-                    throw new Exception('Missing executor key', 401);
+        /**
+         * Warmup: make sure images are ready to run fast 🚀
+         */
+        Console::info('Pulling runtime images...');
+        $runtimes = new Runtimes('v2');
+        $allowList = empty(App::getEnv('OPEN_RUNTIMES_EXECUTOR_RUNTIMES')) ? [] : \explode(',', App::getEnv('OPEN_RUNTIMES_EXECUTOR_RUNTIMES'));
+        $runtimes = $runtimes->getAll(true, $allowList);
+        $callables = [];
+        foreach ($runtimes as $runtime) {
+            $callables[] = function () use ($runtime, $orchestrationPool) {
+                try {
+                    $connection = $orchestrationPool->pop();
+                    $orchestration = $connection->getResource();
+                    Console::log('Warming up ' . $runtime['name'] . ' ' . $runtime['version'] . ' environment...');
+                    $response = $orchestration->pull($runtime['image']);
+                    if ($response) {
+                        Console::info("Successfully Warmed up {$runtime['name']} {$runtime['version']}!");
+                    } else {
+                        Console::warning("Failed to Warmup {$runtime['name']} {$runtime['version']}!");
+                    }
+                } finally {
+                    isset($connection) && $orchestrationPool->push($connection);
                 }
+            };
+        }
 
-                if ($secretKey !== App::getEnv('OPEN_RUNTIMES_EXECUTOR_SECRET', '')) {
-                    throw new Exception('Missing executor key', 401);
-                }
+        /** @phpstan-ignore-next-line */
+        Swoole\Coroutine\batch(
+            $callables
+        );
 
+        Console::success("Done.");
 
-                $output = [
-                    'status' => 'pass'
-                ];
-
-                /** @phpstan-ignore-next-line */
-                Swoole\Coroutine\batch(
-                    [
-                        function () use (&$output) {
-                            $output['hostUsage'] = System::getCPUUsage(5);
-                        },
-                        function () use (&$output, $orchestrationPool) {
-                            $functionsUsage = [];
-
-                            try {
-                                $connection = $orchestrationPool->pop();
-                                $orchestration = $connection->getResource();
-                                $containerUsages = $orchestration->getStats(
-                                    filters: [ 'label' => 'openruntimes-executor=' . System::getHostname() ],
-                                    cycles: 3
-                                );
-
-                                foreach ($containerUsages as $containerUsage) {
-                                    $functionsUsage[$containerUsage['name']] = $containerUsage['cpu'] * 100;
-                                }
-                            } finally {
-                                isset($connection) && $orchestrationPool->push($connection);
-                            }
-
-                            $output['functionsUsage'] = $functionsUsage;
+        /**
+         * Run a maintenance worker every X seconds to remove inactive runtimes
+         */
+        Console::info('Starting maintenance interval...');
+        $interval = (int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
+        Timer::tick($interval * 1000, function () use ($orchestrationPool, $activeRuntimes) {
+            Console::info("Running maintenance task ...");
+            foreach ($activeRuntimes as $activeRuntimeId => $runtime) {
+                $inactiveThreshold = \time() - App::getEnv('OPEN_RUNTIMES_EXECUTOR_INACTIVE_TRESHOLD', 60);
+                if ($runtime['updated'] < $inactiveThreshold) {
+                    go(function () use ($activeRuntimeId, $runtime, $orchestrationPool, $activeRuntimes) {
+                        try {
+                            $connection = $orchestrationPool->pop();
+                            $orchestration = $connection->getResource();
+                            $orchestration->remove($runtime['name'], true);
+                            $activeRuntimes->del($activeRuntimeId);
+                            Console::success("Successfully removed {$runtime['name']}");
+                        } catch (\Throwable $th) {
+                            Console::error('Inactive Runtime deletion failed: ' . $th->getMessage());
+                        } finally {
+                            isset($connection) && $orchestrationPool->push($connection);
                         }
-                    ]
-                );
+                    });
+                }
+            }
+            Console::success("Done.");
+        });
 
-                $swooleResponse->setStatusCode(200);
-                $swooleResponse->header('content-type', 'application/json; charset=UTF-8');
-                $swooleResponse->write(\json_encode($output));
-                $swooleResponse->end();
+        Console::success('Done.');
+
+        $server = new Server('0.0.0.0', 80, false);
+
+        $server->handle('/', function (SwooleRequest $swooleRequest, SwooleResponse $swooleResponse) {
+            $request = new Request($swooleRequest);
+            $response = new Response($swooleResponse);
+
+            $app = new App('UTC');
+
+            try {
+                $app->run($request, $response);
             } catch (\Throwable $th) {
-                logError($th, "healthError", $register->get('logger'));
+                $code = 500;
 
+                /**
+                 * @var Logger $logger
+                 */
+                $logger = $app->getResource('logger');
+                logError($th, "serverError", $logger);
+                $swooleResponse->setStatusCode($code);
                 $output = [
-                    'status' => 'fail',
-
                     'message' => 'Error: ' . $th->getMessage(),
-                    'code' => 500,
+                    'code' => $code,
                     'file' => $th->getFile(),
                     'line' => $th->getLine(),
                     'trace' => $th->getTrace()
                 ];
-
-                $swooleResponse->setStatusCode(500);
-                $swooleResponse->header('content-type', 'application/json; charset=UTF-8');
-                $swooleResponse->write(\json_encode($output));
-                $swooleResponse->end();
+                $swooleResponse->end(\json_encode($output));
             }
         });
 
-        $healthServer->start();
-    });
+        Console::success('Executor is ready.');
 
-    /**
-     * Register handlers for shutdown
-     */
-    @Process::signal(SIGINT, function () use ($http) {
-        $http->shutdown();
-    });
+        $server->start();
+    }
+);
 
-    @Process::signal(SIGQUIT, function () use ($http) {
-        $http->shutdown();
-    });
-
-    @Process::signal(SIGKILL, function () use ($http) {
-        $http->shutdown();
-    });
-
-    @Process::signal(SIGTERM, function () use ($http) {
-        $http->shutdown();
-    });
-
-    /**
-     * Run a maintenance worker every X seconds to remove inactive runtimes
-     */
-    Console::info('Starting maintenance interval...');
-    $interval = (int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
-    Timer::tick($interval * 1000, function () use ($orchestrationPool, $activeRuntimes) {
-        Console::info("Running maintenance task ...");
-        foreach ($activeRuntimes as $activeRuntimeId => $runtime) {
-            $inactiveThreshold = \time() - App::getEnv('OPEN_RUNTIMES_EXECUTOR_INACTIVE_TRESHOLD', 60);
-            if ($runtime['updated'] < $inactiveThreshold) {
-                go(function () use ($activeRuntimeId, $runtime, $orchestrationPool, $activeRuntimes) {
-                    try {
-                        $connection = $orchestrationPool->pop();
-                        $orchestration = $connection->getResource();
-                        $orchestration->remove($runtime['name'], true);
-                        $activeRuntimes->del($activeRuntimeId);
-                        Console::success("Successfully removed {$runtime['name']}");
-                    } catch (\Throwable $th) {
-                        Console::error('Inactive Runtime deletion failed: ' . $th->getMessage());
-                    } finally {
-                        isset($connection) && $orchestrationPool->push($connection);
-                    }
-                });
-            }
-        }
-        Console::success("Done.");
-    });
-
-    Console::success('Done.');
-});
-
-$http->on('beforeShutdown', function () use ($register) {
-    $orchestrationPool = $register->get('orchestrationPool');
-
+// TODO: @Meldiron On shutdown, kill running contianers: SIGINT SIGQUIT SIGKILL SIGTERM
+/*
     Console::info('Cleaning up containers before shutdown...');
 
 
@@ -1042,27 +1018,4 @@ $http->on('beforeShutdown', function () use ($register) {
             }
         });
     }
-});
-
-$http->on('request', function (SwooleRequest $swooleRequest, SwooleResponse $swooleResponse) use ($register) {
-    $request = new Request($swooleRequest);
-    $response = new Response($swooleResponse);
-    $app = new App('UTC');
-
-    try {
-        $app->run($request, $response);
-    } catch (\Throwable $th) {
-        logError($th, "serverError", $register->get('logger'));
-        $swooleResponse->setStatusCode(500);
-        $output = [
-            'message' => 'Error: ' . $th->getMessage(),
-            'code' => 500,
-            'file' => $th->getFile(),
-            'line' => $th->getLine(),
-            'trace' => $th->getTrace()
-        ];
-        $swooleResponse->end(\json_encode($output));
-    }
-});
-
-$http->start();
+*/

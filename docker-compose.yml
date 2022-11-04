@@ -32,6 +32,7 @@ services:
       - openruntime-functions:/storage/functions:rw
       - /tmp:/tmp:rw
       - ./tests/resources/functions:/storage/functions:rw
+      - ./vendor/utopia-php/registry:/usr/local/vendor/utopia-php/registry
     environment:
       - OPEN_RUNTIMES_EXECUTOR_ENV
       - OPEN_RUNTIMES_EXECUTOR_WORKER_PER_CORE
