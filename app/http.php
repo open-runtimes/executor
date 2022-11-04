@@ -204,6 +204,44 @@ function getStorageDevice(string $root): Device
     }
 }
 
+function removeAllRuntimes(Pool $orchestrationPool) {
+    Console::log('Cleaning up containers before shutdown...');
+
+    $connection = $orchestrationPool->pop();
+    $orchestration = $connection->getResource();
+    $functionsToRemove = $orchestration->list(['label' => 'openruntimes-executor=' . System::getHostname()]);
+    $orchestrationPool->push($connection);
+
+    if(\count($functionsToRemove) === 0) {
+        Console::info('No containers found to clean up.');
+    }
+
+    $callables = [];
+
+    foreach ($functionsToRemove as $container) {
+        $callables[] = function () use ($container, $orchestrationPool) {
+            try {
+                $connection = $orchestrationPool->pop();
+                $orchestration = $connection->getResource();
+                $orchestration->remove($container->getId(), true);
+                Console::success('Removed container ' . $container->getName());
+            } catch (\Throwable $th) {
+                Console::error('Failed to remove container: ' . $container->getName());
+                Console::error($th);
+            } finally {
+                isset($connection) && $orchestrationPool->push($connection);
+            }
+        };
+    }
+
+    /** @phpstan-ignore-next-line */
+    Swoole\Coroutine\batch(
+        $callables
+    );
+
+    Console::success('Done.');
+}
+
 App::post('/v1/runtimes')
     ->desc("Create a new runtime server")
     ->param('runtimeId', '', new Text(64), 'Unique runtime ID.')
@@ -311,7 +349,7 @@ App::post('/v1/runtimes')
                 vars: $variables,
                 command: $entrypoint,
                 labels: [
-                    'openruntimes-executor' => System::getHostname(),
+                    'openruntimes-executor' => System::getHostname()
                 ],
                 workdir: $workdir,
                 volumes: [
@@ -991,32 +1029,11 @@ Co\run(
 
         Console::success('Executor is ready.');
 
+        Swoole\Process::signal(SIGINT, fn() => removeAllRuntimes($orchestrationPool));
+        Swoole\Process::signal(SIGQUIT, fn() => removeAllRuntimes($orchestrationPool));
+        Swoole\Process::signal(SIGKILL, fn() => removeAllRuntimes($orchestrationPool));
+        Swoole\Process::signal(SIGTERM, fn() => removeAllRuntimes($orchestrationPool));
+
         $server->start();
     }
 );
-
-// TODO: @Meldiron On shutdown, kill running contianers: SIGINT SIGQUIT SIGKILL SIGTERM
-/*
-    Console::info('Cleaning up containers before shutdown...');
-
-
-    $connection = $orchestrationPool->pop();
-    $orchestration = $connection->getResource();
-    $functionsToRemove = $orchestration->list(['label' => 'openruntimes-type=runtime']);
-    $orchestrationPool->push($connection);
-
-    foreach ($functionsToRemove as $container) {
-        go(function () use ($container, $orchestrationPool) {
-            try {
-                $connection = $orchestrationPool->pop();
-                $orchestration = $connection->getResource();
-                $orchestration->remove($container->getId(), true);
-                Console::info('Removed container ' . $container->getName());
-            } catch (\Throwable $th) {
-                Console::error('Failed to remove container: ' . $container->getName());
-            } finally {
-                isset($connection) && $orchestrationPool->push($connection);
-            }
-        });
-    }
-*/
