@@ -11,10 +11,12 @@
 
 Executor for [Open Runtimes](https://github.com/open-runtimes/open-runtimes), a runtime environments for serverless cloud computing for multiple coding languages.
 
-Executor is responsible for providing HTTP API for building, starting and executing Open Runtimes. Proxy is stateless and can be scaled horizontally when a load balanced is introduced in front of it. You could use any load balancer but we highly recommend using [Open Runtimes Proxy](https://github.com/open-runtimes/proxy) for it's ease of setup with Open Runtimes Executor.
+Executor is responsible for providing HTTP API for building, starting and executing Open Runtimes. Executor is stateless and can be scaled horizontally when a load balancer is introduced in front of it. You could use any load balancer but we highly recommend using [Open Runtimes Proxy](https://github.com/open-runtimes/proxy) for it's ease of setup with Open Runtimes Executor.
 
 ## Features
 
+* **Flexibility** - Configuring custom image lets you use **any** runtime for your functions.
+* **Performance** - Coroutine-style HTTP servers allows asynchronous operations without blocking. We. Run. Fast! ⚡
 * **Open Source** - Released under the MIT license, free to use and extend.
 
 ## Getting Started
@@ -30,45 +32,105 @@ docker pull openruntimes/executor
 ```yml
 version: '3'
 services:
-  openruntimes-proxy:
-    image: openruntimes/proxy
+  openruntimes-executor:
+    container_name: openruntimes-executor
+    hostname: exc1
+    stop_signal: SIGINT
+    image: openruntimes/executor
+    networks:
+      runtimes:
     ports:
-      - 9800:80
+      - 9900:80
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - openruntimes-builds:/storage/builds:rw
+      - openruntimes-functions:/storage/functions:rw
+      - /tmp:/tmp:rw
+      - ./functions:/storage/functions:rw
     environment:
-      - OPEN_RUNTIMES_PROXY_ALGORITHM
-      - OPEN_RUNTIMES_PROXY_EXECUTORS
-      - OPEN_RUNTIMES_PROXY_HEALTHCHECK_INTERVAL
-      - OPEN_RUNTIMES_PROXY_ENV
-      - OPEN_RUNTIMES_PROXY_EXECUTOR_SECRET
-      - OPEN_RUNTIMES_PROXY_SECRET
-      - OPEN_RUNTIMES_PROXY_LOGGING_PROVIDER
-      - OPEN_RUNTIMES_PROXY_LOGGING_CONFIG
-      - OPEN_RUNTIMES_PROXY_HEALTHCHECK
-  whoami1:
-    hostname: whoami1
-    image: containous/whoami
-  whoami2:
-    hostname: whoami2
-    image: containous/whoami
+      - OPEN_RUNTIMES_EXECUTOR_ENV
+      - OPEN_RUNTIMES_EXECUTOR_STORAGE_DEVICE
+      - OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_ACCESS_KEY=
+      - OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_SECRET=
+      - OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_REGION
+      - OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_BUCKET=
+      - OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_ACCESS_KEY=
+      - OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_SECRET=
+      - OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_REGION
+      - OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_BUCKET=
+      - OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_ACCESS_KEY=
+      - OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_SECRET=
+      - OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_REGION
+      - OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_BUCKET=
+      - OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_ACCESS_KEY=
+      - OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_SECRET=
+      - OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_REGION
+      - OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_BUCKET=
+      - OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_ACCESS_KEY=
+      - OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_SECRET=
+      - OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_REGION
+      - OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_BUCKET=
+      - OPEN_RUNTIMES_EXECUTOR_MAX_TIMEOUT
+      - OPEN_RUNTIMES_EXECUTOR_BUILD_TIMEOUT
+      - OPEN_RUNTIMES_EXECUTOR_CPUS
+      - OPEN_RUNTIMES_EXECUTOR_MEMORY
+      - OPEN_RUNTIMES_EXECUTOR_MEMORY_SWAP
+      - OPEN_RUNTIMES_EXECUTOR_INACTIVE_TRESHOLD
+      - OPEN_RUNTIMES_EXECUTOR_NETWORK
+      - OPEN_RUNTIMES_EXECUTOR_SECRET
+      - OPEN_RUNTIMES_EXECUTOR_LOGGING_PROVIDER=
+      - OPEN_RUNTIMES_EXECUTOR_LOGGING_CONFIG=
+      - OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_USERNAME=
+      - OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_PASSWORD=
+
+networks:
+  runtimes:
+
+volumes:
+  openruntimes-builds:
+  openruntimes-functions:
 ```
 
-> We are adding 1 proxy and 2 HTTP servers. Notice only proxy is exported, on a port `9800`.
+> Notice we added bind to local `./functions` directory. That is only nessessary for this getting started, since we will be executing our custom function.
 
 3. Create `.env` file:
 
 ```
-OPEN_RUNTIMES_PROXY_ALGORITHM=round-robin
-OPEN_RUNTIMES_PROXY_EXECUTORS=whoami1,whoami2
-OPEN_RUNTIMES_PROXY_HEALTHCHECK=disabled
-OPEN_RUNTIMES_PROXY_SECRET=proxy-secret-key
-OPEN_RUNTIMES_PROXY_HEALTHCHECK_INTERVAL=5000
-OPEN_RUNTIMES_PROXY_ENV=development
-OPEN_RUNTIMES_PROXY_EXECUTOR_SECRET=executor-secret-key
-OPEN_RUNTIMES_PROXY_LOGGING_PROVIDER=
-OPEN_RUNTIMES_PROXY_LOGGING_CONFIG=
+OPEN_RUNTIMES_EXECUTOR_ENV=development
+OPEN_RUNTIMES_EXECUTOR_STORAGE_DEVICE=Local
+OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_ACCESS_KEY=
+OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_SECRET=
+OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_REGION=us-east-1
+OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_BUCKET=
+OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_ACCESS_KEY=
+OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_SECRET=
+OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_REGION=us-east-1
+OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_BUCKET=
+OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_ACCESS_KEY=
+OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_SECRET=
+OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_REGION=us-west-004
+OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_BUCKET=
+OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_ACCESS_KEY=
+OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_SECRET=
+OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_REGION=eu-central-1
+OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_BUCKET=
+OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_ACCESS_KEY=
+OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_SECRET=
+OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_REGION=eu-central-1
+OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_BUCKET=
+OPEN_RUNTIMES_EXECUTOR_MAX_TIMEOUT=900
+OPEN_RUNTIMES_EXECUTOR_BUILD_TIMEOUT=900
+OPEN_RUNTIMES_EXECUTOR_CPUS=0
+OPEN_RUNTIMES_EXECUTOR_MEMORY=0
+OPEN_RUNTIMES_EXECUTOR_MEMORY_SWAP=0
+OPEN_RUNTIMES_EXECUTOR_INACTIVE_TRESHOLD=60
+OPEN_RUNTIMES_EXECUTOR_NETWORK=executor_runtimes
+OPEN_RUNTIMES_EXECUTOR_SECRET=executor-secret-key
+OPEN_RUNTIMES_EXECUTOR_LOGGING_PROVIDER=
+OPEN_RUNTIMES_EXECUTOR_LOGGING_CONFIG=
+OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_USERNAME=
+OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_PASSWORD=
 ```
-
-> Notice we disabled health check. We recommend keeping it `enabled` and implementing proper health check endpoint
 
 4. Start Docker container:
 
@@ -76,15 +138,22 @@ OPEN_RUNTIMES_PROXY_LOGGING_CONFIG=
 docker compose up -d
 ```
 
-5. Send a HTTP request to proxy server:
+5. Prepare a function we will ask executor to run:
 
 ```bash
-curl -H "authorization: Bearer proxy-secret-key" -X GET http://localhost:9800/
+mkdir functions && cd functions && mkdir php-function && cd php-function
+printf "<?\nreturn function(\$req, \$res) {\n    \$res->json([ 'n' => \mt_rand() / \mt_getrandmax() ]);\n};" > index.php
+tar -czf ../my-function.tar.gz .
+cd .. && rm -r php-function
 ```
 
-Run the command multiple times to see request being proxied between both whoami servers. You can see `Hostname` changing the value.
+> This created `my-function.tar.gz` that includes `index.php` with a simple Open Runtimes script.
 
-> Noitce we provided authorization header as configured in `.env` in `OPEN_RUNTIMES_PROXY_SECRET`.
+5. Send a HTTP request to executor server:
+
+```bash
+curl -H "authorization: Bearer executor-secret-key" -H "Content-Type: application/json" -X POST http://localhost:9900/v1/execution -d '{"runtimeId":"my-function","image":"openruntimes/php:v2-8.0","source":"/storage/functions/my-function.tar.gz","entrypoint":"index.php"}'
+```
 
 6. Stop Docker containers:
 
@@ -92,19 +161,13 @@ Run the command multiple times to see request being proxied between both whoami 
 docker compose down
 ```
 
+## Endpoints
+
+TODO: Document each endpoint + CURL examples
+
 ## Environment variables
 
-| Variable name                            | Description                                                                                                                               |
-|------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| OPEN_RUNTIMES_PROXY_ALGORITHM            | Proxying algorithm. Supports `round-robin`, `random`.                                                                                     |
-| OPEN_RUNTIMES_PROXY_EXECUTORS            | Comma-separated hostnames of servers under the proxy.                                                                                     |
-| OPEN_RUNTIMES_PROXY_HEALTHCHECK          | Health check by HTTP request to /v1/health. 'enabled' by default. To disable, set to 'disabled'.                                          |
-| OPEN_RUNTIMES_PROXY_HEALTHCHECK_INTERVAL | Delay in milliseconds between health checks. 10000 by default. Only relevant if OPEN_RUNTIMES_PROXY_HEALTHCHECK is 'enabled'.             |
-| OPEN_RUNTIMES_PROXY_ENV                  | Runtime environment. 'production' or 'development'. Development may expose debug information and is not recommended on production server. |
-| OPEN_RUNTIMES_PROXY_SECRET               | Secret that needs to be provided in `Authroization` header when communicating with the to proxy.                                          |
-| OPEN_RUNTIMES_PROXY_EXECUTOR_SECRET      | String provided as `authorization` header by proxy when sending request to executor.                                                      |
-| OPEN_RUNTIMES_PROXY_LOGGING_PROVIDER     | Logging provider. Supports `sentry`, `appsignal`, `raygun`, `logowl`. Leave empty for no cloud logging.                                   |
-| OPEN_RUNTIMES_PROXY_LOGGING_CONFIG       | Logging configuration as requested by `utopia-php/logger`.                                                                                |
+TODO: Document each variable
 
 ## Contributing
 
@@ -123,32 +186,3 @@ Join our growing community around the world! See our official [Blog](https://med
 ## License
 
 This repository is available under the [MIT License](./LICENSE).
-
-
-
-# Executor
-
-TODO:
-
-- Address TODOs in code
-- Write proper documentation (readme, contributing, code of conduct)
-- Make example repo with proxy + 2 executors
-
-Build:
-
-```bash
-curl -H "authorization: Bearer executor-secret-key" -H "Content-Type: application/json" -X POST http://localhost:9900/v1/runtimes -d '{"remove":true,"runtimeId":"myruntimebuild","image":"openruntimes/php:v2-8.0","source":"/storage/functions/php.tar.gz","destination":"/storage/builds/myruntime","entrypoint":"index.php"}' | jq
-```
-
-Execute + Cold Start:
-
-```bash
-curl -H "authorization: Bearer executor-secret-key" -H "Content-Type: application/json" -X POST http://localhost:9900/v1/execution -d '{"payload":"Developers are awesome!","variables":{"customVariable":"secretVariable"},"runtimeId":"myruntime","image":"openruntimes/php:v2-8.0","source":"/storage/functions/php.tar.gz","entrypoint":"index.php"}' | jq
-```
-
-Execute:
-
-```bash
-curl -H "authorization: Bearer executor-secret-key" -H "Content-Type: application/json" -X POST http://localhost:9900/v1/execution -d '{"payload":"Developers are awesome!","variables":{"customVariable":"secretVariable"},"runtimeId":"myruntime"}' | jq
-```
-

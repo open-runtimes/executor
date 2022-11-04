@@ -147,8 +147,7 @@ function logError(Throwable $error, string $action, Logger $logger = null, Utopi
 
         $log->setAction($action);
 
-        $isProduction = ((string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_ENV', 'development')) === 'production';
-        $log->setEnvironment($isProduction ? Log::ENVIRONMENT_PRODUCTION : Log::ENVIRONMENT_STAGING);
+        $log->setEnvironment(App::isProduction() ? Log::ENVIRONMENT_PRODUCTION : Log::ENVIRONMENT_STAGING);
 
         $responseCode = $logger->addLog($log);
         Console::info('Executor log pushed with status code: ' . $responseCode);
