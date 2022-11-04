@@ -132,6 +132,8 @@ OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_USERNAME=
 OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_PASSWORD=
 ```
 
+> Docker compose names networks based on directory you are in. If your folder is not caled `executor`, you may need to change value of `OPEN_RUNTIMES_EXECUTOR_NETWORK` variable.
+
 4. Start Docker container:
 
 ```bash
@@ -141,7 +143,7 @@ docker compose up -d
 5. Prepare a function we will ask executor to run:
 
 ```bash
-mkdir functions && cd functions && mkdir php-function && cd php-function
+mkdir -p functions && cd functions && mkdir -p php-function && cd php-function
 printf "<?\nreturn function(\$req, \$res) {\n    \$res->json([ 'n' => \mt_rand() / \mt_getrandmax() ]);\n};" > index.php
 tar -czf ../my-function.tar.gz .
 cd .. && rm -r php-function
