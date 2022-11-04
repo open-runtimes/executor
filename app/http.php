@@ -204,7 +204,8 @@ function getStorageDevice(string $root): Device
     }
 }
 
-function removeAllRuntimes(Pool $orchestrationPool) {
+function removeAllRuntimes(Pool $orchestrationPool): void
+{
     Console::log('Cleaning up containers before shutdown...');
 
     $connection = $orchestrationPool->pop();
@@ -212,7 +213,7 @@ function removeAllRuntimes(Pool $orchestrationPool) {
     $functionsToRemove = $orchestration->list(['label' => 'openruntimes-executor=' . System::getHostname()]);
     $orchestrationPool->push($connection);
 
-    if(\count($functionsToRemove) === 0) {
+    if (\count($functionsToRemove) === 0) {
         Console::info('No containers found to clean up.');
     }
 
@@ -1029,10 +1030,10 @@ Co\run(
 
         Console::success('Executor is ready.');
 
-        Swoole\Process::signal(SIGINT, fn() => removeAllRuntimes($orchestrationPool));
-        Swoole\Process::signal(SIGQUIT, fn() => removeAllRuntimes($orchestrationPool));
-        Swoole\Process::signal(SIGKILL, fn() => removeAllRuntimes($orchestrationPool));
-        Swoole\Process::signal(SIGTERM, fn() => removeAllRuntimes($orchestrationPool));
+        Swoole\Process::signal(SIGINT, fn () => removeAllRuntimes($orchestrationPool));
+        Swoole\Process::signal(SIGQUIT, fn () => removeAllRuntimes($orchestrationPool));
+        Swoole\Process::signal(SIGKILL, fn () => removeAllRuntimes($orchestrationPool));
+        Swoole\Process::signal(SIGTERM, fn () => removeAllRuntimes($orchestrationPool));
 
         $server->start();
     }
