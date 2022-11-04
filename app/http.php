@@ -473,17 +473,6 @@ App::delete('/v1/runtimes/:runtimeId')
             isset($connection) && $orchestrationPool->push($connection);
         }
 
-        // Remove all the build containers with that same  ID
-        // TODO:: Delete build containers
-        // foreach ($buildIds as $buildId) {
-        //     try {
-        //         Console::info('Deleting build container : ' . $buildId);
-        //         $status = $orchestration->remove('build-' . $buildId, true);
-        //     } catch (Throwable $th) {
-        //         Console::error($th->getMessage());
-        //     }
-        // }
-
         $response
             ->setStatusCode(Response::STATUS_CODE_OK)
             ->send();
@@ -725,7 +714,7 @@ App::post('/v1/execution')
                 'response' => \mb_strcut($res, 0, 1000000), // Limit to 1MB
                 'stdout' => \mb_strcut($stdout, 0, 1000000), // Limit to 1MB
                 'stderr' => \mb_strcut($stderr, 0, 1000000), // Limit to 1MB
-                'duration' => $executionTime, // TODO: @Meldiron This is not timeout, but timeout + 2 (probably coming from Executor.php client)
+                'duration' => $executionTime,
             ];
 
             // Update swoole table
