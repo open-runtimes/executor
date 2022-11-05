@@ -37,6 +37,7 @@ use Utopia\Validator\Boolean;
 use Utopia\Validator\Range;
 use Utopia\Validator\Text;
 use Utopia\Pools\Pool;
+use Utopia\DSN\DSN;
 use Utopia\Registry\Registry;
 
 use function Swoole\Coroutine\batch;
@@ -165,45 +166,41 @@ function logError(Throwable $error, string $action, Logger $logger = null, Utopi
 
 function getStorageDevice(string $root): Device
 {
-    switch (App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_DEVICE', Storage::DEVICE_LOCAL)) {
+    $connection = App::getEnv('OPEN_RUNTIMES_CONNECTION_STORAGE', '');
+
+    $acl = 'private';
+    $device = '';
+    $accessKey = '';
+    $accessSecret = '';
+    $bucket = '';
+    $region = '';
+
+    try {
+        $dsn = new DSN($connection);
+        $device = $dsn->getScheme();
+        $accessKey = $dsn->getUser() ?? '';
+        $accessSecret = $dsn->getPassword() ?? '';
+        $bucket = $dsn->getPath() ?? '';
+        $region = $dsn->getParam('region');
+    } catch (\Exception $e) {
+        Console::warning('Defaulting to Local storage due to error: ' . $e->getMessage());
+        $device = 'Local';
+    }
+
+    switch ($device) {
+        case Storage::DEVICE_S3:
+            return new S3($root, $accessKey, $accessSecret, $bucket, $region, $acl);
+        case Storage::DEVICE_DO_SPACES:
+            return new DOSpaces($root, $accessKey, $accessSecret, $bucket, $region, $acl);
+        case Storage::DEVICE_BACKBLAZE:
+            return new Backblaze($root, $accessKey, $accessSecret, $bucket, $region, $acl);
+        case Storage::DEVICE_LINODE:
+            return new Linode($root, $accessKey, $accessSecret, $bucket, $region, $acl);
+        case Storage::DEVICE_WASABI:
+            return new Wasabi($root, $accessKey, $accessSecret, $bucket, $region, $acl);
         case Storage::DEVICE_LOCAL:
         default:
             return new Local($root);
-        case Storage::DEVICE_S3:
-            $s3AccessKey = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_ACCESS_KEY', '');
-            $s3SecretKey = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_SECRET', '');
-            $s3Region = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_REGION', '');
-            $s3Bucket = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_S3_BUCKET', '');
-            $s3Acl = 'private';
-            return new S3($root, $s3AccessKey, $s3SecretKey, $s3Bucket, $s3Region, $s3Acl);
-        case Storage::DEVICE_DO_SPACES:
-            $doSpacesAccessKey = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_ACCESS_KEY', '');
-            $doSpacesSecretKey = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_SECRET', '');
-            $doSpacesRegion = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_REGION', '');
-            $doSpacesBucket = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_DO_SPACES_BUCKET', '');
-            $doSpacesAcl = 'private';
-            return new DOSpaces($root, $doSpacesAccessKey, $doSpacesSecretKey, $doSpacesBucket, $doSpacesRegion, $doSpacesAcl);
-        case Storage::DEVICE_BACKBLAZE:
-            $backblazeAccessKey = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_ACCESS_KEY', '');
-            $backblazeSecretKey = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_SECRET', '');
-            $backblazeRegion = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_REGION', '');
-            $backblazeBucket = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_BACKBLAZE_BUCKET', '');
-            $backblazeAcl = 'private';
-            return new Backblaze($root, $backblazeAccessKey, $backblazeSecretKey, $backblazeBucket, $backblazeRegion, $backblazeAcl);
-        case Storage::DEVICE_LINODE:
-            $linodeAccessKey = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_ACCESS_KEY', '');
-            $linodeSecretKey = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_SECRET', '');
-            $linodeRegion = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_REGION', '');
-            $linodeBucket = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_LINODE_BUCKET', '');
-            $linodeAcl = 'private';
-            return new Linode($root, $linodeAccessKey, $linodeSecretKey, $linodeBucket, $linodeRegion, $linodeAcl);
-        case Storage::DEVICE_WASABI:
-            $wasabiAccessKey = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_ACCESS_KEY', '');
-            $wasabiSecretKey = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_SECRET', '');
-            $wasabiRegion = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_REGION', '');
-            $wasabiBucket = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_STORAGE_WASABI_BUCKET', '');
-            $wasabiAcl = 'private';
-            return new Wasabi($root, $wasabiAccessKey, $wasabiSecretKey, $wasabiBucket, $wasabiRegion, $wasabiAcl);
     }
 }
 
