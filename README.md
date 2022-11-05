@@ -50,7 +50,7 @@ services:
     environment:
       - OPEN_RUNTIMES_EXECUTOR_ENV
       - OPEN_RUNTIMES_EXECUTOR_RUNTIMES
-      - OPEN_RUNTIMES_STORAGE_CONNECTION
+      - OPEN_RUNTIMES_CONNECTION_STORAGE
       - OPEN_RUNTIMES_EXECUTOR_MAX_TIMEOUT
       - OPEN_RUNTIMES_EXECUTOR_BUILD_TIMEOUT
       - OPEN_RUNTIMES_EXECUTOR_CPUS
@@ -79,7 +79,7 @@ volumes:
 ```
 OPEN_RUNTIMES_EXECUTOR_ENV=development
 OPEN_RUNTIMES_EXECUTOR_RUNTIMES=php-8.0
-OPEN_RUNTIMES_STORAGE_CONNECTION=file://localhost
+OPEN_RUNTIMES_CONNECTION_STORAGE=file://localhost
 OPEN_RUNTIMES_EXECUTOR_MAX_TIMEOUT=900
 OPEN_RUNTIMES_EXECUTOR_BUILD_TIMEOUT=900
 OPEN_RUNTIMES_EXECUTOR_CPUS=0
@@ -94,7 +94,7 @@ OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_USERNAME=
 OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_PASSWORD=
 ```
 
-> `OPEN_RUNTIMES_STORAGE_CONNECTION` takes a DSN string that represents a connection to your storage device. If you would like to use your local filesystem, you can use `file://localhost`. If using S3 or any other provider for storage, use a DSN of the following format `s3://access_key:access_secret@host:port/bucket_name?region=us-east-1`
+> `OPEN_RUNTIMES_CONNECTION_STORAGE` takes a DSN string that represents a connection to your storage device. If you would like to use your local filesystem, you can use `file://localhost`. If using S3 or any other provider for storage, use a DSN of the following format `s3://access_key:access_secret@host:port/bucket_name?region=us-east-1`
 
 > Docker compose names networks based on directory you are in. If your folder is not caled `executor`, you may need to change value of `OPEN_RUNTIMES_EXECUTOR_NETWORK` variable.
 
