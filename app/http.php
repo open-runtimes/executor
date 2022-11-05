@@ -450,15 +450,15 @@ App::post('/v1/runtimes')
         if ($remove) {
             $activeRuntimes->del($activeRuntimeId);
             try {
-                // Try to remove with contaier name instead of ID
+                // Try to remove with container name instead of ID
                 $orchestration->remove($runtimeId, true);
             } catch (Throwable $th) {
                 // If fails, means initialization also failed.
-                // Contianer is not there, no need to remove
+                // Container is not there, no need to remove
             }
         }
 
-        // Release orchestration back to pool, we are done with it
+        // Release connection back to pool, we are done with it
         $orchestrationPool->push($connection);
 
         $response

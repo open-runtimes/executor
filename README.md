@@ -11,7 +11,7 @@
 
 Executor for [Open Runtimes](https://github.com/open-runtimes/open-runtimes), a runtime environments for serverless cloud computing for multiple coding languages.
 
-Executor is responsible for providing HTTP API for building, starting and executing Open Runtimes. Executor is stateless and can be scaled horizontally when a load balancer is introduced in front of it. You could use any load balancer but we highly recommend using [Open Runtimes Proxy](https://github.com/open-runtimes/proxy) for it's ease of setup with Open Runtimes Executor.
+Executor is responsible for providing HTTP API for building, creating and executing Open Runtimes. Executor is stateless and can be scaled horizontally when a load balancer is introduced in front of it. You could use any load balancer but we highly recommend using [Open Runtimes Proxy](https://github.com/open-runtimes/proxy) for it's ease of setup with Open Runtimes Executor.
 
 ## Features
 
