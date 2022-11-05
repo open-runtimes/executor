@@ -207,9 +207,9 @@ function getStorageDevice(string $root): Device
     }
 }
 
-function removeAllRuntimes(Pool $orchestrationPool): void
+function removeAllRuntimes(Table $activeRuntimes, Pool $orchestrationPool): void
 {
-    Console::log('Cleaning up containers before shutdown...');
+    Console::log('Cleaning up containers...');
 
     $connection = $orchestrationPool->pop();
     $orchestration = $connection->getResource();
@@ -223,11 +223,18 @@ function removeAllRuntimes(Pool $orchestrationPool): void
     $callables = [];
 
     foreach ($functionsToRemove as $container) {
-        $callables[] = function () use ($container, $orchestrationPool) {
+        $callables[] = function () use ($container, $activeRuntimes, $orchestrationPool) {
             try {
                 $connection = $orchestrationPool->pop();
                 $orchestration = $connection->getResource();
                 $orchestration->remove($container->getId(), true);
+
+                $activeRuntimeId = $container->getLabels('openruntimes-runtime-id');
+
+                if (!$activeRuntimes->exists($activeRuntimeId)) {
+                    $activeRuntimes->del($activeRuntimeId);
+                }
+
                 Console::success('Removed container ' . $container->getName());
             } catch (\Throwable $th) {
                 Console::error('Failed to remove container: ' . $container->getName());
@@ -350,7 +357,8 @@ App::post('/v1/runtimes')
                 vars: $variables,
                 command: $entrypoint,
                 labels: [
-                    'openruntimes-executor' => System::getHostname()
+                    'openruntimes-executor' => System::getHostname(),
+                    'openruntimes-runtime-id' => $activeRuntimeId
                 ],
                 workdir: $workdir,
                 volumes: [
@@ -894,35 +902,8 @@ run(function () use ($register) {
      * Remove residual runtimes
      */
     Console::info('Removing orphan runtimes...');
-    try {
-        $connection = $orchestrationPool->pop();
-        $orchestration = $connection->getResource();
-        $orphans = $orchestration->list(['label' => 'openruntimes-executor=' . System::getHostname()]);
-    } finally {
-        isset($connection) && $orchestrationPool->push($connection);
-    }
 
-    if (\count($orphans) === 0) {
-        Console::log("No orphan runtimes found.");
-    }
-
-    $callables = [];
-    foreach ($orphans as $runtime) {
-        $callables[] = function () use ($runtime, $orchestrationPool) {
-            try {
-                $connection = $orchestrationPool->pop();
-                $orchestration = $connection->getResource();
-                $orchestration->remove($runtime->getName(), true);
-                Console::success("Successfully removed {$runtime->getName()}");
-            } catch (\Throwable $th) {
-                Console::error('Orphan runtime deletion failed: ' . $th->getMessage());
-            } finally {
-                isset($connection) && $orchestrationPool->push($connection);
-            }
-        };
-    }
-
-    batch($callables);
+    removeAllRuntimes($activeRuntimes, $orchestrationPool);
 
     Console::success("Done.");
 
@@ -1018,10 +999,10 @@ run(function () use ($register) {
 
     Console::success('Executor is ready.');
 
-    Process::signal(SIGINT, fn () => removeAllRuntimes($orchestrationPool));
-    Process::signal(SIGQUIT, fn () => removeAllRuntimes($orchestrationPool));
-    Process::signal(SIGKILL, fn () => removeAllRuntimes($orchestrationPool));
-    Process::signal(SIGTERM, fn () => removeAllRuntimes($orchestrationPool));
+    Process::signal(SIGINT, fn () => removeAllRuntimes($activeRuntimes, $orchestrationPool));
+    Process::signal(SIGQUIT, fn () => removeAllRuntimes($activeRuntimes, $orchestrationPool));
+    Process::signal(SIGKILL, fn () => removeAllRuntimes($activeRuntimes, $orchestrationPool));
+    Process::signal(SIGTERM, fn () => removeAllRuntimes($activeRuntimes, $orchestrationPool));
 
     $server->start();
 });
