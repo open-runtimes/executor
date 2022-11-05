@@ -911,7 +911,7 @@ run(function () use ($register) {
      * Warmup: make sure images are ready to run fast 🚀
      */
     Console::info('Pulling runtime images...');
-    $runtimes = new Runtimes('v2');
+    $runtimes = new Runtimes('v2'); // TODO: @Meldiron Make part of open runtimes
     $allowList = empty(App::getEnv('OPEN_RUNTIMES_EXECUTOR_RUNTIMES')) ? [] : \explode(',', App::getEnv('OPEN_RUNTIMES_EXECUTOR_RUNTIMES'));
     $runtimes = $runtimes->getAll(true, $allowList);
     $callables = [];
