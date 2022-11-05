@@ -1,0 +1,3 @@
+parameters:
+    scanDirectories:
+      - vendor/swoole/ide-helper

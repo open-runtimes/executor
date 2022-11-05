@@ -5,7 +5,7 @@ on:
     types: [published]
 
 env:
-  IMAGE_NAME: meldiron/opr-executor
+  IMAGE_NAME: openruntimes/executor
   TAG: ${{ github.event.release.tag_name }}
   USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}

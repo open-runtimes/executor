@@ -11,7 +11,7 @@
 
 Executor for [Open Runtimes](https://github.com/open-runtimes/open-runtimes), a runtime environments for serverless cloud computing for multiple coding languages.
 
-Executor is responsible for providing HTTP API for building, starting and executing Open Runtimes. Executor is stateless and can be scaled horizontally when a load balancer is introduced in front of it. You could use any load balancer but we highly recommend using [Open Runtimes Proxy](https://github.com/open-runtimes/proxy) for it's ease of setup with Open Runtimes Executor.
+Executor is responsible for providing HTTP API for building, creating and executing Open Runtimes. Executor is stateless and can be scaled horizontally when a load balancer is introduced in front of it. You could use any load balancer but we highly recommend using [Open Runtimes Proxy](https://github.com/open-runtimes/proxy) for it's ease of setup with Open Runtimes Executor.
 
 ## Features
 
@@ -49,6 +49,7 @@ services:
       - ./functions:/storage/functions:rw
     environment:
       - OPEN_RUNTIMES_EXECUTOR_ENV
+      - OPEN_RUNTIMES_EXECUTOR_RUNTIMES
       - OPEN_RUNTIMES_STORAGE_CONNECTION
       - OPEN_RUNTIMES_EXECUTOR_MAX_TIMEOUT
       - OPEN_RUNTIMES_EXECUTOR_BUILD_TIMEOUT
@@ -58,10 +59,10 @@ services:
       - OPEN_RUNTIMES_EXECUTOR_INACTIVE_TRESHOLD
       - OPEN_RUNTIMES_EXECUTOR_NETWORK
       - OPEN_RUNTIMES_EXECUTOR_SECRET
-      - OPEN_RUNTIMES_EXECUTOR_LOGGING_PROVIDER=
-      - OPEN_RUNTIMES_EXECUTOR_LOGGING_CONFIG=
-      - OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_USERNAME=
-      - OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_PASSWORD=
+      - OPEN_RUNTIMES_EXECUTOR_LOGGING_PROVIDER
+      - OPEN_RUNTIMES_EXECUTOR_LOGGING_CONFIG
+      - OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_USERNAME
+      - OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_PASSWORD
 
 networks:
   runtimes:
@@ -77,6 +78,7 @@ volumes:
 
 ```
 OPEN_RUNTIMES_EXECUTOR_ENV=development
+OPEN_RUNTIMES_EXECUTOR_RUNTIMES=php-8.0
 OPEN_RUNTIMES_STORAGE_CONNECTION=file://localhost
 OPEN_RUNTIMES_EXECUTOR_MAX_TIMEOUT=900
 OPEN_RUNTIMES_EXECUTOR_BUILD_TIMEOUT=900
@@ -116,7 +118,7 @@ cd .. && rm -r php-function
 5. Send a HTTP request to executor server:
 
 ```bash
-curl -H "authorization: Bearer executor-secret-key" -H "Content-Type: application/json" -X POST http://localhost:9900/v1/execution -d '{"runtimeId":"my-function","image":"openruntimes/php:v2-8.0","source":"/storage/functions/my-function.tar.gz","entrypoint":"index.php"}'
+curl -H "authorization: Bearer executor-secret-key" -H "Content-Type: application/json" -X POST http://localhost:9900/v1/runtimes/my-function/execution -d '{"image":"openruntimes/php:v2-8.0","source":"/storage/functions/my-function.tar.gz","entrypoint":"index.php"}'
 ```
 
 6. Stop Docker containers:
