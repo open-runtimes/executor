@@ -6,6 +6,7 @@ use Appwrite\Runtimes\Runtimes;
 use Swoole\Http\Request as SwooleRequest;
 use Swoole\Http\Response as SwooleResponse;
 use Swoole\Coroutine\Http\Server;
+use Swoole\Process;
 use Swoole\Runtime;
 use Swoole\Table;
 use Swoole\Timer;
@@ -37,6 +38,9 @@ use Utopia\Validator\Range;
 use Utopia\Validator\Text;
 use Utopia\Pools\Pool;
 use Utopia\Registry\Registry;
+
+use function Swoole\Coroutine\batch;
+use function Swoole\Coroutine\run;
 
 Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
 
@@ -234,10 +238,7 @@ function removeAllRuntimes(Pool $orchestrationPool): void
         };
     }
 
-    /** @phpstan-ignore-next-line */
-    Swoole\Coroutine\batch(
-        $callables
-    );
+    batch($callables);
 
     Console::success('Done.');
 }
@@ -401,8 +402,7 @@ App::post('/v1/runtimes')
                 $container['outputPath'] = $outputPath;
             }
 
-            /** @phpstan-ignore-next-line */
-            if (empty($stdout)) {
+            if ($stdout === '') {
                 $stdout = 'Build Successful!';
             }
 
@@ -533,7 +533,7 @@ App::delete('/v1/runtimes/:runtimeId')
             ->send();
     });
 
-App::post('/v1/execution')
+App::post('/v1/runtimes/:runtimeId/execution')
     ->desc('Create an execution')
     // Execution-related
     ->param('runtimeId', '', new Text(64), 'The runtimeID to execute.')
@@ -797,34 +797,31 @@ App::get('/v1/health')
         'status' => 'pass'
     ];
 
-    /** @phpstan-ignore-next-line */
-    Swoole\Coroutine\batch(
-        [
-            function () use (&$output) {
-                $output['hostUsage'] = System::getCPUUsage(5);
-            },
-            function () use (&$output, $orchestrationPool) {
-                $functionsUsage = [];
+    batch([
+        function () use (&$output) {
+            $output['hostUsage'] = System::getCPUUsage(5);
+        },
+        function () use (&$output, $orchestrationPool) {
+            $functionsUsage = [];
 
-                try {
-                    $connection = $orchestrationPool->pop();
-                    $orchestration = $connection->getResource();
-                    $containerUsages = $orchestration->getStats(
-                        filters: [ 'label' => 'openruntimes-executor=' . System::getHostname() ],
-                        cycles: 3
-                    );
+            try {
+                $connection = $orchestrationPool->pop();
+                $orchestration = $connection->getResource();
+                $containerUsages = $orchestration->getStats(
+                    filters: [ 'label' => 'openruntimes-executor=' . System::getHostname() ],
+                    cycles: 3
+                );
 
-                    foreach ($containerUsages as $containerUsage) {
-                        $functionsUsage[$containerUsage['name']] = $containerUsage['cpu'] * 100;
-                    }
-                } finally {
-                    isset($connection) && $orchestrationPool->push($connection);
+                foreach ($containerUsages as $containerUsage) {
+                    $functionsUsage[$containerUsage['name']] = $containerUsage['cpu'] * 100;
                 }
-
-                $output['functionsUsage'] = $functionsUsage;
+            } finally {
+                isset($connection) && $orchestrationPool->push($connection);
             }
-        ]
-    );
+
+            $output['functionsUsage'] = $functionsUsage;
+        }
+    ]);
 
     $response
         ->setStatusCode(Response::STATUS_CODE_OK)
@@ -889,151 +886,142 @@ App::init()
         }
     });
 
-/** @phpstan-ignore-next-line */
-Co\run(
-    function () use ($register) {
-        $orchestrationPool = $register->get('orchestrationPool');
-        $activeRuntimes = $register->get('activeRuntimes');
+run(function () use ($register) {
+    $orchestrationPool = $register->get('orchestrationPool');
+    $activeRuntimes = $register->get('activeRuntimes');
 
-        /**
-         * Remove residual runtimes
-         */
-        Console::info('Removing orphan runtimes...');
-        try {
-            $connection = $orchestrationPool->pop();
-            $orchestration = $connection->getResource();
-            $orphans = $orchestration->list(['label' => 'openruntimes-executor=' . System::getHostname()]);
-        } finally {
-            isset($connection) && $orchestrationPool->push($connection);
-        }
-
-        if (\count($orphans) === 0) {
-            Console::log("No orphan runtimes found.");
-        }
-
-        $callables = [];
-        foreach ($orphans as $runtime) {
-            $callables[] = function () use ($runtime, $orchestrationPool) {
-                try {
-                    $connection = $orchestrationPool->pop();
-                    $orchestration = $connection->getResource();
-                    $orchestration->remove($runtime->getName(), true);
-                    Console::success("Successfully removed {$runtime->getName()}");
-                } catch (\Throwable $th) {
-                    Console::error('Orphan runtime deletion failed: ' . $th->getMessage());
-                } finally {
-                    isset($connection) && $orchestrationPool->push($connection);
-                }
-            };
-        }
-
-        /** @phpstan-ignore-next-line */
-        Swoole\Coroutine\batch(
-            $callables
-        );
-
-        Console::success("Done.");
-
-        /**
-         * Warmup: make sure images are ready to run fast 🚀
-         */
-        Console::info('Pulling runtime images...');
-        $runtimes = new Runtimes('v2');
-        $allowList = empty(App::getEnv('OPEN_RUNTIMES_EXECUTOR_RUNTIMES')) ? [] : \explode(',', App::getEnv('OPEN_RUNTIMES_EXECUTOR_RUNTIMES'));
-        $runtimes = $runtimes->getAll(true, $allowList);
-        $callables = [];
-        foreach ($runtimes as $runtime) {
-            $callables[] = function () use ($runtime, $orchestrationPool) {
-                try {
-                    $connection = $orchestrationPool->pop();
-                    $orchestration = $connection->getResource();
-                    Console::log('Warming up ' . $runtime['name'] . ' ' . $runtime['version'] . ' environment...');
-                    $response = $orchestration->pull($runtime['image']);
-                    if ($response) {
-                        Console::info("Successfully Warmed up {$runtime['name']} {$runtime['version']}!");
-                    } else {
-                        Console::warning("Failed to Warmup {$runtime['name']} {$runtime['version']}!");
-                    }
-                } finally {
-                    isset($connection) && $orchestrationPool->push($connection);
-                }
-            };
-        }
-
-        /** @phpstan-ignore-next-line */
-        Swoole\Coroutine\batch(
-            $callables
-        );
-
-        Console::success("Done.");
-
-        /**
-         * Run a maintenance worker every X seconds to remove inactive runtimes
-         */
-        Console::info('Starting maintenance interval...');
-        $interval = (int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
-        Timer::tick($interval * 1000, function () use ($orchestrationPool, $activeRuntimes) {
-            Console::info("Running maintenance task ...");
-            foreach ($activeRuntimes as $activeRuntimeId => $runtime) {
-                $inactiveThreshold = \time() - App::getEnv('OPEN_RUNTIMES_EXECUTOR_INACTIVE_TRESHOLD', 60);
-                if ($runtime['updated'] < $inactiveThreshold) {
-                    go(function () use ($activeRuntimeId, $runtime, $orchestrationPool, $activeRuntimes) {
-                        try {
-                            $connection = $orchestrationPool->pop();
-                            $orchestration = $connection->getResource();
-                            $orchestration->remove($runtime['name'], true);
-                            $activeRuntimes->del($activeRuntimeId);
-                            Console::success("Successfully removed {$runtime['name']}");
-                        } catch (\Throwable $th) {
-                            Console::error('Inactive Runtime deletion failed: ' . $th->getMessage());
-                        } finally {
-                            isset($connection) && $orchestrationPool->push($connection);
-                        }
-                    });
-                }
-            }
-            Console::success("Done.");
-        });
-
-        Console::success('Done.');
-
-        $server = new Server('0.0.0.0', 80, false);
-
-        $server->handle('/', function (SwooleRequest $swooleRequest, SwooleResponse $swooleResponse) {
-            $request = new Request($swooleRequest);
-            $response = new Response($swooleResponse);
-
-            $app = new App('UTC');
-
-            try {
-                $app->run($request, $response);
-            } catch (\Throwable $th) {
-                $code = 500;
-
-                /**
-                 * @var Logger $logger
-                 */
-                $logger = $app->getResource('logger');
-                logError($th, "serverError", $logger);
-                $swooleResponse->setStatusCode($code);
-                $output = [
-                    'message' => 'Error: ' . $th->getMessage(),
-                    'code' => $code,
-                    'file' => $th->getFile(),
-                    'line' => $th->getLine(),
-                    'trace' => $th->getTrace()
-                ];
-                $swooleResponse->end(\json_encode($output));
-            }
-        });
-
-        Console::success('Executor is ready.');
-
-        Swoole\Process::signal(SIGINT, fn () => removeAllRuntimes($orchestrationPool));
-        Swoole\Process::signal(SIGQUIT, fn () => removeAllRuntimes($orchestrationPool));
-        Swoole\Process::signal(SIGKILL, fn () => removeAllRuntimes($orchestrationPool));
-        Swoole\Process::signal(SIGTERM, fn () => removeAllRuntimes($orchestrationPool));
-
-        $server->start();
+    /**
+     * Remove residual runtimes
+     */
+    Console::info('Removing orphan runtimes...');
+    try {
+        $connection = $orchestrationPool->pop();
+        $orchestration = $connection->getResource();
+        $orphans = $orchestration->list(['label' => 'openruntimes-executor=' . System::getHostname()]);
+    } finally {
+        isset($connection) && $orchestrationPool->push($connection);
     }
-);
+
+    if (\count($orphans) === 0) {
+        Console::log("No orphan runtimes found.");
+    }
+
+    $callables = [];
+    foreach ($orphans as $runtime) {
+        $callables[] = function () use ($runtime, $orchestrationPool) {
+            try {
+                $connection = $orchestrationPool->pop();
+                $orchestration = $connection->getResource();
+                $orchestration->remove($runtime->getName(), true);
+                Console::success("Successfully removed {$runtime->getName()}");
+            } catch (\Throwable $th) {
+                Console::error('Orphan runtime deletion failed: ' . $th->getMessage());
+            } finally {
+                isset($connection) && $orchestrationPool->push($connection);
+            }
+        };
+    }
+
+    batch($callables);
+
+    Console::success("Done.");
+
+    /**
+     * Warmup: make sure images are ready to run fast 🚀
+     */
+    Console::info('Pulling runtime images...');
+    $runtimes = new Runtimes('v2');
+    $allowList = empty(App::getEnv('OPEN_RUNTIMES_EXECUTOR_RUNTIMES')) ? [] : \explode(',', App::getEnv('OPEN_RUNTIMES_EXECUTOR_RUNTIMES'));
+    $runtimes = $runtimes->getAll(true, $allowList);
+    $callables = [];
+    foreach ($runtimes as $runtime) {
+        $callables[] = function () use ($runtime, $orchestrationPool) {
+            try {
+                $connection = $orchestrationPool->pop();
+                $orchestration = $connection->getResource();
+                Console::log('Warming up ' . $runtime['name'] . ' ' . $runtime['version'] . ' environment...');
+                $response = $orchestration->pull($runtime['image']);
+                if ($response) {
+                    Console::info("Successfully Warmed up {$runtime['name']} {$runtime['version']}!");
+                } else {
+                    Console::warning("Failed to Warmup {$runtime['name']} {$runtime['version']}!");
+                }
+            } finally {
+                isset($connection) && $orchestrationPool->push($connection);
+            }
+        };
+    }
+
+    batch($callables);
+
+    Console::success("Done.");
+
+    /**
+     * Run a maintenance worker every X seconds to remove inactive runtimes
+     */
+    Console::info('Starting maintenance interval...');
+    $interval = (int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
+    Timer::tick($interval * 1000, function () use ($orchestrationPool, $activeRuntimes) {
+        Console::info("Running maintenance task ...");
+        foreach ($activeRuntimes as $activeRuntimeId => $runtime) {
+            $inactiveThreshold = \time() - App::getEnv('OPEN_RUNTIMES_EXECUTOR_INACTIVE_TRESHOLD', 60);
+            if ($runtime['updated'] < $inactiveThreshold) {
+                go(function () use ($activeRuntimeId, $runtime, $orchestrationPool, $activeRuntimes) {
+                    try {
+                        $connection = $orchestrationPool->pop();
+                        $orchestration = $connection->getResource();
+                        $orchestration->remove($runtime['name'], true);
+                        $activeRuntimes->del($activeRuntimeId);
+                        Console::success("Successfully removed {$runtime['name']}");
+                    } catch (\Throwable $th) {
+                        Console::error('Inactive Runtime deletion failed: ' . $th->getMessage());
+                    } finally {
+                        isset($connection) && $orchestrationPool->push($connection);
+                    }
+                });
+            }
+        }
+        Console::success("Done.");
+    });
+
+    Console::success('Done.');
+
+    $server = new Server('0.0.0.0', 80, false);
+
+    $server->handle('/', function (SwooleRequest $swooleRequest, SwooleResponse $swooleResponse) {
+        $request = new Request($swooleRequest);
+        $response = new Response($swooleResponse);
+
+        $app = new App('UTC');
+
+        try {
+            $app->run($request, $response);
+        } catch (\Throwable $th) {
+            $code = 500;
+
+            /**
+             * @var Logger $logger
+             */
+            $logger = $app->getResource('logger');
+            logError($th, "serverError", $logger);
+            $swooleResponse->setStatusCode($code);
+            $output = [
+                'message' => 'Error: ' . $th->getMessage(),
+                'code' => $code,
+                'file' => $th->getFile(),
+                'line' => $th->getLine(),
+                'trace' => $th->getTrace()
+            ];
+            $swooleResponse->end(\json_encode($output));
+        }
+    });
+
+    Console::success('Executor is ready.');
+
+    Process::signal(SIGINT, fn () => removeAllRuntimes($orchestrationPool));
+    Process::signal(SIGQUIT, fn () => removeAllRuntimes($orchestrationPool));
+    Process::signal(SIGKILL, fn () => removeAllRuntimes($orchestrationPool));
+    Process::signal(SIGTERM, fn () => removeAllRuntimes($orchestrationPool));
+
+    $server->start();
+});

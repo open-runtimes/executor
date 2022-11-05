@@ -16,7 +16,7 @@
     "scripts": {
         "lint": "./vendor/bin/pint --preset psr12 --test",
         "format": "./vendor/bin/pint --preset psr12",
-        "check": "./vendor/bin/phpstan analyse --level 8 app src tests",
+        "check": "./vendor/bin/phpstan analyse --level 8 -c phpstan.neon app src tests",
         "test": "./vendor/bin/phpunit --configuration phpunit.xml --debug"
     },
     "require": {
@@ -28,7 +28,7 @@
         "utopia-php/swoole": "0.3.*",
         "utopia-php/pools": "dev-upgrade-cli as 0.2.0",
         "utopia-php/logger": "0.3.*",
-        "utopia-php/cli": "0.14.*",
+        "utopia-php/cli": "0.13.*",
         "utopia-php/storage": "0.11.*",
         "utopia-php/registry": "0.5.*",
         "utopia-php/preloader": "0.2.*",

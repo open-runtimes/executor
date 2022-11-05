@@ -142,9 +142,7 @@ final class ExecutorTest extends TestCase
         $this->assertEquals(201, $response['headers']['status-code']);
         $this->assertEquals('ready', $response['body']['status']);
 
-        $response = $this->client->call(Client::METHOD_POST, '/execution', [], [
-            'runtimeId' => 'test-exec',
-        ]);
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/execution');
 
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(200, $response['body']['statusCode']);
@@ -157,8 +155,7 @@ final class ExecutorTest extends TestCase
         $this->assertEquals('{"payload":"","variable":"","unicode":"Unicode magic: êä"}', $response['body']['response']);
 
         /** Execute witn data and variables */
-        $response = $this->client->call(Client::METHOD_POST, '/execution', [], [
-            'runtimeId' => 'test-exec',
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/execution', [], [
             'payload' => 'test payload',
             'variables' => [
                 'customVariable' => 'mySecret'
@@ -173,8 +170,7 @@ final class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
 
         /** Execute on new runtime */
-        $response = $this->client->call(Client::METHOD_POST, '/execution', [], [
-            'runtimeId' => 'test-exec-coldstart',
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/execution', [], [
             'source' => $data['path'],
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v2-8.0',
