@@ -454,7 +454,7 @@ App::post('/v1/runtimes')
                 $orchestration->remove($runtimeId, true);
             } catch (Throwable $th) {
                 // If fails, means initialization also failed.
-                // Contianer is not there, no need to remove
+                // Container is not there, no need to remove
             }
         }
 
