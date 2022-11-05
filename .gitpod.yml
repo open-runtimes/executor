@@ -1,5 +1,5 @@
 tasks:
-  - name: openruntimes/executor
+  - name: open-runtimes/executor
     init: |
       docker compose pull
       docker compose build
