@@ -172,7 +172,7 @@ function getStorageDevice(string $root): Device
         $region = $dsn->getParam('region');
         $acl = 'private';
     } catch (\Exception $e) {
-        Console::error($e->getMessage() . 'Defaulting to Local storage.');
+        Console::warning('Defaulting to Local storage due to error: ' . $e->getMessage());
         $device = 'Local';
     }
 
