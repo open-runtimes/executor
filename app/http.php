@@ -450,7 +450,7 @@ App::post('/v1/runtimes')
         if ($remove) {
             $activeRuntimes->del($activeRuntimeId);
             try {
-                // Try to remove with contaier name instead of ID
+                // Try to remove with container name instead of ID
                 $orchestration->remove($runtimeId, true);
             } catch (Throwable $th) {
                 // If fails, means initialization also failed.
