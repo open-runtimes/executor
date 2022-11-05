@@ -19,6 +19,8 @@ jobs:
         docker pull composer:2.0
         docker compose build
         docker compose up -d
+        docker ps
+        docker network ls
         sleep 15
 
     - name: Doctor
