@@ -458,7 +458,7 @@ App::post('/v1/runtimes')
             }
         }
 
-        // Release orchestration back to pool, we are done with it
+        // Release connection back to pool, we are done with it
         $orchestrationPool->push($connection);
 
         $response
