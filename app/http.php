@@ -36,6 +36,7 @@ use Utopia\Validator\Boolean;
 use Utopia\Validator\Range;
 use Utopia\Validator\Text;
 use Utopia\Pools\Pool;
+use Utopia\DSN\DSN;
 use Utopia\Registry\Registry;
 
 Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
@@ -163,14 +164,20 @@ function getStorageDevice(string $root): Device
 {
     $connection = App::getEnv('OPEN_RUNTIMES_STORAGE_CONNECTION', '');
 
+    $acl = 'private';
+    $device = '';
+    $accessKey = '';
+    $accessSecret = '';
+    $bucket = '';
+    $region = '';
+
     try {
-        $dsn = new DSN($connection);
+        $dsn = new DSN($connection);    
         $device = $dsn->getScheme();
-        $accessKey = $dsn->getUser();
-        $accessSecret = $dsn->getPassword();
-        $bucket = $dsn->getPath();
+        $accessKey = $dsn->getUser() ?? '';
+        $accessSecret = $dsn->getPassword() ?? '';
+        $bucket = $dsn->getPath() ?? '';
         $region = $dsn->getParam('region');
-        $acl = 'private';
     } catch (\Exception $e) {
         Console::warning('Defaulting to Local storage due to error: ' . $e->getMessage());
         $device = 'Local';
