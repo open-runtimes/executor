@@ -172,7 +172,7 @@ function getStorageDevice(string $root): Device
     $region = '';
 
     try {
-        $dsn = new DSN($connection);    
+        $dsn = new DSN($connection);
         $device = $dsn->getScheme();
         $accessKey = $dsn->getUser() ?? '';
         $accessSecret = $dsn->getPassword() ?? '';
