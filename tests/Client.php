@@ -53,7 +53,6 @@ class Client
         return $this;
     }
 
-
     /**
      * @param array<string, string> $headers
      * @param array<string, mixed> $params

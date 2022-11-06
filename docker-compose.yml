@@ -21,7 +21,7 @@ services:
     build:
       context: .
     networks:
-      runtimes:
+      openruntimes-runtimes:
     ports:
       - 9900:80
     volumes:
@@ -50,7 +50,8 @@ services:
       - OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_PASSWORD
 
 networks:
-  runtimes:
+  openruntimes-runtimes:
+    name: openruntimes-runtimes
 
 volumes:
   openruntimes-builds:

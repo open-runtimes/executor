@@ -211,6 +211,7 @@ function removeAllRuntimes(Table $activeRuntimes, Pool $orchestrationPool): void
     $connection = $orchestrationPool->pop();
     $orchestration = $connection->getResource();
     $functionsToRemove = $orchestration->list(['label' => 'openruntimes-executor=' . System::getHostname()]);
+    $connection->reclaim();
     $orchestrationPool->push($connection);
 
     if (\count($functionsToRemove) === 0) {
@@ -244,24 +245,24 @@ function removeAllRuntimes(Table $activeRuntimes, Pool $orchestrationPool): void
 
     batch($callables);
 
-    Console::success('Done.');
+    Console::success('Cleanup finished.');
 }
 
 App::post('/v1/runtimes')
     ->desc("Create a new runtime server")
     ->param('runtimeId', '', new Text(64), 'Unique runtime ID.')
     ->param('image', '', new Text(128), 'Base image name of the runtime.')
-    ->param('source', '', new Text(0), 'Path to source files.')
     ->param('entrypoint', '', new Text(256), 'Entrypoint of the code file.')
-    ->param('destination', '', new Text(0), 'Destination folder to store build files into.', true)
-    ->param('variables', [], new Assoc(), 'Environment Variables required for the build.', true)
-    ->param('commands', [], new ArrayList(new Text(1024), 100), 'Commands required to build the container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
+    ->param('source', '', new Text(0), 'Path to source files.')
+    ->param('destination', '', new Text(0), 'Destination folder to store runtime files into.', true)
+    ->param('variables', [], new Assoc(), 'Environment variables passed into runtime.', true)
+    ->param('commands', [], new ArrayList(new Text(1024), 100), 'Commands to use when creating the container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('workdir', '', new Text(256), 'Working directory.', true)
     ->param('remove', false, new Boolean(), 'Remove a runtime after execution.', true)
     ->inject('orchestrationPool')
     ->inject('activeRuntimes')
     ->inject('response')
-    ->action(function (string $runtimeId, string $image, string $source, string $entrypoint, string $destination, array $variables, array $commands, string $workdir, bool $remove, Pool $orchestrationPool, Table $activeRuntimes, Response $response) {
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, array $commands, string $workdir, bool $remove, Pool $orchestrationPool, Table $activeRuntimes, Response $response) {
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
@@ -299,8 +300,6 @@ App::post('/v1/runtimes')
         }
 
         try {
-            Console::info('Building container : ' . $runtimeId);
-
             /**
              * Temporary file paths in the executor
              */
@@ -365,7 +364,7 @@ App::post('/v1/runtimes')
             );
 
             if (empty($containerId)) {
-                throw new Exception('Failed to create build container', 500);
+                throw new Exception('Failed to create runtime', 500);
             }
 
             $orchestration->networkConnect($runtimeId, App::getEnv('OPEN_RUNTIMES_EXECUTOR_NETWORK', 'executor_runtimes'));
@@ -383,7 +382,7 @@ App::post('/v1/runtimes')
                 );
 
                 if (!$status) {
-                    throw new Exception('Failed to build dependenices ' . $stderr, 500);
+                    throw new Exception('Failed to create runtime: ' . $stderr, 500);
                 }
             }
 
@@ -393,7 +392,7 @@ App::post('/v1/runtimes')
             if (!empty($destination)) {
                 // Check if the build was successful by checking if file exists
                 if (!\file_exists($tmpBuild)) {
-                    throw new Exception('Something went wrong during the build process', 500);
+                    throw new Exception('Something went wrong when starting runtime.', 500);
                 }
 
                 $destinationDevice = getStorageDevice($destination);
@@ -408,7 +407,7 @@ App::post('/v1/runtimes')
             }
 
             if ($stdout === '') {
-                $stdout = 'Build Successful!';
+                $stdout = 'Runtime created successfully!';
             }
 
             $endTimeUnix = \microtime(true);
@@ -434,11 +433,7 @@ App::post('/v1/runtimes')
                     'key' => $secret,
                 ]);
             }
-
-            Console::success('Build Stage completed in ' . ($duration) . ' seconds');
         } catch (Throwable $th) {
-            Console::error('Build failed: ' . $th->getMessage() . $stdout);
-
             $activeRuntimes->del($activeRuntimeId);
             // Silently try to kill container
             try {
@@ -470,7 +465,6 @@ App::post('/v1/runtimes')
             ->setStatusCode(Response::STATUS_CODE_CREATED)
             ->json($container);
     });
-
 
 App::get('/v1/runtimes')
     ->desc("List currently active runtimes")
@@ -521,14 +515,11 @@ App::delete('/v1/runtimes/:runtimeId')
             throw new Exception('Runtime not found', 404);
         }
 
-        Console::info('Deleting runtime: ' . $runtimeId);
-
         try {
             $connection = $orchestrationPool->pop();
             $orchestration = $connection->getResource();
             $orchestration->remove($runtimeId, true);
             $activeRuntimes->del($activeRuntimeId);
-            Console::success('Removed runtime container: ' . $runtimeId);
         } finally {
             isset($connection) && $orchestrationPool->push($connection);
         }
@@ -543,7 +534,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
     // Execution-related
     ->param('runtimeId', '', new Text(64), 'The runtimeID to execute.')
     ->param('payload', '', new Text(8192), 'Data to be forwarded to the function, this is user specified.', true)
-    ->param('variables', [], new Assoc(), 'Environment variables required for the build and execution.', true)
+    ->param('variables', [], new Assoc(), 'Environment variables passed into runtime.', true)
     ->param('timeout', 15, new Range(1, (int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_MAX_TIMEOUT', "900")), 'Function maximum execution time in seconds.', true)
     // Runtime-related
     ->param('image', '', new Text(128), 'Base image name of the runtime.', true)
@@ -630,8 +621,6 @@ App::post('/v1/runtimes/:runtimeId/execution')
                         throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
                     }
 
-                    Console::info('Waiting for runtime to respond...');
-
                     if ($i === 4) {
                         throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
                     }
@@ -642,9 +631,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
 
             // Ensure runtime started
             for ($i = 0; $i < 5; $i++) {
-                if ($activeRuntimes->get($activeRuntimeId)['status'] === 'pending') {
-                    Console::info('Waiting for runtime to be ready...');
-                } else {
+                if ($activeRuntimes->get($activeRuntimeId)['status'] !== 'pending') {
                     break;
                 }
 
@@ -662,8 +649,6 @@ App::post('/v1/runtimes/:runtimeId/execution')
             if (empty($secret)) {
                 throw new Exception('Runtime secret not found. Please re-create the runtime.', 500);
             }
-
-            Console::info('Executing Runtime: ' . $runtimeId);
 
             $executionStart = \microtime(true);
 
@@ -729,8 +714,6 @@ App::post('/v1/runtimes/:runtimeId/execution')
                     throw new Exception('An internal curl error has occurred within the executor! Error Msg: ' . $error, 500);
                 }
 
-                Console::info('Waiting for runtime to respond...');
-
                 if ($i === 4) {
                     throw new Exception('An internal curl error has occurred within the executor! Error Msg: ' . $error, 500);
                 }
@@ -768,8 +751,6 @@ App::post('/v1/runtimes/:runtimeId/execution')
             $executionTime = ($executionEnd - $executionStart);
             $functionStatus = ($statusCode >= 500) ? 'failed' : 'completed';
 
-            Console::success('Function executed in ' . $executionTime . ' seconds, status: ' . $functionStatus);
-
             $execution = [
                 'status' => $functionStatus,
                 'statusCode' => $statusCode,
@@ -792,47 +773,46 @@ App::post('/v1/runtimes/:runtimeId/execution')
     );
 
 App::get('/v1/health')
-->desc("Get health status of host machine and runtimes.")
-->inject('orchestrationPool')
-->inject('response')
-->action(function (Pool $orchestrationPool, Response $response) {
-    // TODO: @Meldiron Interval, here just read from Table.
+    ->desc("Get health status of host machine and runtimes.")
+    ->inject('orchestrationPool')
+    ->inject('response')
+    ->action(function (Pool $orchestrationPool, Response $response) {
+        // TODO: @Meldiron Interval, here just read from Table.
 
-    $output = [
-        'status' => 'pass'
-    ];
+        $output = [
+            'status' => 'pass'
+        ];
 
-    batch([
-        function () use (&$output) {
-            $output['hostUsage'] = System::getCPUUsage(5);
-        },
-        function () use (&$output, $orchestrationPool) {
-            $functionsUsage = [];
+        batch([
+            function () use (&$output) {
+                $output['hostUsage'] = System::getCPUUsage(5);
+            },
+            function () use (&$output, $orchestrationPool) {
+                $functionsUsage = [];
 
-            try {
-                $connection = $orchestrationPool->pop();
-                $orchestration = $connection->getResource();
-                $containerUsages = $orchestration->getStats(
-                    filters: [ 'label' => 'openruntimes-executor=' . System::getHostname() ],
-                    cycles: 3
-                );
+                try {
+                    $connection = $orchestrationPool->pop();
+                    $orchestration = $connection->getResource();
+                    $containerUsages = $orchestration->getStats(
+                        filters: [ 'label' => 'openruntimes-executor=' . System::getHostname() ],
+                        cycles: 3
+                    );
 
-                foreach ($containerUsages as $containerUsage) {
-                    $functionsUsage[$containerUsage['name']] = $containerUsage['cpu'] * 100;
+                    foreach ($containerUsages as $containerUsage) {
+                        $functionsUsage[$containerUsage['name']] = $containerUsage['cpu'] * 100;
+                    }
+                } finally {
+                    isset($connection) && $orchestrationPool->push($connection);
                 }
-            } finally {
-                isset($connection) && $orchestrationPool->push($connection);
+
+                $output['functionsUsage'] = $functionsUsage;
             }
+        ]);
 
-            $output['functionsUsage'] = $functionsUsage;
-        }
-    ]);
-
-    $response
-        ->setStatusCode(Response::STATUS_CODE_OK)
-        ->json($output);
-});
-
+        $response
+            ->setStatusCode(Response::STATUS_CODE_OK)
+            ->json($output);
+    });
 
 /** Set callbacks */
 App::error()
@@ -902,7 +882,7 @@ run(function () use ($register) {
 
     removeAllRuntimes($activeRuntimes, $orchestrationPool);
 
-    Console::success("Done.");
+    Console::success("Orphan runtimes removal finished.");
 
     /**
      * Warmup: make sure images are ready to run fast 🚀
@@ -932,7 +912,7 @@ run(function () use ($register) {
 
     batch($callables);
 
-    Console::success("Done.");
+    Console::success("Image pulling finished.");
 
     /**
      * Run a maintenance worker every X seconds to remove inactive runtimes
@@ -959,10 +939,10 @@ run(function () use ($register) {
                 });
             }
         }
-        Console::success("Done.");
+        Console::success("Maintanance task finished.");
     });
 
-    Console::success('Done.');
+    Console::success('Mmaintenance interval started.');
 
     $server = new Server('0.0.0.0', 80, false);
 

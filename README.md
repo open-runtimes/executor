@@ -11,7 +11,7 @@
 
 Executor for [Open Runtimes](https://github.com/open-runtimes/open-runtimes), a runtime environments for serverless cloud computing for multiple coding languages.
 
-Executor is responsible for providing HTTP API for building, creating and executing Open Runtimes. Executor is stateless and can be scaled horizontally when a load balancer is introduced in front of it. You could use any load balancer but we highly recommend using [Open Runtimes Proxy](https://github.com/open-runtimes/proxy) for it's ease of setup with Open Runtimes Executor.
+Executor is responsible for providing HTTP API for creating and executing Open Runtimes. Executor is stateless and can be scaled horizontally when a load balancer is introduced in front of it. You could use any load balancer but we highly recommend using [Open Runtimes Proxy](https://github.com/open-runtimes/proxy) for it's ease of setup with Open Runtimes Executor.
 
 ## Features
 
@@ -38,7 +38,7 @@ services:
     stop_signal: SIGINT
     image: openruntimes/executor
     networks:
-      runtimes:
+      openruntimes-runtimes:
     ports:
       - 9900:80
     volumes:
@@ -65,7 +65,8 @@ services:
       - OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_PASSWORD
 
 networks:
-  runtimes:
+  openruntimes-runtimes:
+    name: openruntimes-runtimes
 
 volumes:
   openruntimes-builds:
@@ -86,7 +87,7 @@ OPEN_RUNTIMES_EXECUTOR_CPUS=0
 OPEN_RUNTIMES_EXECUTOR_MEMORY=0
 OPEN_RUNTIMES_EXECUTOR_MEMORY_SWAP=0
 OPEN_RUNTIMES_EXECUTOR_INACTIVE_TRESHOLD=60
-OPEN_RUNTIMES_EXECUTOR_NETWORK=executor_runtimes
+OPEN_RUNTIMES_EXECUTOR_NETWORK=openruntimes-runtimes
 OPEN_RUNTIMES_EXECUTOR_SECRET=executor-secret-key
 OPEN_RUNTIMES_EXECUTOR_LOGGING_PROVIDER=
 OPEN_RUNTIMES_EXECUTOR_LOGGING_CONFIG=
@@ -95,8 +96,6 @@ OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_PASSWORD=
 ```
 
 > `OPEN_RUNTIMES_CONNECTION_STORAGE` takes a DSN string that represents a connection to your storage device. If you would like to use your local filesystem, you can use `file://localhost`. If using S3 or any other provider for storage, use a DSN of the following format `s3://access_key:access_secret@host:port/bucket_name?region=us-east-1`
-
-> Docker compose names networks based on directory you are in. If your folder is not caled `executor`, you may need to change value of `OPEN_RUNTIMES_EXECUTOR_NETWORK` variable.
 
 4. Start Docker container:
 

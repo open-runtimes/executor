@@ -97,7 +97,7 @@ To run tests, you need to start Docker Compose stack, and then run PHPUnit:
 ```bash
 docker compose up -d
 # Wait for ~5 seconds for executor to start
-docker run --rm -v $PWD:/app --network executor_runtimes -w /app phpswoole/swoole:4.8.12-php8.0-alpine sh -c \ "composer test"
+docker run --rm -v $PWD:/app --network openruntimes-runtimes -w /app phpswoole/swoole:4.8.12-php8.0-alpine sh -c \ "composer test"
 ```
 
 To run linter, you need to run Pint:

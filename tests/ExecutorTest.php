@@ -3,6 +3,7 @@
 namespace Tests;
 
 use PHPUnit\Framework\TestCase;
+use Utopia\CLI\Console;
 
 // TODO: @Meldiron Write more tests (validators mainly)
 
@@ -29,6 +30,19 @@ final class ExecutorTest extends TestCase
             ->setKey($this->key);
     }
 
+    public function testPackFunctions(): void
+    {
+        // Prepare tar.gz files
+        $stdout = '';
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/functions/php && tar --warning=no-file-changed --exclude code.tar.gz -czf code.tar.gz .', '', $stdout, $stderr);
+
+        $this->assertEquals('', $stderr);
+    }
+
+    /**
+     * @depends testPackFunctions
+     */
     public function testErrors(): void
     {
         $response = $this->client->call(Client::METHOD_GET, '/unknown', [], []);
@@ -55,6 +69,8 @@ final class ExecutorTest extends TestCase
     }
 
     /**
+     * @depends testPackFunctions
+     *
      * @return array<string,mixed>
      */
     public function testBuild(): array
@@ -62,7 +78,7 @@ final class ExecutorTest extends TestCase
         /** Build runtime */
         $params = [
             'runtimeId' => 'test-build',
-            'source' => '/storage/functions/php.tar.gz',
+            'source' => '/storage/functions/php/code.tar.gz',
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v2-8.0',
@@ -176,6 +192,10 @@ final class ExecutorTest extends TestCase
             'image' => 'openruntimes/php:v2-8.0',
         ]);
 
+        $this->assertEquals(200, $response['headers']['status-code']);
+
+        /** Delete runtime */
+        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-coldstart', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 }
