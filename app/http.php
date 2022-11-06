@@ -108,6 +108,8 @@ $register->set('activeRuntimes', function () {
     return $table;
 });
 
+// TODO: @Meldiron Make this nicer
+
 /** Set Resources */
 App::setResource('register', function () use (&$register) {
     return $register;
@@ -610,6 +612,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
 
                     // No error
                     if ($errNo === 0) {
+                        // TODO: @Meldiron This shoudl retry as well
                         if ($statusCode >= 400) {
                             $body = \json_decode($error, true);
                             throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . ($body['message'] ?? $error), 500);
