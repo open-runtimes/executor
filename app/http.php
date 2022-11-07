@@ -591,8 +591,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
 
                     // No error
                     if ($errNo === 0) {
-                        // TODO: @Meldiron This shoudl retry as well
-                        if ($statusCode >= 400) {
+                        if ($statusCode >= 400 && $i === 4) {
                             $body = \json_decode($error, true);
                             throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . ($body['message'] ?? $error), 500);
                         }
@@ -767,10 +766,10 @@ App::get('/v1/health')
 
         batch([
             function () use (&$output) {
-                $output['hostUsage'] = System::getCPUUsage(5);
+                $output['usage'] = System::getCPUUsage(5);
             },
             function () use (&$output, $orchestration) {
-                $functionsUsage = [];
+                $runtimes = [];
 
                 $containerUsages = $orchestration->getStats(
                     filters: [ 'label' => 'openruntimes-executor=' . System::getHostname() ],
@@ -778,10 +777,16 @@ App::get('/v1/health')
                 );
 
                 foreach ($containerUsages as $containerUsage) {
-                    $functionsUsage[$containerUsage['name']] = $containerUsage['cpu'] * 100;
+                    $hostnameArr = \explode('-', $containerUsage['name']);
+                    \array_shift($hostnameArr);
+                    $hostname = \implode('-', $hostnameArr);
+                    $runtimes[$hostname] = [
+                        'status' => 'pass',
+                        'usage' => $containerUsage['cpu'] * 100
+                    ];
                 }
 
-                $output['functionsUsage'] = $functionsUsage;
+                $output['runtimes'] = $runtimes;
             }
         ]);
 
