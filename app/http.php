@@ -291,18 +291,19 @@ App::post('/v1/runtimes')
             ]);
         }
 
-        try {
-            /**
-             * Temporary file paths in the executor
-             */
-            $tmpSource = "/tmp/$runtimeId/src/code.tar.gz";
-            $tmpBuild = "/tmp/$runtimeId/builds/code.tar.gz";
+        /**
+         * Temporary file paths in the executor
+         */
+        $tmpSource = "/tmp/$runtimeId/src/code.tar.gz";
+        $tmpBuild = "/tmp/$runtimeId/builds/code.tar.gz";
 
+        $sourceDevice = getStorageDevice("/");
+        $localDevice = new Local();
+
+        try {
             /**
              * Copy code files from source to a temporary location on the executor
              */
-            $sourceDevice = getStorageDevice("/");
-            $localDevice = new Local();
             $buffer = $sourceDevice->read($source);
             if (!$localDevice->write($tmpSource, $buffer)) {
                 throw new Exception('Failed to copy source code to temporary directory', 500);
@@ -425,6 +426,9 @@ App::post('/v1/runtimes')
                 ]);
             }
         } catch (Throwable $th) {
+            $localDevice->delete($tmpSource);
+            $localDevice->delete($tmpBuild);
+
             $activeRuntimes->del($activeRuntimeId);
 
             // Silently try to kill container
@@ -435,6 +439,9 @@ App::post('/v1/runtimes')
 
             throw new Exception($th->getMessage() . $stdout, 500);
         }
+
+        $localDevice->delete($tmpSource);
+        $localDevice->delete($tmpBuild);
 
         // Container cleanup
         if ($remove) {
