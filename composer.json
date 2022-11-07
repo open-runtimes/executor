@@ -26,7 +26,7 @@
         "ext-swoole": "*",
         "utopia-php/framework": "0.21.*",
         "utopia-php/swoole": "0.3.*",
-        "utopia-php/pools": "dev-upgrade-cli as 0.2.0",
+        "utopia-php/pools": "dev-feat-improve-ci as 0.2.0",
         "utopia-php/logger": "0.3.*",
         "utopia-php/cli": "0.13.*",
         "utopia-php/storage": "0.11.*",
