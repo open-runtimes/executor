@@ -312,10 +312,8 @@ App::post('/v1/runtimes')
             /**
              * Create the mount folder
              */
-            if (!\file_exists(\dirname($tmpBuild))) {
-                if (!@\mkdir(\dirname($tmpBuild), 0755, true)) {
-                    throw new Exception("Failed to create temporary directory", 500);
-                }
+            if(!$localDevice->createDirectory(\dirname($tmpBuild))) {
+                throw new Exception("Failed to create temporary directory", 500);
             }
 
             /**
