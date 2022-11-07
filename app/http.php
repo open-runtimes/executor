@@ -205,7 +205,6 @@ function removeAllRuntimes(Table $activeRuntimes, Pool $orchestrationPool): void
     $orchestration = $connection->getResource();
     $functionsToRemove = $orchestration->list(['label' => 'openruntimes-executor=' . System::getHostname()]);
     $connection->reclaim();
-    $orchestrationPool->push($connection);
 
     if (\count($functionsToRemove) === 0) {
         Console::info('No containers found to clean up.');
@@ -231,7 +230,7 @@ function removeAllRuntimes(Table $activeRuntimes, Pool $orchestrationPool): void
                 Console::error('Failed to remove container: ' . $container->getName());
                 Console::error($th);
             } finally {
-                isset($connection) && $orchestrationPool->push($connection);
+                isset($connection) && $connection->reclaim();
             }
         };
     }
@@ -250,13 +249,15 @@ App::post('/v1/runtimes')
     ->param('destination', '', new Text(0), 'Destination folder to store runtime files into.', true)
     ->param('variables', [], new Assoc(), 'Environment variables passed into runtime.', true)
     ->param('commands', [], new ArrayList(new Text(1024), 100), 'Commands to use when creating the container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
+    ->param('timeout', 600, new Integer(), 'Commands execution time in seconds.', true)
     ->param('workdir', '', new Text(256), 'Working directory.', true)
     ->param('remove', false, new Boolean(), 'Remove a runtime after execution.', true)
-    ->param('timeout', 600, new Integer(), 'Maximum commands execution time in seconds.', true)
+    ->param('cpus', 1, new Integer(), 'Container CPU.', true)
+    ->param('memory', 512, new Integer(), 'Comtainer RAM memory.', true)
     ->inject('orchestration')
     ->inject('activeRuntimes')
     ->inject('response')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, array $commands, string $workdir, bool $remove, int $timeout, Orchestration $orchestration, Table $activeRuntimes, Response $response) {
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, array $commands, int $timeout, string $workdir, bool $remove, int $cpus, int $memory, Orchestration $orchestration, Table $activeRuntimes, Response $response) {
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
@@ -327,9 +328,8 @@ App::post('/v1/runtimes')
             ]);
             $variables = array_map(fn ($v) => strval($v), $variables);
             $orchestration
-                ->setCpus((int) App::getEnv('OPR_EXECUTOR_CPUS', '0'))
-                ->setMemory((int) App::getEnv('OPR_EXECUTOR_MEMORY', '0'))
-                ->setSwap((int) App::getEnv('OPR_EXECUTOR_MEMORY_SWAP', '0'));
+                ->setCpus($cpus)
+                ->setMemory($memory);
 
             /** Keep the container alive if we have commands to be executed */
             $entrypoint = !empty($commands) ? [
@@ -888,7 +888,7 @@ run(function () use ($register) {
                     Console::warning("Failed to Warmup {$runtime['name']} {$runtime['version']}!");
                 }
             } finally {
-                isset($connection) && $orchestrationPool->push($connection);
+                isset($connection) && $connection->reclaim();
             }
         };
     }
@@ -917,7 +917,7 @@ run(function () use ($register) {
                     } catch (\Throwable $th) {
                         Console::error('Inactive Runtime deletion failed: ' . $th->getMessage());
                     } finally {
-                        isset($connection) && $orchestrationPool->push($connection);
+                        isset($connection) && $connection->reclaim();
                     }
                 });
             }
