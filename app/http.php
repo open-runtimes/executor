@@ -312,7 +312,7 @@ App::post('/v1/runtimes')
             /**
              * Create the mount folder
              */
-            if(!$localDevice->createDirectory(\dirname($tmpBuild))) {
+            if (!$localDevice->createDirectory(\dirname($tmpBuild))) {
                 throw new Exception("Failed to create temporary directory", 500);
             }
 
@@ -782,12 +782,12 @@ App::get('/v1/health')
                 );
 
                 foreach ($containerUsages as $containerUsage) {
-                    $hostnameArr = \explode('-', $containerUsage['name']);
+                    $hostnameArr = \explode('-', $containerUsage->getContainerName());
                     \array_shift($hostnameArr);
                     $hostname = \implode('-', $hostnameArr);
                     $runtimes[$hostname] = [
                         'status' => 'pass',
-                        'usage' => $containerUsage['cpu'] * 100
+                        'usage' => $containerUsage->getCpuUsage() * 100
                     ];
                 }
 
