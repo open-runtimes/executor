@@ -28,7 +28,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           build-args: |
-            OPEN_RUNTIMES_EXECUTOR_VERSION=${{ env.TAG }}
+            OPR_EXECUTOR_VERSION=${{ env.TAG }}
           context: .
           push: true
           tags: ${{ env.IMAGE_NAME }}:latest,${{ env.IMAGE_NAME }}:${{ env.TAG }}

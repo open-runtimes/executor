@@ -38,14 +38,16 @@ use Utopia\Validator\Range;
 use Utopia\Validator\Text;
 use Utopia\Pools\Pool;
 use Utopia\DSN\DSN;
+use Utopia\Pools\Connection;
 use Utopia\Registry\Registry;
+use Utopia\Validator\Integer;
 
 use function Swoole\Coroutine\batch;
 use function Swoole\Coroutine\run;
 
 Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
 
-App::setMode((string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_ENV', App::MODE_TYPE_PRODUCTION));
+App::setMode((string) App::getEnv('OPR_EXECUTOR_ENV', App::MODE_TYPE_PRODUCTION));
 
 // Setup Registry
 $register = new Registry();
@@ -54,8 +56,8 @@ $register = new Registry();
 * Create logger for cloud logging
 */
 $register->set('logger', function () {
-    $providerName = App::getEnv('OPEN_RUNTIMES_EXECUTOR_LOGGING_PROVIDER', '');
-    $providerConfig = App::getEnv('OPEN_RUNTIMES_EXECUTOR_LOGGING_CONFIG', '');
+    $providerName = App::getEnv('OPR_EXECUTOR_LOGGING_PROVIDER', '');
+    $providerConfig = App::getEnv('OPR_EXECUTOR_LOGGING_CONFIG', '');
     $logger = null;
 
     if (!empty($providerName) && !empty($providerConfig) && Logger::hasProvider($providerName)) {
@@ -78,8 +80,8 @@ $register->set('logger', function () {
  */
 $register->set('orchestrationPool', function () {
     $pool = new Pool('orchestration-pool', 30, function () {
-        $dockerUser = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_USERNAME', '');
-        $dockerPass = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_DOCKER_HUB_PASSWORD', '');
+        $dockerUser = (string) App::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
+        $dockerPass = (string) App::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
         $orchestration = new Orchestration(new DockerCLI($dockerUser, $dockerPass));
         return $orchestration;
     });
@@ -108,29 +110,18 @@ $register->set('activeRuntimes', function () {
     return $table;
 });
 
-// TODO: @Meldiron Make this nicer
-
 /** Set Resources */
-App::setResource('register', function () use (&$register) {
-    return $register;
-});
-
-App::setResource('orchestrationPool', function (Registry $register) {
-    return $register->get('orchestrationPool');
-}, ['register']);
-
-App::setResource('activeRuntimes', function (Registry $register) {
-    return $register->get('activeRuntimes');
-}, ['register']);
-
-App::setResource('logger', function (Registry $register) {
-    return $register->get('logger');
-}, ['register']);
+App::setResource('register', fn() => $register);
+App::setResource('orchestrationPool', fn(Registry $register) => $register->get('orchestrationPool'), ['register']);
+App::setResource('activeRuntimes', fn(Registry $register) => $register->get('activeRuntimes'), ['register']);
+App::setResource('logger', fn(Registry $register) => $register->get('logger'), ['register']);
+App::setResource('orchestrationConnection', fn(Pool $orchestrationPool) => $orchestrationPool->pop(), ['orchestrationPool']);
+App::setResource('orchestration', fn(Connection $orchestrationConnection) => $connection->getResource(), ['orchestrationConnection']);
 
 function logError(Throwable $error, string $action, Logger $logger = null, Utopia\Route $route = null): void
 {
     if ($logger) {
-        $version = (string) App::getEnv('OPEN_RUNTIMES_EXECUTOR_VERSION', 'UNKNOWN');
+        $version = (string) App::getEnv('OPR_EXECUTOR_VERSION', 'UNKNOWN');
 
         $log = new Log();
         $log->setNamespace("executor");
@@ -168,7 +159,7 @@ function logError(Throwable $error, string $action, Logger $logger = null, Utopi
 
 function getStorageDevice(string $root): Device
 {
-    $connection = App::getEnv('OPEN_RUNTIMES_CONNECTION_STORAGE', '');
+    $connection = App::getEnv('OPR_CONNECTION_STORAGE', '');
 
     $acl = 'private';
     $device = '';
@@ -261,10 +252,11 @@ App::post('/v1/runtimes')
     ->param('commands', [], new ArrayList(new Text(1024), 100), 'Commands to use when creating the container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('workdir', '', new Text(256), 'Working directory.', true)
     ->param('remove', false, new Boolean(), 'Remove a runtime after execution.', true)
-    ->inject('orchestrationPool')
+    ->param('timeout', 600, new Integer(), 'Maximum commands execution time in seconds.', true)
+    ->inject('orchestration')
     ->inject('activeRuntimes')
     ->inject('response')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, array $commands, string $workdir, bool $remove, Pool $orchestrationPool, Table $activeRuntimes, Response $response) {
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, array $commands, string $workdir, bool $remove, int $timeout, Orchestration $orchestration, Table $activeRuntimes, Response $response) {
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
@@ -284,8 +276,6 @@ App::post('/v1/runtimes')
         $stderr = '';
         $startTimeUnix = \microtime(true);
         $endTimeUnix = 0;
-        $connection = $orchestrationPool->pop();
-        $orchestration = $connection->getResource();
 
         $secret = \bin2hex(\random_bytes(16));
 
@@ -337,9 +327,9 @@ App::post('/v1/runtimes')
             ]);
             $variables = array_map(fn ($v) => strval($v), $variables);
             $orchestration
-                ->setCpus((int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_CPUS', '0'))
-                ->setMemory((int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_MEMORY', '0'))
-                ->setSwap((int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_MEMORY_SWAP', '0'));
+                ->setCpus((int) App::getEnv('OPR_EXECUTOR_CPUS', '0'))
+                ->setMemory((int) App::getEnv('OPR_EXECUTOR_MEMORY', '0'))
+                ->setSwap((int) App::getEnv('OPR_EXECUTOR_MEMORY_SWAP', '0'));
 
             /** Keep the container alive if we have commands to be executed */
             $entrypoint = !empty($commands) ? [
@@ -369,7 +359,7 @@ App::post('/v1/runtimes')
                 throw new Exception('Failed to create runtime', 500);
             }
 
-            $orchestration->networkConnect($runtimeId, App::getEnv('OPEN_RUNTIMES_EXECUTOR_NETWORK', 'executor_runtimes'));
+            $orchestration->networkConnect($runtimeId, App::getEnv('OPR_EXECUTOR_NETWORK', 'executor_runtimes'));
 
             /**
              * Execute any commands if they were provided
@@ -380,7 +370,7 @@ App::post('/v1/runtimes')
                     command: $commands,
                     stdout: $stdout,
                     stderr: $stderr,
-                    timeout: App::getEnv('OPEN_RUNTIMES_EXECUTOR_BUILD_TIMEOUT', 900)
+                    timeout: $timeout
                 );
 
                 if (!$status) {
@@ -437,13 +427,12 @@ App::post('/v1/runtimes')
             }
         } catch (Throwable $th) {
             $activeRuntimes->del($activeRuntimeId);
+
             // Silently try to kill container
             try {
                 $orchestration->remove($containerId, true);
             } catch(Throwable $th) {
             }
-
-            $orchestrationPool->push($connection);
 
             throw new Exception($th->getMessage() . $stdout, 500);
         }
@@ -451,17 +440,13 @@ App::post('/v1/runtimes')
         // Container cleanup
         if ($remove) {
             $activeRuntimes->del($activeRuntimeId);
+
+            // Silently try to kill container
             try {
-                // Try to remove with container name instead of ID
-                $orchestration->remove($runtimeId, true);
+                $orchestration->remove($containerId, true);
             } catch (Throwable $th) {
-                // If fails, means initialization also failed.
-                // Container is not there, no need to remove
             }
         }
-
-        // Release connection back to pool, we are done with it
-        $orchestrationPool->push($connection);
 
         $response
             ->setStatusCode(Response::STATUS_CODE_CREATED)
@@ -506,10 +491,10 @@ App::get('/v1/runtimes/:runtimeId')
 App::delete('/v1/runtimes/:runtimeId')
     ->desc('Delete a runtime')
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.', false)
-    ->inject('orchestrationPool')
+    ->inject('orchestration')
     ->inject('activeRuntimes')
     ->inject('response')
-    ->action(function (string $runtimeId, Pool $orchestrationPool, Table $activeRuntimes, Response $response) {
+    ->action(function (string $runtimeId, Orchestration $orchestration, Table $activeRuntimes, Response $response) {
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
@@ -517,14 +502,8 @@ App::delete('/v1/runtimes/:runtimeId')
             throw new Exception('Runtime not found', 404);
         }
 
-        try {
-            $connection = $orchestrationPool->pop();
-            $orchestration = $connection->getResource();
-            $orchestration->remove($runtimeId, true);
-            $activeRuntimes->del($activeRuntimeId);
-        } finally {
-            isset($connection) && $orchestrationPool->push($connection);
-        }
+        $orchestration->remove($runtimeId, true);
+        $activeRuntimes->del($activeRuntimeId);
 
         $response
             ->setStatusCode(Response::STATUS_CODE_OK)
@@ -537,15 +516,16 @@ App::post('/v1/runtimes/:runtimeId/execution')
     ->param('runtimeId', '', new Text(64), 'The runtimeID to execute.')
     ->param('payload', '', new Text(8192), 'Data to be forwarded to the function, this is user specified.', true)
     ->param('variables', [], new Assoc(), 'Environment variables passed into runtime.', true)
-    ->param('timeout', 15, new Range(1, (int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_MAX_TIMEOUT', "900")), 'Function maximum execution time in seconds.', true)
+    ->param('timeout', 15, new Integer(), 'Function maximum execution time in seconds.', true)
     // Runtime-related
     ->param('image', '', new Text(128), 'Base image name of the runtime.', true)
     ->param('source', '', new Text(0), 'Path to source files.', true)
     ->param('entrypoint', '', new Text(256), 'Entrypoint of the code file.', true)
+    ->param('startTimeout', 600, new Integer(), 'Maximum commands execution time in seconds.', true)
     ->inject('activeRuntimes')
     ->inject('response')
     ->action(
-        function (string $runtimeId, string $payload, array $variables, int $timeout, string $image, string $source, string $entrypoint, Table $activeRuntimes, Response $response) {
+        function (string $runtimeId, string $payload, array $variables, int $timeout, string $image, string $source, string $entrypoint, int $startTimeout, Table $activeRuntimes, Response $response) {
             $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
             $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
@@ -560,7 +540,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 }
 
                 // Prepare request to executor
-                $sendCreateRuntimeRequest = function () use ($activeRuntimeId, $image, $source, $entrypoint, $variables) {
+                $sendCreateRuntimeRequest = function () use ($activeRuntimeId, $image, $source, $entrypoint, $variables, $startTimeout) {
                     $statusCode = 0;
                     $errNo = -1;
                     $executorResponse = '';
@@ -572,20 +552,20 @@ App::post('/v1/runtimes/:runtimeId/execution')
                         'image' => $image,
                         'source' => $source,
                         'entrypoint' => $entrypoint,
-                        'variables' => $variables
+                        'variables' => $variables,
+                        'timeout' => $startTimeout
                     ]);
 
                     \curl_setopt($ch, CURLOPT_URL, "http://localhost/v1/runtimes");
                     \curl_setopt($ch, CURLOPT_POST, true);
                     \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
                     \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    \curl_setopt($ch, CURLOPT_TIMEOUT, ((int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_BUILD_TIMEOUT', '900')) + 2); // max 2 seconds expected network latency
                     \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
 
                     \curl_setopt($ch, CURLOPT_HTTPHEADER, [
                         'Content-Type: application/json',
                         'Content-Length: ' . \strlen($body ?: ''),
-                        'authorization: Bearer ' . App::getEnv('OPEN_RUNTIMES_EXECUTOR_SECRET', '')
+                        'authorization: Bearer ' . App::getEnv('OPR_EXECUTOR_SECRET', '')
                     ]);
 
                     $executorResponse = \curl_exec($ch);
@@ -777,9 +757,9 @@ App::post('/v1/runtimes/:runtimeId/execution')
 
 App::get('/v1/health')
     ->desc("Get health status of host machine and runtimes.")
-    ->inject('orchestrationPool')
+    ->inject('orchestration')
     ->inject('response')
-    ->action(function (Pool $orchestrationPool, Response $response) {
+    ->action(function (Orchestration $orchestration, Response $response) {
         // TODO: @Meldiron Interval, here just read from Table.
 
         $output = [
@@ -790,22 +770,16 @@ App::get('/v1/health')
             function () use (&$output) {
                 $output['hostUsage'] = System::getCPUUsage(5);
             },
-            function () use (&$output, $orchestrationPool) {
+            function () use (&$output, $orchestration) {
                 $functionsUsage = [];
 
-                try {
-                    $connection = $orchestrationPool->pop();
-                    $orchestration = $connection->getResource();
-                    $containerUsages = $orchestration->getStats(
-                        filters: [ 'label' => 'openruntimes-executor=' . System::getHostname() ],
-                        cycles: 3
-                    );
+                $containerUsages = $orchestration->getStats(
+                    filters: [ 'label' => 'openruntimes-executor=' . System::getHostname() ],
+                    cycles: 3
+                );
 
-                    foreach ($containerUsages as $containerUsage) {
-                        $functionsUsage[$containerUsage['name']] = $containerUsage['cpu'] * 100;
-                    }
-                } finally {
-                    isset($connection) && $orchestrationPool->push($connection);
+                foreach ($containerUsages as $containerUsage) {
+                    $functionsUsage[$containerUsage['name']] = $containerUsage['cpu'] * 100;
                 }
 
                 $output['functionsUsage'] = $functionsUsage;
@@ -853,7 +827,7 @@ App::error()
             'file' => $error->getFile(),
             'line' => $error->getLine(),
             'trace' => $error->getTrace(),
-            'version' => App::getEnv('OPEN_RUNTIMES_EXECUTOR_VERSION', 'UNKNOWN')
+            'version' => App::getEnv('OPR_EXECUTOR_VERSION', 'UNKNOWN')
         ];
 
         $response
@@ -869,9 +843,15 @@ App::init()
     ->inject('request')
     ->action(function (Request $request) {
         $secretKey = \explode(' ', $request->getHeader('authorization', ''))[1] ?? '';
-        if (empty($secretKey) || $secretKey !== App::getEnv('OPEN_RUNTIMES_EXECUTOR_SECRET', '')) {
+        if (empty($secretKey) || $secretKey !== App::getEnv('OPR_EXECUTOR_SECRET', '')) {
             throw new Exception('Missing executor key', 401);
         }
+    });
+
+App::shutdown()
+    ->inject('orchestrationConnection')
+    ->action(function (Connection $connection) {
+        $connection->reclaim();
     });
 
 run(function () use ($register) {
@@ -892,7 +872,7 @@ run(function () use ($register) {
      */
     Console::info('Pulling runtime images...');
     $runtimes = new Runtimes('v2'); // TODO: @Meldiron Make part of open runtimes
-    $allowList = empty(App::getEnv('OPEN_RUNTIMES_EXECUTOR_RUNTIMES')) ? [] : \explode(',', App::getEnv('OPEN_RUNTIMES_EXECUTOR_RUNTIMES'));
+    $allowList = empty(App::getEnv('OPR_EXECUTOR_RUNTIMES')) ? [] : \explode(',', App::getEnv('OPR_EXECUTOR_RUNTIMES'));
     $runtimes = $runtimes->getAll(true, $allowList);
     $callables = [];
     foreach ($runtimes as $runtime) {
@@ -921,11 +901,11 @@ run(function () use ($register) {
      * Run a maintenance worker every X seconds to remove inactive runtimes
      */
     Console::info('Starting maintenance interval...');
-    $interval = (int) App::getEnv('OPEN_RUNTIMES_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
+    $interval = (int) App::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
     Timer::tick($interval * 1000, function () use ($orchestrationPool, $activeRuntimes) {
         Console::info("Running maintenance task ...");
         foreach ($activeRuntimes as $activeRuntimeId => $runtime) {
-            $inactiveThreshold = \time() - App::getEnv('OPEN_RUNTIMES_EXECUTOR_INACTIVE_TRESHOLD', 60);
+            $inactiveThreshold = \time() - App::getEnv('OPR_EXECUTOR_INACTIVE_TRESHOLD', 60);
             if ($runtime['updated'] < $inactiveThreshold) {
                 go(function () use ($activeRuntimeId, $runtime, $orchestrationPool, $activeRuntimes) {
                     try {
