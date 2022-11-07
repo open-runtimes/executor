@@ -34,7 +34,6 @@ use Utopia\System\System;
 use Utopia\Validator\ArrayList;
 use Utopia\Validator\Assoc;
 use Utopia\Validator\Boolean;
-use Utopia\Validator\Range;
 use Utopia\Validator\Text;
 use Utopia\Pools\Pool;
 use Utopia\DSN\DSN;
@@ -111,12 +110,12 @@ $register->set('activeRuntimes', function () {
 });
 
 /** Set Resources */
-App::setResource('register', fn() => $register);
-App::setResource('orchestrationPool', fn(Registry $register) => $register->get('orchestrationPool'), ['register']);
-App::setResource('activeRuntimes', fn(Registry $register) => $register->get('activeRuntimes'), ['register']);
-App::setResource('logger', fn(Registry $register) => $register->get('logger'), ['register']);
-App::setResource('orchestrationConnection', fn(Pool $orchestrationPool) => $orchestrationPool->pop(), ['orchestrationPool']);
-App::setResource('orchestration', fn(Connection $orchestrationConnection) => $connection->getResource(), ['orchestrationConnection']);
+App::setResource('register', fn () => $register);
+App::setResource('orchestrationPool', fn (Registry $register) => $register->get('orchestrationPool'), ['register']);
+App::setResource('activeRuntimes', fn (Registry $register) => $register->get('activeRuntimes'), ['register']);
+App::setResource('logger', fn (Registry $register) => $register->get('logger'), ['register']);
+App::setResource('orchestrationConnection', fn (Pool $orchestrationPool) => $orchestrationPool->pop(), ['orchestrationPool']);
+App::setResource('orchestration', fn (Connection $orchestrationConnection) => $orchestrationConnection->getResource(), ['orchestrationConnection']);
 
 function logError(Throwable $error, string $action, Logger $logger = null, Utopia\Route $route = null): void
 {
