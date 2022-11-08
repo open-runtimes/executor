@@ -1,0 +1,10 @@
+tasks:
+  - name: open-runtimes/executor
+    init: |
+      docker compose pull
+      docker compose build
+      composer install --ignore-platform-reqs
+vscode:
+  extensions:
+    - ms-azuretools.vscode-docker
+    - zobo.php-intellisense

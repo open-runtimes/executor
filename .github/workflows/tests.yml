@@ -1,0 +1,32 @@
+name: "Tests"
+
+on: [pull_request]
+jobs:
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out the repo
+      uses: actions/checkout@v2
+
+    - name: Start Test Stack
+      run: |
+        export COMPOSE_INTERACTIVE_NO_CLI
+        export DOCKER_BUILDKIT=1
+        export COMPOSE_DOCKER_CLI_BUILD=1
+        export BUILDKIT_PROGRESS=plain
+        docker pull composer:2.0
+        docker compose build
+        docker compose up -d
+        sleep 15
+
+    - name: Doctor
+      run: |
+        docker ps
+        docker network ls
+
+    - name: Run Tests
+      run: |
+        docker run --rm -v $PWD:/app --network openruntimes-runtimes -w /app phpswoole/swoole:4.8.12-php8.0-alpine sh -c \
+        "composer install --profile --ignore-platform-reqs && composer test"

@@ -1,0 +1,53 @@
+# WARNING!
+# This is a development version of the docker-compose.yml file.
+# Avoid using this file in your production environment.
+# We're exposing here sensitive ports and mounting code volumes for rapid development and debugging of the server stack.
+
+x-logging: &x-logging
+  logging:
+    driver: 'json-file'
+    options:
+      max-file: '5'
+      max-size: '10m'
+
+version: '3'
+
+services:
+  openruntimes-executor:
+    container_name: openruntimes-executor
+    hostname: exc1
+    <<: *x-logging
+    stop_signal: SIGINT
+    build:
+      context: .
+    networks:
+      openruntimes-runtimes:
+    ports:
+      - 9900:80
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./app:/usr/local/app:rw
+      - ./src:/usr/local/src:rw
+      - openruntimes-builds:/storage/builds:rw
+      - openruntimes-functions:/storage/functions:rw
+      - /tmp:/tmp:rw
+      - ./tests/resources/functions:/storage/functions:rw
+    environment:
+      - OPR_EXECUTOR_ENV
+      - OPR_EXECUTOR_RUNTIMES
+      - OPR_EXECUTOR_CONNECTION_STORAGE
+      - OPR_EXECUTOR_INACTIVE_TRESHOLD
+      - OPR_EXECUTOR_NETWORK
+      - OPR_EXECUTOR_SECRET
+      - OPR_EXECUTOR_LOGGING_PROVIDER
+      - OPR_EXECUTOR_LOGGING_CONFIG
+      - OPR_EXECUTOR_DOCKER_HUB_USERNAME
+      - OPR_EXECUTOR_DOCKER_HUB_PASSWORD
+
+networks:
+  openruntimes-runtimes:
+    name: openruntimes-runtimes
+
+volumes:
+  openruntimes-builds:
+  openruntimes-functions:
