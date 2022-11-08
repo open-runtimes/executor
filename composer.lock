@@ -343,16 +343,16 @@
         },
         {
             "name": "utopia-php/orchestration",
-            "version": "0.8.0",
+            "version": "0.8.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/orchestration.git",
-                "reference": "c7fe1fe9996cf621d538ae289d64a2dde7378079"
+                "reference": "711a51a9dec48438ee1dd3a160d81752fac39e44"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/c7fe1fe9996cf621d538ae289d64a2dde7378079",
-                "reference": "c7fe1fe9996cf621d538ae289d64a2dde7378079",
+                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/711a51a9dec48438ee1dd3a160d81752fac39e44",
+                "reference": "711a51a9dec48438ee1dd3a160d81752fac39e44",
                 "shasum": ""
             },
             "require": {
@@ -386,9 +386,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/orchestration/issues",
-                "source": "https://github.com/utopia-php/orchestration/tree/0.8.0"
+                "source": "https://github.com/utopia-php/orchestration/tree/0.8.1"
             },
-            "time": "2022-11-07T17:19:22+00:00"
+            "time": "2022-11-08T17:13:20+00:00"
         },
         {
             "name": "utopia-php/pools",
