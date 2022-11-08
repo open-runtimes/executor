@@ -538,6 +538,8 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
             ]);
 
+            $coldStartTime = 0;
+
             // Prepare runtime
             if (!$activeRuntimes->exists($activeRuntimeId)) {
                 if (empty($image) || empty($source) || empty($entrypoint)) {
@@ -602,6 +604,10 @@ App::post('/v1/runtimes/:runtimeId/execution')
                             $body = \json_decode($error, true);
                             throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . ($body['message'] ?? $error), 500);
                         }
+
+                        $body = \json_decode($executorResponse, true);
+
+                        $coldStartTime = \floatval($body['duration']);
                         break;
                     }
 
@@ -745,7 +751,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 'response' => \mb_strcut($res, 0, 1000000), // Limit to 1MB
                 'stdout' => \mb_strcut($stdout, 0, 1000000), // Limit to 1MB
                 'stderr' => \mb_strcut($stderr, 0, 1000000), // Limit to 1MB
-                'duration' => $executionTime,
+                'duration' => $executionTime + $coldStartTime,
             ];
 
             // Update swoole table

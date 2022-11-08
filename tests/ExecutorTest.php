@@ -147,7 +147,6 @@ final class ExecutorTest extends TestCase
     {
         // TODO: @Meldiron test timeout execution. Timeout build too?
 
-        /** Execute on running runtime */
         $params = [
             'runtimeId' => 'test-exec',
             'source' => $data['path'],
@@ -171,7 +170,7 @@ final class ExecutorTest extends TestCase
         $this->assertLessThan(0.5, $response['body']['duration']);
         $this->assertEquals('{"payload":"","variable":"","unicode":"Unicode magic: êä"}', $response['body']['response']);
 
-        /** Execute witn data and variables */
+        /** Execute on cold-started runtime */
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/execution', [], [
             'payload' => 'test payload',
             'variables' => [
@@ -194,6 +193,8 @@ final class ExecutorTest extends TestCase
         ]);
 
         $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertLessThan(10, $response['body']['duration']);
+        $this->assertGreaterThan(0.5, $response['body']['duration']);
 
         /** Delete runtime */
         $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-coldstart', [], []);
