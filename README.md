@@ -50,7 +50,7 @@ services:
     environment:
       - OPR_EXECUTOR_ENV
       - OPR_EXECUTOR_RUNTIMES
-      - OPR_CONNECTION_STORAGE
+      - OPR_EXECUTOR_CONNECTION_STORAGE
       - OPR_EXECUTOR_INACTIVE_TRESHOLD
       - OPR_EXECUTOR_NETWORK
       - OPR_EXECUTOR_SECRET
@@ -75,7 +75,7 @@ volumes:
 ```
 OPR_EXECUTOR_ENV=development
 OPR_EXECUTOR_RUNTIMES=php-8.0
-OPR_CONNECTION_STORAGE=file://localhost
+OPR_EXECUTOR_CONNECTION_STORAGE=file://localhost
 OPR_EXECUTOR_INACTIVE_TRESHOLD=60
 OPR_EXECUTOR_NETWORK=openruntimes-runtimes
 OPR_EXECUTOR_SECRET=executor-secret-key
@@ -85,7 +85,7 @@ OPR_EXECUTOR_DOCKER_HUB_USERNAME=
 OPR_EXECUTOR_DOCKER_HUB_PASSWORD=
 ```
 
-> `OPR_CONNECTION_STORAGE` takes a DSN string that represents a connection to your storage device. If you would like to use your local filesystem, you can use `file://localhost`. If using S3 or any other provider for storage, use a DSN of the following format `s3://access_key:access_secret@host:port/bucket_name?region=us-east-1`
+> `OPR_EXECUTOR_CONNECTION_STORAGE` takes a DSN string that represents a connection to your storage device. If you would like to use your local filesystem, you can use `file://localhost`. If using S3 or any other provider for storage, use a DSN of the following format `s3://access_key:access_secret@host:port/bucket_name?region=us-east-1`
 
 4. Start Docker container:
 

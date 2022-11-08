@@ -158,7 +158,7 @@ function logError(Throwable $error, string $action, Logger $logger = null, Utopi
 
 function getStorageDevice(string $root): Device
 {
-    $connection = App::getEnv('OPR_CONNECTION_STORAGE', '');
+    $connection = App::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '');
 
     $acl = 'private';
     $device = '';
