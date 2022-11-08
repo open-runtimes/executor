@@ -525,11 +525,12 @@ App::post('/v1/runtimes/:runtimeId/execution')
     ->param('image', '', new Text(128), 'Base image name of the runtime.', true)
     ->param('source', '', new Text(0), 'Path to source files.', true)
     ->param('entrypoint', '', new Text(256), 'Entrypoint of the code file.', true)
-    ->param('startTimeout', 600, new Integer(), 'Maximum commands execution time in seconds.', true)
+    ->param('cpus', 1, new Integer(), 'Container CPU.', true)
+    ->param('memory', 512, new Integer(), 'Comtainer RAM memory.', true)
     ->inject('activeRuntimes')
     ->inject('response')
     ->action(
-        function (string $runtimeId, string $payload, array $variables, int $timeout, string $image, string $source, string $entrypoint, int $startTimeout, Table $activeRuntimes, Response $response) {
+        function (string $runtimeId, string $payload, array $variables, int $timeout, string $image, string $source, string $entrypoint, int $cpus, int $memory, Table $activeRuntimes, Response $response) {
             $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
             $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
@@ -544,7 +545,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 }
 
                 // Prepare request to executor
-                $sendCreateRuntimeRequest = function () use ($activeRuntimeId, $image, $source, $entrypoint, $variables, $startTimeout) {
+                $sendCreateRuntimeRequest = function () use ($activeRuntimeId, $image, $source, $entrypoint, $variables, $cpus, $memory) {
                     $statusCode = 0;
                     $errNo = -1;
                     $executorResponse = '';
@@ -557,7 +558,8 @@ App::post('/v1/runtimes/:runtimeId/execution')
                         'source' => $source,
                         'entrypoint' => $entrypoint,
                         'variables' => $variables,
-                        'timeout' => $startTimeout
+                        'cpus' => $cpus,
+                        'memory' => $memory,
                     ]);
 
                     \curl_setopt($ch, CURLOPT_URL, "http://localhost/v1/runtimes");
