@@ -98,7 +98,6 @@ final class ExecutorTest extends TestCase
         $this->assertIsString($response['body']['stderr']);
         $this->assertIsString($response['body']['stdout']);
         $this->assertIsFloat($response['body']['duration']);
-        $this->assertLessThan(5, $response['body']['duration']);
         $this->assertIsInt($response['body']['startTimeUnix']);
         $this->assertIsInt($response['body']['endTimeUnix']);
 
@@ -167,7 +166,6 @@ final class ExecutorTest extends TestCase
         $this->assertIsString($response['body']['stderr']);
         $this->assertEmpty($response['body']['stderr']);
         $this->assertIsFloat($response['body']['duration']);
-        $this->assertLessThan(0.5, $response['body']['duration']);
         $this->assertEquals('{"payload":"","variable":"","unicode":"Unicode magic: êä"}', $response['body']['response']);
 
         /** Execute on cold-started runtime */
@@ -193,8 +191,6 @@ final class ExecutorTest extends TestCase
         ]);
 
         $this->assertEquals(200, $response['headers']['status-code']);
-        $this->assertLessThan(10, $response['body']['duration']);
-        $this->assertGreaterThan(0.5, $response['body']['duration']);
 
         /** Delete runtime */
         $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-coldstart', [], []);
