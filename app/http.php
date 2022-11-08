@@ -218,7 +218,7 @@ function removeAllRuntimes(Table $activeRuntimes, Pool $orchestrationPool): void
                 $orchestration = $connection->getResource();
                 $orchestration->remove($container->getId(), true);
 
-                $activeRuntimeId = $container->getLabels('openruntimes-runtime-id');
+                $activeRuntimeId = $container->getLabels()['openruntimes-runtime-id'];
 
                 if (!$activeRuntimes->exists($activeRuntimeId)) {
                     $activeRuntimes->del($activeRuntimeId);
