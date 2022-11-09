@@ -34,7 +34,7 @@
         "utopia-php/registry": "0.5.*",
         "utopia-php/preloader": "0.2.*",
         "utopia-php/system": "0.6.*",
-        "utopia-php/orchestration": "0.8.*",
+        "utopia-php/orchestration": "dev-feat-remove-averaging-logic as 0.8.0",
         "appwrite/php-runtimes": "0.11.*"
     },
     "require-dev": {

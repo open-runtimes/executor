@@ -192,8 +192,8 @@ final class ExecutorTest extends TestCase
 
         $this->assertEquals(200, $response['headers']['status-code']);
 
-        /** Delete runtime */
-        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-coldstart', [], []);
-        $this->assertEquals(200, $response['headers']['status-code']);
+        // /** Delete runtime */
+        // $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-coldstart', [], []);
+        // $this->assertEquals(200, $response['headers']['status-code']);
     }
 }

@@ -109,11 +109,28 @@ $register->set('activeRuntimes', function () {
     return $table;
 });
 
+/**
+* Create a Swoole table of usage stats (host machine + containers)
+* Host machine key: host
+* Runtime key: runtime_ID
+*/
+const STATS_HOST = 'host';
+const STATS_RUNTIME_PRFIX = 'runtime_';
+$register->set('stats', function () {
+    $table = new Table(1024);
+
+    $table->column('usage', Table::TYPE_FLOAT, 8);
+    $table->create();
+
+    return $table;
+});
+
 /** Set Resources */
 App::setResource('register', fn () => $register);
 App::setResource('orchestrationPool', fn (Registry $register) => $register->get('orchestrationPool'), ['register']);
 App::setResource('activeRuntimes', fn (Registry $register) => $register->get('activeRuntimes'), ['register']);
 App::setResource('logger', fn (Registry $register) => $register->get('logger'), ['register']);
+App::setResource('stats', fn (Registry $register) => $register->get('stats'), ['register']);
 App::setResource('orchestrationConnection', fn (Pool $orchestrationPool) => $orchestrationPool->pop(), ['orchestrationPool']);
 App::setResource('orchestration', fn (Connection $orchestrationConnection) => $orchestrationConnection->getResource(), ['orchestrationConnection']);
 
@@ -759,40 +776,24 @@ App::post('/v1/runtimes/:runtimeId/execution')
 
 App::get('/v1/health')
     ->desc("Get health status of host machine and runtimes.")
-    ->inject('orchestration')
+    ->inject('stats')
     ->inject('response')
-    ->action(function (Orchestration $orchestration, Response $response) {
-        // TODO: @Meldiron Interval, here just read from Table.
-
+    ->action(function (Table $stats, Response $response) {
         $output = [
-            'status' => 'pass'
+            'status' => 'pass',
+            'runtimes' => []
         ];
 
-        batch([
-            function () use (&$output) {
-                $output['usage'] = System::getCPUUsage(5);
-            },
-            function () use (&$output, $orchestration) {
-                $runtimes = [];
-
-                $containerUsages = $orchestration->getStats(
-                    filters: [ 'label' => 'openruntimes-executor=' . System::getHostname() ],
-                    cycles: 3
-                );
-
-                foreach ($containerUsages as $containerUsage) {
-                    $hostnameArr = \explode('-', $containerUsage->getContainerName());
-                    \array_shift($hostnameArr);
-                    $hostname = \implode('-', $hostnameArr);
-                    $runtimes[$hostname] = [
-                        'status' => 'pass',
-                        'usage' => $containerUsage->getCpuUsage() * 100
-                    ];
-                }
-
-                $output['runtimes'] = $runtimes;
+        foreach ($stats as $hostname => $stat) {
+            if ($hostname === STATS_HOST) {
+                $output['usage'] = $stat['usage'] ?? null;
+            } else {
+                $output['runtimes'][$hostname] = [
+                    'status' => 'pass',
+                    'usage' => $stat['usage'] ?? null
+                ];
             }
-        ]);
+        }
 
         $response
             ->setStatusCode(Response::STATUS_CODE_OK)
@@ -865,6 +866,7 @@ App::shutdown()
 run(function () use ($register) {
     $orchestrationPool = $register->get('orchestrationPool');
     $activeRuntimes = $register->get('activeRuntimes');
+    $stats = $register->get('stats');
 
     /**
      * Remove residual runtimes
@@ -934,6 +936,73 @@ run(function () use ($register) {
     });
 
     Console::success('Mmaintenance interval started.');
+
+    /**
+     * Get usage stats every X seconds to update swoole table
+     */
+    function getStats(Table $stats, Orchestration $orchestration, bool $recursive = false): void
+    {
+        batch([
+            function () use ($stats) {
+                try {
+                    $usage = \intval($stats->get(STATS_HOST, 'usage') ?? 0);
+                    $usage += System::getCPUUsage(2);
+                    $usage /= 2;
+                    $stats->set(STATS_HOST, ['usage' => $usage]);
+                } catch(Exception $err) {
+                    Console::warning('Skipping stats loop due to error: ' . $err->getMessage());
+                }
+            },
+            function () use ($stats, $orchestration) {
+                try {
+                    $containerUsages = $orchestration->getStats(
+                        filters: [ 'label' => 'openruntimes-executor=' . System::getHostname() ]
+                    );
+
+                    $hostnames = [];
+
+                    foreach ($containerUsages as $containerUsage) {
+                        $hostnameArr = \explode('-', $containerUsage->getContainerName());
+                        \array_shift($hostnameArr);
+                        $hostname = \implode('-', $hostnameArr);
+
+                        $hostnames[] = STATS_RUNTIME_PRFIX . $hostname;
+
+                        $usage = \intval($stats->get($hostname, 'usage') ?? 0);
+                        $usage += $containerUsage->getCpuUsage() * 100;
+                        $usage /= 2;
+
+                        $stats->set(STATS_RUNTIME_PRFIX . $hostname, ['usage' => $usage]);
+                    }
+
+                    foreach ($stats as $hostname => $stat) {
+                        if (!(\in_array($hostname, $hostnames)) && $hostname !== STATS_HOST) {
+                            $stats->delete($hostname);
+                        }
+                    }
+                } catch(Exception $err) {
+                    Console::warning('Skipping stats loop due to error: ' . $err->getMessage());
+                }
+            }
+        ]);
+
+        if ($recursive) {
+            \sleep(1);
+            getStats($stats, $orchestration, $recursive);
+        }
+    }
+
+    // Load initial stats in blocking way
+    $connection = $orchestrationPool->pop();
+    $orchestration = $connection->getResource();
+    getStats($stats, $orchestration);
+    $connection->reclaim();
+
+    // Setup infinite recurssion in non-blocking way
+    \go(function () use ($stats, $orchestrationPool) {
+        $orchestration = $orchestrationPool->pop()->getResource(); // We never reclaim this, as this runs forever
+        getStats($stats, $orchestration, true);
+    });
 
     $server = new Server('0.0.0.0', 80, false);
 
