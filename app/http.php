@@ -933,7 +933,7 @@ run(function () use ($register) {
         Console::success("Maintanance task finished.");
     });
 
-    Console::success('Mmaintenance interval started.');
+    Console::success('Maintenance interval started.');
 
     $server = new Server('0.0.0.0', 80, false);
 
