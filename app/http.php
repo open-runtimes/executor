@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Appwrite\Runtimes\Runtimes;
+use OpenRuntimes\Executor\Usage;
 use Swoole\Http\Request as SwooleRequest;
 use Swoole\Http\Response as SwooleResponse;
 use Swoole\Coroutine\Http\Server;
@@ -114,8 +115,6 @@ $register->set('activeRuntimes', function () {
 * Host machine key: host
 * Runtime key: runtime_ID
 */
-const STATS_HOST = 'host';
-const STATS_RUNTIME_PRFIX = 'runtime_';
 $register->set('stats', function () {
     $table = new Table(1024);
 
@@ -785,7 +784,7 @@ App::get('/v1/health')
         ];
 
         foreach ($stats as $hostname => $stat) {
-            if ($hostname === STATS_HOST) {
+            if ($hostname === Usage::PREFIX_HOST) {
                 $output['usage'] = $stat['usage'] ?? null;
             } else {
                 $output['runtimes'][$hostname] = [
@@ -940,51 +939,55 @@ run(function () use ($register) {
     /**
      * Get usage stats every X seconds to update swoole table
      */
+    Console::info('Starting stats interval...');
     function getStats(Table $stats, Orchestration $orchestration, bool $recursive = false): void
     {
-        batch([
-            function () use ($stats) {
-                try {
-                    $usage = \intval($stats->get(STATS_HOST, 'usage') ?? 0);
-                    $usage += System::getCPUUsage(2);
-                    $usage /= 2;
-                    $stats->set(STATS_HOST, ['usage' => $usage]);
-                } catch(Exception $err) {
-                    Console::warning('Skipping stats loop due to error: ' . $err->getMessage());
-                }
-            },
-            function () use ($stats, $orchestration) {
-                try {
-                    $containerUsages = $orchestration->getStats(
-                        filters: [ 'label' => 'openruntimes-executor=' . System::getHostname() ]
-                    );
+        // Get usage stats
+        $usage = new Usage($orchestration);
+        $usage->run();
 
-                    $hostnames = [];
+        // Update host usage stats
+        if ($usage->getHostUsage() !== null) {
+            $oldStat = $stats->get(Usage::PREFIX_HOST, 'usage') ?? null;
 
-                    foreach ($containerUsages as $containerUsage) {
-                        $hostnameArr = \explode('-', $containerUsage->getContainerName());
-                        \array_shift($hostnameArr);
-                        $hostname = \implode('-', $hostnameArr);
-
-                        $hostnames[] = STATS_RUNTIME_PRFIX . $hostname;
-
-                        $usage = \intval($stats->get($hostname, 'usage') ?? 0);
-                        $usage += $containerUsage->getCpuUsage() * 100;
-                        $usage /= 2;
-
-                        $stats->set(STATS_RUNTIME_PRFIX . $hostname, ['usage' => $usage]);
-                    }
-
-                    foreach ($stats as $hostname => $stat) {
-                        if (!(\in_array($hostname, $hostnames)) && $hostname !== STATS_HOST) {
-                            $stats->delete($hostname);
-                        }
-                    }
-                } catch(Exception $err) {
-                    Console::warning('Skipping stats loop due to error: ' . $err->getMessage());
-                }
+            if ($oldStat === null) {
+                $stat =  $usage->getHostUsage();
+            } else {
+                $stat = ($oldStat + $usage->getHostUsage()) / 2;
             }
-        ]);
+
+            $stats->set(Usage::PREFIX_HOST, ['usage' => $stat]);
+        }
+
+        // Update runtime usage stats
+        foreach ($usage->getRuntimesUsage() as $runtime => $usageStat) {
+            $oldStat = $stats->get(Usage::PREFIX_RUNTIME . $runtime, 'usage') ?? null;
+
+            if ($oldStat === null) {
+                $stat = $usageStat;
+            } else {
+                $stat = ($oldStat + $usageStat) / 2;
+            }
+
+            $stats->set(Usage::PREFIX_RUNTIME . $runtime, ['usage' => $stat]);
+        }
+
+        // Delete gone runtimes
+        $runtimes = \array_keys($usage->getRuntimesUsage());
+        foreach ($stats as $hostname => $stat) {
+            if ($hostname === Usage::PREFIX_HOST) {
+                continue;
+            }
+
+            $statsHostname = $hostname;
+            if (substr($statsHostname, 0, strlen(Usage::PREFIX_RUNTIME)) === Usage::PREFIX_RUNTIME) {
+                $statsHostname = substr($statsHostname, strlen(Usage::PREFIX_RUNTIME));
+            }
+
+            if (!(\in_array($statsHostname, $runtimes))) {
+                $stats->delete($hostname);
+            }
+        }
 
         if ($recursive) {
             \sleep(1);
@@ -1003,6 +1006,8 @@ run(function () use ($register) {
         $orchestration = $orchestrationPool->pop()->getResource(); // We never reclaim this, as this runs forever
         getStats($stats, $orchestration, true);
     });
+
+    Console::success('Stats interval started.');
 
     $server = new Server('0.0.0.0', 80, false);
 
