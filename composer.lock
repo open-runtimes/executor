@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "444f95701bf4b6faba454dd90067d432",
+    "content-hash": "fe7eb9cfb3d27ea0194cdf3d1627c16e",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -343,16 +343,16 @@
         },
         {
             "name": "utopia-php/orchestration",
-            "version": "dev-feat-remove-averaging-logic",
+            "version": "0.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/orchestration.git",
-                "reference": "7963221d5e7287e5a2d73e5fa9065eaa97231a06"
+                "reference": "1d4f66684b8c4927f31b695817eae6d84aafd172"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/7963221d5e7287e5a2d73e5fa9065eaa97231a06",
-                "reference": "7963221d5e7287e5a2d73e5fa9065eaa97231a06",
+                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/1d4f66684b8c4927f31b695817eae6d84aafd172",
+                "reference": "1d4f66684b8c4927f31b695817eae6d84aafd172",
                 "shasum": ""
             },
             "require": {
@@ -386,9 +386,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/orchestration/issues",
-                "source": "https://github.com/utopia-php/orchestration/tree/feat-remove-averaging-logic"
+                "source": "https://github.com/utopia-php/orchestration/tree/0.9.0"
             },
-            "time": "2022-11-09T15:04:03+00:00"
+            "time": "2022-11-09T17:38:00+00:00"
         },
         {
             "name": "utopia-php/pools",
@@ -2552,18 +2552,9 @@
             "time": "2021-07-28T10:34:58+00:00"
         }
     ],
-    "aliases": [
-        {
-            "package": "utopia-php/orchestration",
-            "version": "dev-feat-remove-averaging-logic",
-            "alias": "0.8.0",
-            "alias_normalized": "0.8.0.0"
-        }
-    ],
+    "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "utopia-php/orchestration": 20
-    },
+    "stability-flags": [],
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
