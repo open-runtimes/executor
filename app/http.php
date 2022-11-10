@@ -921,11 +921,11 @@ run(function () use ($register) {
                         $connection = $orchestrationPool->pop();
                         $orchestration = $connection->getResource();
                         $orchestration->remove($runtime['name'], true);
-                        $activeRuntimes->del($activeRuntimeId);
                         Console::success("Successfully removed {$runtime['name']}");
                     } catch (\Throwable $th) {
                         Console::error('Inactive Runtime deletion failed: ' . $th->getMessage());
                     } finally {
+                        $activeRuntimes->del($activeRuntimeId);
                         isset($connection) && $connection->reclaim();
                     }
                 });
