@@ -925,7 +925,7 @@ run(function () use ($register) {
                     } catch (\Throwable $th) {
                         Console::error('Inactive Runtime deletion failed: ' . $th->getMessage());
                     } finally {
-                        $activeRuntimes->del($activeRuntimeId);
+                        isset($connection) && $activeRuntimes->del($activeRuntimeId);
                         isset($connection) && $connection->reclaim();
                     }
                 });
