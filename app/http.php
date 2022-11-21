@@ -310,8 +310,9 @@ App::post('/v1/runtimes')
         /**
          * Temporary file paths in the executor
          */
-        $tmpSource = "/tmp/$runtimeId/src/code.tar.gz";
-        $tmpBuild = "/tmp/$runtimeId/builds/code.tar.gz";
+        $tmpFolder = "/tmp/$runtimeId";
+        $tmpSource = "$tmpFolder/src/code.tar.gz";
+        $tmpBuild = "$tmpFolder/builds/code.tar.gz";
 
         $sourceDevice = getStorageDevice("/");
         $localDevice = new Local();
@@ -440,8 +441,7 @@ App::post('/v1/runtimes')
                 ]);
             }
         } catch (Throwable $th) {
-            $localDevice->delete($tmpSource);
-            $localDevice->delete($tmpBuild);
+            $localDevice->deletePath($tmpFolder);
 
             $activeRuntimes->del($activeRuntimeId);
 
@@ -454,8 +454,7 @@ App::post('/v1/runtimes')
             throw new Exception($th->getMessage() . $stdout, 500);
         }
 
-        $localDevice->delete($tmpSource);
-        $localDevice->delete($tmpBuild);
+        $localDevice->deletePath($tmpFolder);
 
         // Container cleanup
         if ($remove) {
