@@ -867,8 +867,8 @@ App::shutdown()
 
 run(function () use ($register) {
     $orchestrationPool = $register->get('orchestrationPool');
-    $activeRuntimes = $register->get('activeRuntimes');
     $statsContainers = $register->get('statsContainers');
+    $activeRuntimes = $register->get('activeRuntimes');
     $statsHost = $register->get('statsHost');
 
     /**
@@ -944,7 +944,7 @@ run(function () use ($register) {
      * Get usage stats every X seconds to update swoole table
      */
     Console::info('Starting stats interval...');
-    function getStats(Table $statsContainers, Table $statsHost, Orchestration $orchestration, bool $recursive = false): void
+    function getStats(Table $statsHost, Table $statsContainers, Orchestration $orchestration, bool $recursive = false): void
     {
         // Get usage stats
         $usage = new Usage($orchestration);
@@ -987,20 +987,20 @@ run(function () use ($register) {
         // TODO: @Meldiron Might cause stack overflow due to infinite recursion
         if ($recursive) {
             \sleep(1);
-            getStats($statsContainers, $statsHost, $orchestration, $recursive);
+            getStats($statsHost, $statsContainers, $orchestration, $recursive);
         }
     }
 
     // Load initial stats in blocking way
     $connection = $orchestrationPool->pop();
     $orchestration = $connection->getResource();
-    getStats($statsContainers, $statsHost, $orchestration);
+    getStats($statsHost, $statsContainers, $orchestration);
     $connection->reclaim();
 
     // Setup infinite recurssion in non-blocking way
-    \go(function () use ($statsContainers, $statsHost, $orchestrationPool) {
+    \go(function () use ($statsHost, $statsContainers, $orchestrationPool) {
         $orchestration = $orchestrationPool->pop()->getResource(); // We never reclaim this, as this runs forever
-        getStats($statsContainers, $statsHost, $orchestration, true);
+        getStats($statsHost, $statsContainers, $orchestration, true);
     });
 
     Console::success('Stats interval started.');
