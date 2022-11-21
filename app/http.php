@@ -455,8 +455,6 @@ App::post('/v1/runtimes')
 
         // Container cleanup
         if ($remove) {
-            $activeRuntimes->del($activeRuntimeId);
-
             // Silently try to kill container
             try {
                 $orchestration->remove($containerId, true);
