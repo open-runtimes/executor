@@ -920,7 +920,7 @@ run(function () use ($register) {
                     try {
                         $connection = $orchestrationPool->pop();
                         $orchestration = $connection->getResource();
-                        $orchestration->remove($runtime['name'], true);
+                        $orchestration->remove($runtime['id'], true);
                         Console::success("Successfully removed {$runtime['name']}");
                     } catch (\Throwable $th) {
                         Console::error('Inactive Runtime deletion failed: ' . $th->getMessage());
