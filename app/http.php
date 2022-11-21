@@ -295,17 +295,15 @@ App::post('/v1/runtimes')
 
         $secret = \bin2hex(\random_bytes(16));
 
-        if (!$remove) {
-            $activeRuntimes->set($activeRuntimeId, [
-                'id' => $containerId,
-                'name' => $activeRuntimeId,
-                'hostname' => $runtimeHostname,
-                'created' => (int) $startTimeUnix,
-                'updated' => \time(),
-                'status' => 'pending',
-                'key' => $secret,
-            ]);
-        }
+        $activeRuntimes->set($activeRuntimeId, [
+            'id' => $containerId,
+            'name' => $activeRuntimeId,
+            'hostname' => $runtimeHostname,
+            'created' => (int) $startTimeUnix,
+            'updated' => \time(),
+            'status' => 'pending',
+            'key' => $secret,
+        ]);
 
         /**
          * Temporary file paths in the executor
@@ -429,27 +427,25 @@ App::post('/v1/runtimes')
                 'duration' => $duration,
             ]);
 
-            if (!$remove) {
-                $activeRuntimes->set($activeRuntimeId, [
-                    'id' => $containerId,
-                    'name' => $activeRuntimeId,
-                    'hostname' => $runtimeHostname,
-                    'created' => (int) $startTimeUnix,
-                    'updated' => \time(),
-                    'status' => 'Up ' . \round($duration, 2) . 's',
-                    'key' => $secret,
-                ]);
-            }
+            $activeRuntimes->set($activeRuntimeId, [
+                'id' => $containerId,
+                'name' => $activeRuntimeId,
+                'hostname' => $runtimeHostname,
+                'created' => (int) $startTimeUnix,
+                'updated' => \time(),
+                'status' => 'Up ' . \round($duration, 2) . 's',
+                'key' => $secret,
+            ]);
         } catch (Throwable $th) {
             $localDevice->deletePath($tmpFolder);
-
-            $activeRuntimes->del($activeRuntimeId);
 
             // Silently try to kill container
             try {
                 $orchestration->remove($containerId, true);
             } catch(Throwable $th) {
             }
+
+            $activeRuntimes->del($activeRuntimeId);
 
             throw new Exception($th->getMessage() . $stdout, 500);
         }
@@ -458,13 +454,13 @@ App::post('/v1/runtimes')
 
         // Container cleanup
         if ($remove) {
-            $activeRuntimes->del($activeRuntimeId);
-
             // Silently try to kill container
             try {
                 $orchestration->remove($containerId, true);
             } catch (Throwable $th) {
             }
+
+            $activeRuntimes->del($activeRuntimeId);
         }
 
         $response
