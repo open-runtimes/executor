@@ -11,9 +11,6 @@ use function Swoole\Coroutine\batch;
 
 class Usage
 {
-    public const PREFIX_HOST = 'host';
-    public const PREFIX_RUNTIME = 'runtime_';
-
     protected ?float $hostUsage = null;
 
     /**
