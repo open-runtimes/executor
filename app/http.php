@@ -111,11 +111,18 @@ $register->set('activeRuntimes', function () {
 });
 
 /**
-* Create a Swoole table of usage stats (host machine + containers)
-* Host machine key: host
-* Runtime key: runtime_ID
+* Create a Swoole table of usage stats (separate for host and containers)
 */
-$register->set('stats', function () {
+$register->set('statsContainers', function () {
+    $table = new Table(1024);
+
+    $table->column('usage', Table::TYPE_FLOAT, 8);
+    $table->create();
+
+    return $table;
+});
+
+$register->set('statsHost', function () {
     $table = new Table(1024);
 
     $table->column('usage', Table::TYPE_FLOAT, 8);
@@ -129,7 +136,8 @@ App::setResource('register', fn () => $register);
 App::setResource('orchestrationPool', fn (Registry $register) => $register->get('orchestrationPool'), ['register']);
 App::setResource('activeRuntimes', fn (Registry $register) => $register->get('activeRuntimes'), ['register']);
 App::setResource('logger', fn (Registry $register) => $register->get('logger'), ['register']);
-App::setResource('stats', fn (Registry $register) => $register->get('stats'), ['register']);
+App::setResource('statsContainers', fn (Registry $register) => $register->get('statsContainers'), ['register']);
+App::setResource('statsHost', fn (Registry $register) => $register->get('statsHost'), ['register']);
 App::setResource('orchestrationConnection', fn (Pool $orchestrationPool) => $orchestrationPool->pop(), ['orchestrationPool']);
 App::setResource('orchestration', fn (Connection $orchestrationConnection) => $orchestrationConnection->getResource(), ['orchestrationConnection']);
 
@@ -770,23 +778,23 @@ App::post('/v1/runtimes/:runtimeId/execution')
 
 App::get('/v1/health')
     ->desc("Get health status of host machine and runtimes.")
-    ->inject('stats')
+    ->inject('statsHost')
+    ->inject('statsContainers')
     ->inject('response')
-    ->action(function (Table $stats, Response $response) {
+    ->action(function (Table $statsHost, Table $statsContainers, Response $response) {
         $output = [
             'status' => 'pass',
             'runtimes' => []
         ];
 
-        foreach ($stats as $hostname => $stat) {
-            if ($hostname === Usage::PREFIX_HOST) {
-                $output['usage'] = $stat['usage'] ?? null;
-            } else {
-                $output['runtimes'][$hostname] = [
-                    'status' => 'pass',
-                    'usage' => $stat['usage'] ?? null
-                ];
-            }
+        $hostUsage = $statsHost->get('host', 'usage') ?? null;
+        $output['usage'] = $hostUsage;
+
+        foreach ($statsContainers as $hostname => $stat) {
+            $output['runtimes'][$hostname] = [
+                'status' => 'pass',
+                'usage' => $stat['usage'] ?? null
+            ];
         }
 
         $response
@@ -860,7 +868,8 @@ App::shutdown()
 run(function () use ($register) {
     $orchestrationPool = $register->get('orchestrationPool');
     $activeRuntimes = $register->get('activeRuntimes');
-    $stats = $register->get('stats');
+    $statsContainers = $register->get('statsContainers');
+    $statsHost = $register->get('statsHost');
 
     /**
      * Remove residual runtimes
@@ -935,7 +944,7 @@ run(function () use ($register) {
      * Get usage stats every X seconds to update swoole table
      */
     Console::info('Starting stats interval...');
-    function getStats(Table $stats, Orchestration $orchestration, bool $recursive = false): void
+    function getStats(Table $statsContainers, Table $statsHost, Orchestration $orchestration, bool $recursive = false): void
     {
         // Get usage stats
         $usage = new Usage($orchestration);
@@ -943,20 +952,20 @@ run(function () use ($register) {
 
         // Update host usage stats
         if ($usage->getHostUsage() !== null) {
-            $oldStat = $stats->get(Usage::PREFIX_HOST, 'usage') ?? null;
+            $oldStat = $statsHost->get('host', 'usage') ?? null;
 
             if ($oldStat === null) {
-                $stat =  $usage->getHostUsage();
+                $stat = $usage->getHostUsage();
             } else {
                 $stat = ($oldStat + $usage->getHostUsage()) / 2;
             }
 
-            $stats->set(Usage::PREFIX_HOST, ['usage' => $stat]);
+            $statsHost->set('host', ['usage' => $stat]);
         }
 
         // Update runtime usage stats
         foreach ($usage->getRuntimesUsage() as $runtime => $usageStat) {
-            $oldStat = $stats->get(Usage::PREFIX_RUNTIME . $runtime, 'usage') ?? null;
+            $oldStat = $statsContainers->get($runtime, 'usage') ?? null;
 
             if ($oldStat === null) {
                 $stat = $usageStat;
@@ -964,43 +973,34 @@ run(function () use ($register) {
                 $stat = ($oldStat + $usageStat) / 2;
             }
 
-            $stats->set(Usage::PREFIX_RUNTIME . $runtime, ['usage' => $stat]);
+            $statsContainers->set($runtime, ['usage' => $stat]);
         }
 
         // Delete gone runtimes
         $runtimes = \array_keys($usage->getRuntimesUsage());
-        foreach ($stats as $hostname => $stat) {
-            if ($hostname === Usage::PREFIX_HOST) {
-                continue;
-            }
-
-            $statsHostname = $hostname;
-            if (substr($statsHostname, 0, strlen(Usage::PREFIX_RUNTIME)) === Usage::PREFIX_RUNTIME) {
-                $statsHostname = substr($statsHostname, strlen(Usage::PREFIX_RUNTIME));
-            }
-
-            if (!(\in_array($statsHostname, $runtimes))) {
-                $stats->delete($hostname);
+        foreach ($statsContainers as $hostname => $stat) {
+            if (!(\in_array($hostname, $runtimes))) {
+                $statsContainers->delete($hostname);
             }
         }
 
         // TODO: @Meldiron Might cause stack overflow due to infinite recursion
         if ($recursive) {
             \sleep(1);
-            getStats($stats, $orchestration, $recursive);
+            getStats($statsContainers, $statsHost, $orchestration, $recursive);
         }
     }
 
     // Load initial stats in blocking way
     $connection = $orchestrationPool->pop();
     $orchestration = $connection->getResource();
-    getStats($stats, $orchestration);
+    getStats($statsContainers, $statsHost, $orchestration);
     $connection->reclaim();
 
     // Setup infinite recurssion in non-blocking way
-    \go(function () use ($stats, $orchestrationPool) {
+    \go(function () use ($statsContainers, $statsHost, $orchestrationPool) {
         $orchestration = $orchestrationPool->pop()->getResource(); // We never reclaim this, as this runs forever
-        getStats($stats, $orchestration, true);
+        getStats($statsContainers, $statsHost, $orchestration, true);
     });
 
     Console::success('Stats interval started.');
