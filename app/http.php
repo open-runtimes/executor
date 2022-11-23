@@ -143,6 +143,11 @@ App::setResource('orchestration', fn (Connection $orchestrationConnection) => $o
 
 function logError(Throwable $error, string $action, Logger $logger = null, Utopia\Route $route = null): void
 {
+    Console::error('[Error] Type: ' . get_class($error));
+    Console::error('[Error] Message: ' . $error->getMessage());
+    Console::error('[Error] File: ' . $error->getFile());
+    Console::error('[Error] Line: ' . $error->getLine());
+
     if ($logger) {
         $version = (string) App::getEnv('OPR_EXECUTOR_VERSION', 'UNKNOWN');
 
@@ -164,7 +169,8 @@ function logError(Throwable $error, string $action, Logger $logger = null, Utopi
         $log->addExtra('file', $error->getFile());
         $log->addExtra('line', $error->getLine());
         $log->addExtra('trace', $error->getTraceAsString());
-        $log->addExtra('detailedTrace', $error->getTrace());
+        // TODO: @Meldiron Uncomment, was warning: Undefined array key "file" in Sentry.php on line 68
+        // $log->addExtra('detailedTrace', $error->getTrace());
 
         $log->setAction($action);
 
@@ -173,11 +179,6 @@ function logError(Throwable $error, string $action, Logger $logger = null, Utopi
         $responseCode = $logger->addLog($log);
         Console::info('Executor log pushed with status code: ' . $responseCode);
     }
-
-    Console::error('[Error] Type: ' . get_class($error));
-    Console::error('[Error] Message: ' . $error->getMessage());
-    Console::error('[Error] File: ' . $error->getFile());
-    Console::error('[Error] Line: ' . $error->getLine());
 }
 
 function getStorageDevice(string $root): Device
