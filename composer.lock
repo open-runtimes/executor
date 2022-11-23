@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "be497b017d3572a5681255f93ebc2fc0",
+    "content-hash": "2705ee2c34478d02348c8f03e9b2d6ff",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -228,16 +228,16 @@
         },
         {
             "name": "utopia-php/framework",
-            "version": "dev-fix-race-condition",
+            "version": "0.25.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/framework.git",
-                "reference": "55fe8fc32225320a703bb37cc803e0f4b9c58466"
+                "reference": "2391b397135586b2100d39e338827bef8d2f4ad0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/framework/zipball/55fe8fc32225320a703bb37cc803e0f4b9c58466",
-                "reference": "55fe8fc32225320a703bb37cc803e0f4b9c58466",
+                "url": "https://api.github.com/repos/utopia-php/framework/zipball/2391b397135586b2100d39e338827bef8d2f4ad0",
+                "reference": "2391b397135586b2100d39e338827bef8d2f4ad0",
                 "shasum": ""
             },
             "require": {
@@ -266,9 +266,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/framework/issues",
-                "source": "https://github.com/utopia-php/framework/tree/fix-race-condition"
+                "source": "https://github.com/utopia-php/framework/tree/0.25.1"
             },
-            "time": "2022-11-23T14:55:28+00:00"
+            "time": "2022-11-23T18:22:23+00:00"
         },
         {
             "name": "utopia-php/logger",
@@ -2542,18 +2542,9 @@
             "time": "2021-07-28T10:34:58+00:00"
         }
     ],
-    "aliases": [
-        {
-            "package": "utopia-php/framework",
-            "version": "dev-fix-race-condition",
-            "alias": "0.25.99",
-            "alias_normalized": "0.25.99.0"
-        }
-    ],
+    "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "utopia-php/framework": 20
-    },
+    "stability-flags": [],
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
