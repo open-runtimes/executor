@@ -316,9 +316,9 @@ App::post('/v1/runtimes')
         /**
          * Temporary file paths in the executor
          */
-        $tmpFolder = "/tmp/$runtimeId";
-        $tmpSource = "$tmpFolder/src/code.tar.gz";
-        $tmpBuild = "$tmpFolder/builds/code.tar.gz";
+        $tmpFolder = "tmp/$runtimeId/";
+        $tmpSource = "/{$tmpFolder}src/code.tar.gz";
+        $tmpBuild = "/{$tmpFolder}builds/code.tar.gz";
 
         $sourceDevice = getStorageDevice("/");
         $localDevice = new Local();
