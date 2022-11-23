@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "7287e35364bb7fb2bb0d2d45085fe38b",
+    "content-hash": "be497b017d3572a5681255f93ebc2fc0",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -228,24 +228,25 @@
         },
         {
             "name": "utopia-php/framework",
-            "version": "0.21.1",
+            "version": "dev-fix-race-condition",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/framework.git",
-                "reference": "c81789b87a917da2daf336738170ebe01f50ea18"
+                "reference": "55fe8fc32225320a703bb37cc803e0f4b9c58466"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/framework/zipball/c81789b87a917da2daf336738170ebe01f50ea18",
-                "reference": "c81789b87a917da2daf336738170ebe01f50ea18",
+                "url": "https://api.github.com/repos/utopia-php/framework/zipball/55fe8fc32225320a703bb37cc803e0f4b9c58466",
+                "reference": "55fe8fc32225320a703bb37cc803e0f4b9c58466",
                 "shasum": ""
             },
             "require": {
                 "php": ">=8.0.0"
             },
             "require-dev": {
-                "phpunit/phpunit": "^9.5.10",
-                "vimeo/psalm": "4.13.1"
+                "laravel/pint": "^1.2",
+                "phpunit/phpunit": "^9.5.25",
+                "vimeo/psalm": "4.27.0"
             },
             "type": "library",
             "autoload": {
@@ -257,12 +258,6 @@
             "license": [
                 "MIT"
             ],
-            "authors": [
-                {
-                    "name": "Eldad Fux",
-                    "email": "eldad@appwrite.io"
-                }
-            ],
             "description": "A simple, light and advanced PHP framework",
             "keywords": [
                 "framework",
@@ -271,9 +266,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/framework/issues",
-                "source": "https://github.com/utopia-php/framework/tree/0.21.1"
+                "source": "https://github.com/utopia-php/framework/tree/fix-race-condition"
             },
-            "time": "2022-09-07T09:56:28+00:00"
+            "time": "2022-11-23T14:55:28+00:00"
         },
         {
             "name": "utopia-php/logger",
@@ -607,24 +602,25 @@
         },
         {
             "name": "utopia-php/swoole",
-            "version": "0.3.3",
+            "version": "0.7.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/swoole.git",
-                "reference": "8312df69233b5dcd3992de88f131f238002749de"
+                "reference": "3d6a31a1035659669d828756a0f0ec83cad754c8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/swoole/zipball/8312df69233b5dcd3992de88f131f238002749de",
-                "reference": "8312df69233b5dcd3992de88f131f238002749de",
+                "url": "https://api.github.com/repos/utopia-php/swoole/zipball/3d6a31a1035659669d828756a0f0ec83cad754c8",
+                "reference": "3d6a31a1035659669d828756a0f0ec83cad754c8",
                 "shasum": ""
             },
             "require": {
                 "ext-swoole": "*",
                 "php": ">=8.0",
-                "utopia-php/framework": "0.*.*"
+                "utopia-php/framework": "0.25.*"
             },
             "require-dev": {
+                "laravel/pint": "1.2.*",
                 "phpunit/phpunit": "^9.3",
                 "swoole/ide-helper": "4.8.3",
                 "vimeo/psalm": "4.15.0"
@@ -639,12 +635,6 @@
             "license": [
                 "MIT"
             ],
-            "authors": [
-                {
-                    "name": "Eldad Fux",
-                    "email": "team@appwrite.io"
-                }
-            ],
             "description": "An extension for Utopia Framework to work with PHP Swoole as a PHP FPM alternative",
             "keywords": [
                 "framework",
@@ -657,9 +647,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/swoole/issues",
-                "source": "https://github.com/utopia-php/swoole/tree/0.3.3"
+                "source": "https://github.com/utopia-php/swoole/tree/0.7.0"
             },
-            "time": "2022-01-20T09:58:43+00:00"
+            "time": "2022-11-02T10:32:54+00:00"
         },
         {
             "name": "utopia-php/system",
@@ -2552,9 +2542,18 @@
             "time": "2021-07-28T10:34:58+00:00"
         }
     ],
-    "aliases": [],
+    "aliases": [
+        {
+            "package": "utopia-php/framework",
+            "version": "dev-fix-race-condition",
+            "alias": "0.25.99",
+            "alias_normalized": "0.25.99.0"
+        }
+    ],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {
+        "utopia-php/framework": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
