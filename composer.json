@@ -24,7 +24,7 @@
         "ext-curl": "*",
         "ext-json": "*",
         "ext-swoole": "*",
-        "utopia-php/framework": "0.21.*",
+        "utopia-php/framework": "dev-fix-race-condition as 0.25.99",
         "utopia-php/swoole": "0.3.*",
         "utopia-php/pools": "0.3.*",
         "utopia-php/logger": "0.3.*",
