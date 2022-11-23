@@ -183,7 +183,7 @@ function logError(Throwable $error, string $action, Logger $logger = null, Utopi
 
 function getStorageDevice(string $root): Device
 {
-    $connection = App::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '');
+    $connection = \strval(App::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', ''));
 
     $acl = 'private';
     $device = '';
@@ -381,7 +381,7 @@ App::post('/v1/runtimes')
                 throw new Exception('Failed to create runtime', 500);
             }
 
-            $orchestration->networkConnect($runtimeId, App::getEnv('OPR_EXECUTOR_NETWORK', 'executor_runtimes'));
+            $orchestration->networkConnect($runtimeId, \strval(App::getEnv('OPR_EXECUTOR_NETWORK', 'executor_runtimes')));
 
             /**
              * Execute any commands if they were provided
@@ -919,7 +919,7 @@ run(function () use ($register) {
     Timer::tick($interval * 1000, function () use ($orchestrationPool, $activeRuntimes) {
         Console::info("Running maintenance task ...");
         foreach ($activeRuntimes as $activeRuntimeId => $runtime) {
-            $inactiveThreshold = \time() - App::getEnv('OPR_EXECUTOR_INACTIVE_TRESHOLD', 60);
+            $inactiveThreshold = \time() - \intval(App::getEnv('OPR_EXECUTOR_INACTIVE_TRESHOLD', '60'));
             if ($runtime['updated'] < $inactiveThreshold) {
                 go(function () use ($activeRuntimeId, $runtime, $orchestrationPool, $activeRuntimes) {
                     try {
