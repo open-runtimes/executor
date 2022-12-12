@@ -99,6 +99,7 @@ final class ExecutorTest extends TestCase
         $this->assertIsString($response['body']['stdout']);
         $this->assertIsFloat($response['body']['duration']);
         $this->assertIsInt($response['body']['startTimeUnix']);
+        $this->assertIsInt($response['body']['outputSize']);
         $this->assertIsInt($response['body']['endTimeUnix']);
 
         $outputPath = $response['body']['outputPath'];

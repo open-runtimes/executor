@@ -409,6 +409,9 @@ App::post('/v1/runtimes')
                     throw new Exception('Something went wrong when starting runtime.', 500);
                 }
 
+                $outputSize = $localDevice->getFileSize($tmpBuild);
+                $container['outputSize'] = $outputSize;
+
                 $destinationDevice = getStorageDevice($destination);
                 $outputPath = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo('code.tar.gz', PATHINFO_EXTENSION));
 
