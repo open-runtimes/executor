@@ -986,7 +986,7 @@ run(function () use ($register) {
         }
 
         if ($recursive) {
-            Timer::after(1000, fn() => getStats($statsHost, $statsContainers, $orchestration, $recursive));
+            Timer::after(1000, fn () => getStats($statsHost, $statsContainers, $orchestration, $recursive));
         }
     }
 
