@@ -212,7 +212,11 @@ final class ExecutorTest extends TestCase
         ]);
     }
 
-    public function provideCustomRuntimes()
+    /**
+     *
+     * @return array<mixed>
+     */
+    public function provideCustomRuntimes(): array
     {
         return [
             [ ['folder' => 'php', 'image' => 'openruntimes/php:v2-8.1', 'entrypoint' => 'index.php'] ],
@@ -227,9 +231,11 @@ final class ExecutorTest extends TestCase
     }
 
     /**
+     * @param array<mixed> $data
+     *
      * @dataProvider provideCustomRuntimes
      */
-    public function testCustomRuntimes(array $data)
+    public function testCustomRuntimes(array $data): void
     {
         // Prepare tar.gz files
         $stdout = '';
