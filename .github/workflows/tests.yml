@@ -23,6 +23,7 @@ jobs:
 
     - name: Doctor
       run: |
+        docker compose logs
         docker ps
         docker network ls
 
