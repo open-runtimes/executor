@@ -2,7 +2,6 @@
 
 namespace Tests;
 
-use Exception;
 use PHPUnit\Framework\TestCase;
 use Utopia\CLI\Console;
 
@@ -273,7 +272,9 @@ final class ExecutorTest extends TestCase
         $outputPath = $response['body']['outputPath'];
 
         // Execute function
-        $response = $this->client->call(Client::METHOD_POST, "/runtimes/custom-execute-{$data['folder']}/execution", [], [
+        $response = $this->client->call(Client::METHOD_POST, "/runtimes/custom-execute-{$data['folder']}/execution", [
+            'content-type' => 'application/json',
+        ], [
             'source' => $outputPath,
             'entrypoint' => $data['entrypoint'],
             'image' => $data['image'],
@@ -286,7 +287,7 @@ final class ExecutorTest extends TestCase
             ])
         ]);
 
-        if($response['headers']['status-code'] !== 200 || $response['body']['status'] !== 'completed') {
+        if ($response['headers']['status-code'] !== 200 || $response['body']['status'] !== 'completed') {
             \var_dump($data);
             \var_dump($response);
             \var_dump('---');
