@@ -203,13 +203,16 @@ final class ExecutorTest extends TestCase
      */
     public function testTimeoutExecute(array $data): void
     {
-        $this->expectException(Exception::class);
-
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-timeout/execution', [], [
             'source' => $data['path'],
             'entrypoint' => 'timeout.php',
             'image' => 'openruntimes/php:v2-8.1',
         ]);
+
+
+        $this->assertEquals(500, $response['headers']['status-code']);
+        $this->assertEquals(500, $response['body']['code']);
+        $this->assertStringContainsString('Operation timed out', $response['body']['message']);
     }
 
     /**
@@ -222,11 +225,13 @@ final class ExecutorTest extends TestCase
             [ ['folder' => 'php', 'image' => 'openruntimes/php:v2-8.1', 'entrypoint' => 'index.php'] ],
             [ ['folder' => 'node', 'image' => 'openruntimes/node:v2-18.0', 'entrypoint' => 'index.js'] ],
             [ ['folder' => 'deno', 'image' => 'openruntimes/deno:v2-1.24', 'entrypoint' => 'index.ts'] ],
-            [ ['folder' => 'dart', 'image' => 'openruntimes/dart:v2-2.17', 'entrypoint' => 'lib/index.dart'] ],
             [ ['folder' => 'python', 'image' => 'openruntimes/python:v2-3.9', 'entrypoint' => 'index.py'] ],
             [ ['folder' => 'ruby', 'image' => 'openruntimes/ruby:v2-3.1', 'entrypoint' => 'index.rb'] ],
-            // TODO: C++, Java, Kotlin, Dotnet
-            // Swift missing on purpose - takes 10mins to build
+            [ ['folder' => 'cpp', 'image' => 'openruntimes/cpp:v2-17', 'entrypoint' => 'index.cc'] ],
+            [ ['folder' => 'dart', 'image' => 'openruntimes/dart:v2-2.17', 'entrypoint' => 'lib/index.dart'] ],
+            [ ['folder' => 'java', 'image' => 'openruntimes/java:v2-18.0', 'entrypoint' => 'Index.java'] ],
+            [ ['folder' => 'dotnet', 'image' => 'openruntimes/dotnet:v2-6.0', 'entrypoint' => 'Index.cs'] ],
+            // Swift, Kotlin missing on purpose - takes long time to build
         ];
     }
 
@@ -277,12 +282,17 @@ final class ExecutorTest extends TestCase
                 'test-variable' => 'Variable secret'
             ],
             'payload' => \json_encode([
-                'id' => 2
+                'id' => '2'
             ])
         ]);
 
-        $this->assertEquals(200, $response['headers']['status-code']);
+        if($response['headers']['status-code'] !== 200 || $response['body']['status'] !== 'completed') {
+            \var_dump($data);
+            \var_dump($response);
+            \var_dump('---');
+        }
 
+        $this->assertEquals(200, $response['headers']['status-code']);
         $body = $response['body'];
         $this->assertEquals('completed', $body['status']);
         $this->assertEquals(200, $body['statusCode']);
