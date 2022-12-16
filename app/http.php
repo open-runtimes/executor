@@ -923,8 +923,7 @@ run(function () use ($register) {
         Console::info("Running maintenance task ...");
         foreach ($activeRuntimes as $activeRuntimeId => $runtime) {
             $inactiveThreshold = \time() - \intval(App::getEnv('OPR_EXECUTOR_INACTIVE_TRESHOLD', '60'));
-            if ($runtime['u
-            pdated'] < $inactiveThreshold) {
+            if ($runtime['updated'] < $inactiveThreshold) {
                 go(function () use ($activeRuntimeId, $runtime, $orchestrationPool, $activeRuntimes) {
                     try {
                         $connection = $orchestrationPool->pop();
