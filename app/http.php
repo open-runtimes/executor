@@ -99,8 +99,8 @@ $register->set('activeRuntimes', function () {
     $table = new Table(1024);
 
     $table->column('id', Table::TYPE_STRING, 256);
-    $table->column('created', Table::TYPE_INT, 8);
-    $table->column('updated', Table::TYPE_INT, 8);
+    $table->column('created', Table::TYPE_FLOAT);
+    $table->column('updated', Table::TYPE_FLOAT);
     $table->column('name', Table::TYPE_STRING, 256);
     $table->column('hostname', Table::TYPE_STRING, 256);
     $table->column('status', Table::TYPE_STRING, 128);
@@ -307,8 +307,8 @@ App::post('/v1/runtimes')
             'id' => $containerId,
             'name' => $activeRuntimeId,
             'hostname' => $runtimeHostname,
-            'created' => (int) $startTime,
-            'updated' => \time(),
+            'created' => $startTime,
+            'updated' => $startTime,
             'status' => 'pending',
             'key' => $secret,
         ]);
@@ -442,7 +442,7 @@ App::post('/v1/runtimes')
                 'name' => $activeRuntimeId,
                 'hostname' => $runtimeHostname,
                 'created' => $startTime,
-                'updated' => \time(),
+                'updated' => \microtime(true),
                 'status' => 'Up ' . \round($duration, 2) . 's',
                 'key' => $secret,
             ]);
@@ -770,7 +770,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
 
             // Update swoole table
             $runtime = $activeRuntimes->get($activeRuntimeId);
-            $runtime['updated'] = \time();
+            $runtime['updated'] = \microtime(true);
             $activeRuntimes->set($activeRuntimeId, $runtime);
 
             // Finish request
