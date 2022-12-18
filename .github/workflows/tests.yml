@@ -19,10 +19,11 @@ jobs:
         docker pull composer:2.0
         docker compose build
         docker compose up -d
-        sleep 15
+        sleep 60
 
     - name: Doctor
       run: |
+        docker compose logs
         docker ps
         docker network ls
 
