@@ -985,10 +985,8 @@ run(function () use ($register) {
             }
         }
 
-        // TODO: @Meldiron Might cause stack overflow due to infinite recursion
         if ($recursive) {
-            \sleep(1);
-            getStats($statsHost, $statsContainers, $orchestration, $recursive);
+            Timer::after(1000, fn () => getStats($statsHost, $statsContainers, $orchestration, $recursive));
         }
     }
 
