@@ -85,14 +85,14 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
         $this->assertEquals('ready', $response['body']['status']);
-        $this->assertIsString($response['body']['outputPath']);
+        $this->assertIsString($response['body']['path']);
         $this->assertIsString($response['body']['stderr']);
         $this->assertIsString($response['body']['stdout']);
         $this->assertIsFloat($response['body']['duration']);
-        $this->assertIsInt($response['body']['startTimeUnix']);
-        $this->assertIsInt($response['body']['endTimeUnix']);
+        $this->assertIsFloat($response['body']['startTime']);
+        $this->assertIsInt($response['body']['size']);
 
-        $outputPath = $response['body']['outputPath'];
+        $buildPath = $response['body']['path'];
 
         /** List runtimes */
         $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
@@ -125,7 +125,7 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_GET, '/runtimes/test-build-selfdelete', [], []);
         $this->assertEquals(404, $response['headers']['status-code']);
 
-        return [ 'path' => $outputPath ];
+        return [ 'path' => $buildPath ];
     }
 
     /**

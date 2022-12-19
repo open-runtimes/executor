@@ -99,8 +99,8 @@ $register->set('activeRuntimes', function () {
     $table = new Table(1024);
 
     $table->column('id', Table::TYPE_STRING, 256);
-    $table->column('created', Table::TYPE_INT, 8);
-    $table->column('updated', Table::TYPE_INT, 8);
+    $table->column('created', Table::TYPE_FLOAT);
+    $table->column('updated', Table::TYPE_FLOAT);
     $table->column('name', Table::TYPE_STRING, 256);
     $table->column('hostname', Table::TYPE_STRING, 256);
     $table->column('status', Table::TYPE_STRING, 128);
@@ -299,8 +299,7 @@ App::post('/v1/runtimes')
         $containerId = '';
         $stdout = '';
         $stderr = '';
-        $startTimeUnix = \microtime(true);
-        $endTimeUnix = 0;
+        $startTime = \microtime(true);
 
         $secret = \bin2hex(\random_bytes(16));
 
@@ -308,8 +307,8 @@ App::post('/v1/runtimes')
             'id' => $containerId,
             'name' => $activeRuntimeId,
             'hostname' => $runtimeHostname,
-            'created' => (int) $startTimeUnix,
-            'updated' => \time(),
+            'created' => $startTime,
+            'updated' => $startTime,
             'status' => 'pending',
             'key' => $secret,
         ]);
@@ -409,30 +408,32 @@ App::post('/v1/runtimes')
                     throw new Exception('Something went wrong when starting runtime.', 500);
                 }
 
+                $size = $localDevice->getFileSize($tmpBuild);
+                $container['size'] = $size;
+
                 $destinationDevice = getStorageDevice($destination);
-                $outputPath = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo('code.tar.gz', PATHINFO_EXTENSION));
+                $path = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo('code.tar.gz', PATHINFO_EXTENSION));
 
                 $buffer = $localDevice->read($tmpBuild);
-                if (!$destinationDevice->write($outputPath, $buffer, $localDevice->getFileMimeType($tmpBuild))) {
+                if (!$destinationDevice->write($path, $buffer, $localDevice->getFileMimeType($tmpBuild))) {
                     throw new Exception('Failed to move built code to storage', 500);
                 };
 
-                $container['outputPath'] = $outputPath;
+                $container['path'] = $path;
             }
 
             if ($stdout === '') {
                 $stdout = 'Runtime created successfully!';
             }
 
-            $endTimeUnix = \microtime(true);
-            $duration = $endTimeUnix - $startTimeUnix;
+            $endTime = \microtime(true);
+            $duration = $endTime - $startTime;
 
             $container = array_merge($container, [
                 'status' => 'ready',
                 'stdout' => \mb_strcut($stdout, 0, 1000000), // Limit to 1MB
                 'stderr' => \mb_strcut($stderr, 0, 1000000), // Limit to 1MB
-                'startTimeUnix' => (int) $startTimeUnix,
-                'endTimeUnix' => (int) $endTimeUnix,
+                'startTime' => $startTime,
                 'duration' => $duration,
             ]);
 
@@ -440,8 +441,8 @@ App::post('/v1/runtimes')
                 'id' => $containerId,
                 'name' => $activeRuntimeId,
                 'hostname' => $runtimeHostname,
-                'created' => (int) $startTimeUnix,
-                'updated' => \time(),
+                'created' => $startTime,
+                'updated' => \microtime(true),
                 'status' => 'Up ' . \round($duration, 2) . 's',
                 'key' => $secret,
             ]);
@@ -558,7 +559,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
             ]);
 
-            $coldStartTime = 0;
+            $coldStartDuration = 0;
 
             // Prepare runtime
             if (!$activeRuntimes->exists($activeRuntimeId)) {
@@ -620,7 +621,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
 
                     if ($errNo === 0 && $statusCode < 500) {
                         $body = \json_decode($executorResponse, true);
-                        $coldStartTime = \floatval($body['duration']);
+                        $coldStartDuration = \floatval($body['duration']);
                         break;
                     } elseif ($errNo !== 111) { // Connection Refused - see https://openswoole.com/docs/swoole-error-code
                         throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
@@ -655,12 +656,12 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 throw new Exception('Runtime secret not found. Please re-create the runtime.', 500);
             }
 
-            $executionStart = \microtime(true);
+            $startTime = \microtime(true);
 
             // Prepare request to runtime
-            $sendExecuteRequest = function () use ($variables, $payload, $secret, $hostname, &$executionStart, $timeout) {
+            $sendExecuteRequest = function () use ($variables, $payload, $secret, $hostname, &$startTime, $timeout) {
                 // Restart execution timer to not could failed attempts
-                $executionStart = \microtime(true);
+                $startTime = \microtime(true);
 
                 $statusCode = 0;
                 $errNo = -1;
@@ -678,7 +679,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 \curl_setopt($ch, CURLOPT_POST, true);
                 \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
                 \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout + 2); // max 2 seconds expected network latency
+                \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
                 \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
 
                 \curl_setopt($ch, CURLOPT_HTTPHEADER, [
@@ -752,8 +753,9 @@ App::post('/v1/runtimes/:runtimeId/execution')
                     break;
             }
 
-            $executionEnd = \microtime(true);
-            $executionTime = ($executionEnd - $executionStart);
+
+            $endTime = \microtime(true);
+            $duration = $endTime - $startTime;
             $functionStatus = ($statusCode >= 500) ? 'failed' : 'completed';
 
             $execution = [
@@ -762,12 +764,13 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 'response' => \mb_strcut($res, 0, 1000000), // Limit to 1MB
                 'stdout' => \mb_strcut($stdout, 0, 1000000), // Limit to 1MB
                 'stderr' => \mb_strcut($stderr, 0, 1000000), // Limit to 1MB
-                'duration' => $executionTime + $coldStartTime,
+                'duration' => $duration + $coldStartDuration,
+                'startTime' => $startTime,
             ];
 
             // Update swoole table
             $runtime = $activeRuntimes->get($activeRuntimeId);
-            $runtime['updated'] = \time();
+            $runtime['updated'] = \microtime(true);
             $activeRuntimes->set($activeRuntimeId, $runtime);
 
             // Finish request
