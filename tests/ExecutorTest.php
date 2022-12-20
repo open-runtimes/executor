@@ -214,8 +214,8 @@ final class ExecutorTest extends TestCase
                 'entrypoint' => 'index.php',
                 'folder' => 'php-timeout',
                 'assertions' => function ($response) {
-                    \var_dump($response);
-                    $this->assertEquals('failed', $response['body']['status']);
+                    $this->assertEquals(500, $response['headers']['status-code']);
+                    $this->assertEquals(500, $response['body']['code']);
                     $this->assertStringContainsString('Operation timed out', $response['body']['message']);
                 }
             ]
@@ -270,7 +270,7 @@ final class ExecutorTest extends TestCase
         call_user_func($assertions, $response);
 
         /** Delete runtime */
-        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/{$folder}", [], []);
+        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/scenario-execute-{$folder}", [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
