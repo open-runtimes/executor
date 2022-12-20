@@ -181,23 +181,68 @@ final class ExecutorTest extends TestCase
     }
 
     /**
-     * @return array<string,mixed>
+     *
+     * @return array<mixed>
      */
-    public function testTimeoutBuild(): array
+    public function provideScenarios(): array
     {
+        return [
+            [
+                'image' => 'openruntimes/node:v2-18.0',
+                'entrypoint' => 'index.js',
+                'folder' => 'node-empty-object',
+                'assertions' => function($response) {
+                    $this->assertEquals('completed', $response['body']['status']);
+                    $this->assertEquals('{}', $response['body']['response']);
+                    $this->assertEmpty($response['body']['stdout']);
+                    $this->assertEmpty('Error log', $response['body']['stderr']);
+                }
+            ],
+            [
+                'image' => 'openruntimes/node:v2-18.0',
+                'entrypoint' => 'index.js',
+                'folder' => 'node-stderr',
+                'assertions' => function($response) {
+                    $this->assertEquals('completed', $response['body']['status']);
+                    $this->assertEquals('{"ok":true}', $response['body']['response']);
+                    $this->assertEmpty($response['body']['stdout']);
+                    $this->assertStringContainsString('Error log', $response['body']['stderr']);
+                }
+            ],
+            [
+                'image' => 'openruntimes/php:v2-8.1',
+                'entrypoint' => 'index.php',
+                'folder' => 'php-timeout',
+                'assertions' => function($response) {
+                    \var_dump($response);
+                    $this->assertEquals('failed', $response['body']['status']);
+                    $this->assertStringContainsString('Operation timed out', $response['body']['message']);
+                }
+            ]
+        ];
+    }
+
+    /**
+     * @param array<mixed> $data
+     *
+     * @dataProvider provideCustomRuntimes
+     */
+    public function testScenarios(string $image, string $entrypoint, string $folder, callable $assertions): void
+    {
+        /** Prepare deployment */
         $stdout = '';
         $stderr = '';
-        Console::execute('cd /app/tests/resources/functions/php-timeout && tar --warning=no-file-changed --exclude code.tar.gz -czf code.tar.gz .', '', $stdout, $stderr);
+        Console::execute("cd /app/tests/resources/functions/{$folder} && tar --warning=no-file-changed --exclude code.tar.gz -czf code.tar.gz .", '', $stdout, $stderr);
 
         $this->assertEquals('', $stderr);
 
         /** Build runtime */
         $params = [
             'runtimeId' => 'test-build',
-            'source' => '/storage/functions/php-timeout/code.tar.gz',
+            'source' => "/storage/functions/{$folder}/code.tar.gz",
             'destination' => '/storage/builds/test',
-            'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v2-8.1',
+            'entrypoint' => $entrypoint,
+            'image' => $image,
             'workdir' => '/usr/code',
             'commands' => [
                 'sh', '-c',
@@ -212,26 +257,18 @@ final class ExecutorTest extends TestCase
 
         $outputPath = $response['body']['outputPath'];
 
-        return [ 'path' => $outputPath ];
-    }
-
-    /**
-     * @depends testTimeoutBuild
-     *
-     * @param array<string,mixed> $data
-     */
-    public function testTimeoutExecute(array $data): void
-    {
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-timeout/execution', [], [
-            'source' => $data['path'],
-            'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v2-8.1',
+        /** Execute function */
+        $response = $this->client->call(Client::METHOD_POST, "/runtimes/{$folder}/execution", [], [
+            'source' => $outputPath,
+            'entrypoint' => $entrypoint,
+            'image' => $image,
         ]);
 
+        call_user_func($assertions, $response);
 
-        $this->assertEquals(500, $response['headers']['status-code']);
-        $this->assertEquals(500, $response['body']['code']);
-        $this->assertStringContainsString('Operation timed out', $response['body']['message']);
+        /** Delete runtime */
+        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/{$folder}", [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
     }
 
     /**
@@ -241,14 +278,14 @@ final class ExecutorTest extends TestCase
     public function provideCustomRuntimes(): array
     {
         return [
-            [ ['folder' => 'php', 'image' => 'openruntimes/php:v2-8.1', 'entrypoint' => 'index.php'] ],
-            [ ['folder' => 'node', 'image' => 'openruntimes/node:v2-18.0', 'entrypoint' => 'index.js'] ],
-            [ ['folder' => 'deno', 'image' => 'openruntimes/deno:v2-1.24', 'entrypoint' => 'index.ts'] ],
-            [ ['folder' => 'python', 'image' => 'openruntimes/python:v2-3.9', 'entrypoint' => 'index.py'] ],
-            [ ['folder' => 'ruby', 'image' => 'openruntimes/ruby:v2-3.1', 'entrypoint' => 'index.rb'] ],
-            [ ['folder' => 'cpp', 'image' => 'openruntimes/cpp:v2-17', 'entrypoint' => 'index.cc'] ],
-            [ ['folder' => 'dart', 'image' => 'openruntimes/dart:v2-2.17', 'entrypoint' => 'lib/index.dart'] ],
-            [ ['folder' => 'dotnet', 'image' => 'openruntimes/dotnet:v2-6.0', 'entrypoint' => 'Index.cs'] ],
+            [ 'folder' => 'php', 'image' => 'openruntimes/php:v2-8.1', 'entrypoint' => 'index.php' ],
+            [ 'folder' => 'node', 'image' => 'openruntimes/node:v2-18.0', 'entrypoint' => 'index.js' ],
+            [ 'folder' => 'deno', 'image' => 'openruntimes/deno:v2-1.24', 'entrypoint' => 'index.ts' ],
+            [ 'folder' => 'python', 'image' => 'openruntimes/python:v2-3.9', 'entrypoint' => 'index.py' ],
+            [ 'folder' => 'ruby', 'image' => 'openruntimes/ruby:v2-3.1', 'entrypoint' => 'index.rb' ],
+            [ 'folder' => 'cpp', 'image' => 'openruntimes/cpp:v2-17', 'entrypoint' => 'index.cc' ],
+            [ 'folder' => 'dart', 'image' => 'openruntimes/dart:v2-2.17', 'entrypoint' => 'lib/index.dart' ],
+            [ 'folder' => 'dotnet', 'image' => 'openruntimes/dotnet:v2-6.0', 'entrypoint' => 'Index.cs' ],
             // Swift, Kotlin, Java missing on purpose
         ];
     }
@@ -258,22 +295,22 @@ final class ExecutorTest extends TestCase
      *
      * @dataProvider provideCustomRuntimes
      */
-    public function testCustomRuntimes(array $data): void
+    public function testCustomRuntimes(string $folder, string $image, string $entrypoint): void
     {
         // Prepare tar.gz files
         $stdout = '';
         $stderr = '';
-        Console::execute("cd /app/tests/resources/functions/{$data['folder']} && tar --warning=no-file-changed --exclude code.tar.gz -czf code.tar.gz .", '', $stdout, $stderr);
+        Console::execute("cd /app/tests/resources/functions/{$folder} && tar --warning=no-file-changed --exclude code.tar.gz -czf code.tar.gz .", '', $stdout, $stderr);
 
         $this->assertEquals('', $stderr);
 
         // Build deployment
         $params = [
-            'runtimeId' => "custom-build-{$data['folder']}",
-            'source' => "/storage/functions/{$data['folder']}/code.tar.gz",
+            'runtimeId' => "custom-build-{$folder}",
+            'source' => "/storage/functions/{$folder}/code.tar.gz",
             'destination' => '/storage/builds/test',
-            'entrypoint' => $data['entrypoint'],
-            'image' => $data['image'],
+            'entrypoint' => $entrypoint,
+            'image' => $image,
             'workdir' => '/usr/code',
             'timeout' => 60,
             'commands' => [
@@ -291,12 +328,12 @@ final class ExecutorTest extends TestCase
         $outputPath = $response['body']['outputPath'];
 
         // Execute function
-        $response = $this->client->call(Client::METHOD_POST, "/runtimes/custom-execute-{$data['folder']}/execution", [
+        $response = $this->client->call(Client::METHOD_POST, "/runtimes/custom-execute-{$folder}/execution", [
             'content-type' => 'application/json',
         ], [
             'source' => $outputPath,
-            'entrypoint' => $data['entrypoint'],
-            'image' => $data['image'],
+            'entrypoint' => $entrypoint,
+            'image' => $image,
             'timeout' => 60,
             'variables' => [
                 'test-variable' => 'Variable secret'
@@ -305,12 +342,6 @@ final class ExecutorTest extends TestCase
                 'id' => '2'
             ])
         ]);
-
-        if ($response['headers']['status-code'] !== 200 || $response['body']['status'] !== 'completed') {
-            \var_dump($data);
-            \var_dump($response);
-            \var_dump('---');
-        }
 
         $this->assertEquals(200, $response['headers']['status-code']);
         $body = $response['body'];
@@ -327,7 +358,7 @@ final class ExecutorTest extends TestCase
         $this->assertEquals(1, $response['todo']['userId']);
 
         /** Delete runtime */
-        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/custom-execute-{$data['folder']}", [], []);
+        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/custom-execute-{$folder}", [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 }
