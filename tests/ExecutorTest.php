@@ -195,7 +195,7 @@ final class ExecutorTest extends TestCase
                     $this->assertEquals('completed', $response['body']['status']);
                     $this->assertEquals('{}', $response['body']['response']);
                     $this->assertEmpty($response['body']['stdout']);
-                    $this->assertEmpty('Error log', $response['body']['stderr']);
+                    $this->assertEmpty($response['body']['stderr']);
                 }
             ],
             [
@@ -241,7 +241,7 @@ final class ExecutorTest extends TestCase
 
         /** Build runtime */
         $params = [
-            'runtimeId' => 'test-build',
+            'runtimeId' => "scenario-build-{$folder}",
             'source' => "/storage/functions/{$folder}/code.tar.gz",
             'destination' => '/storage/builds/test',
             'entrypoint' => $entrypoint,
@@ -261,7 +261,7 @@ final class ExecutorTest extends TestCase
         $path = $response['body']['path'];
 
         /** Execute function */
-        $response = $this->client->call(Client::METHOD_POST, "/runtimes/{$folder}/execution", [], [
+        $response = $this->client->call(Client::METHOD_POST, "/runtimes/scenario-execute-{$folder}/execution", [], [
             'source' => $path,
             'entrypoint' => $entrypoint,
             'image' => $image,
