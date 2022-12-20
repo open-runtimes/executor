@@ -228,7 +228,7 @@ final class ExecutorTest extends TestCase
      * @param string $folder
      * @param callable $assertions
      *
-     * @dataProvider provideCustomRuntimes
+     * @dataProvider provideScenarios
      */
     public function testScenarios(string $image, string $entrypoint, string $folder, callable $assertions): void
     {
