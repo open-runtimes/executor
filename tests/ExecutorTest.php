@@ -191,7 +191,7 @@ final class ExecutorTest extends TestCase
                 'image' => 'openruntimes/node:v2-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-empty-object',
-                'assertions' => function($response) {
+                'assertions' => function ($response) {
                     $this->assertEquals('completed', $response['body']['status']);
                     $this->assertEquals('{}', $response['body']['response']);
                     $this->assertEmpty($response['body']['stdout']);
@@ -202,7 +202,7 @@ final class ExecutorTest extends TestCase
                 'image' => 'openruntimes/node:v2-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-stderr',
-                'assertions' => function($response) {
+                'assertions' => function ($response) {
                     $this->assertEquals('completed', $response['body']['status']);
                     $this->assertEquals('{"ok":true}', $response['body']['response']);
                     $this->assertEmpty($response['body']['stdout']);
@@ -213,7 +213,7 @@ final class ExecutorTest extends TestCase
                 'image' => 'openruntimes/php:v2-8.1',
                 'entrypoint' => 'index.php',
                 'folder' => 'php-timeout',
-                'assertions' => function($response) {
+                'assertions' => function ($response) {
                     \var_dump($response);
                     $this->assertEquals('failed', $response['body']['status']);
                     $this->assertStringContainsString('Operation timed out', $response['body']['message']);
@@ -223,7 +223,10 @@ final class ExecutorTest extends TestCase
     }
 
     /**
-     * @param array<mixed> $data
+     * @param string $image
+     * @param string $entrypoint
+     * @param string $folder
+     * @param callable $assertions
      *
      * @dataProvider provideCustomRuntimes
      */
@@ -255,11 +258,11 @@ final class ExecutorTest extends TestCase
         $this->assertEquals(201, $response['headers']['status-code']);
         $this->assertEquals('ready', $response['body']['status']);
 
-        $outputPath = $response['body']['outputPath'];
+        $path = $response['body']['path'];
 
         /** Execute function */
         $response = $this->client->call(Client::METHOD_POST, "/runtimes/{$folder}/execution", [], [
-            'source' => $outputPath,
+            'source' => $path,
             'entrypoint' => $entrypoint,
             'image' => $image,
         ]);
@@ -291,7 +294,9 @@ final class ExecutorTest extends TestCase
     }
 
     /**
-     * @param array<mixed> $data
+     * @param string $folder
+     * @param string $image
+     * @param string $entrypoint
      *
      * @dataProvider provideCustomRuntimes
      */
@@ -323,15 +328,15 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
         $this->assertEquals('ready', $response['body']['status']);
-        $this->assertIsString($response['body']['outputPath']);
+        $this->assertIsString($response['body']['path']);
 
-        $outputPath = $response['body']['outputPath'];
+        $path = $response['body']['path'];
 
         // Execute function
         $response = $this->client->call(Client::METHOD_POST, "/runtimes/custom-execute-{$folder}/execution", [
             'content-type' => 'application/json',
         ], [
-            'source' => $outputPath,
+            'source' => $path,
             'entrypoint' => $entrypoint,
             'image' => $image,
             'timeout' => 60,
