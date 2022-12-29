@@ -201,6 +201,17 @@ final class ExecutorTest extends TestCase
             [
                 'image' => 'openruntimes/node:v2-18.0',
                 'entrypoint' => 'index.js',
+                'folder' => 'node-empty-array',
+                'assertions' => function ($response) {
+                    $this->assertEquals('completed', $response['body']['status']);
+                    $this->assertEquals('[]', $response['body']['response']);
+                    $this->assertEmpty($response['body']['stdout']);
+                    $this->assertEmpty($response['body']['stderr']);
+                }
+            ],
+            [
+                'image' => 'openruntimes/node:v2-18.0',
+                'entrypoint' => 'index.js',
                 'folder' => 'node-stderr',
                 'assertions' => function ($response) {
                     $this->assertEquals('completed', $response['body']['status']);

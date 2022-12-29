@@ -728,16 +728,19 @@ App::post('/v1/runtimes/:runtimeId/execution')
             }
 
             // Extract response
-            $executorResponse = json_decode($executorResponse ?? '{}', true);
+            $executorResponse = json_decode($executorResponse ?? '{}', false);
 
             $execution = [];
             $res = '';
-            $stderr = $executorResponse['stderr'] ?? '';
-            $stdout = $executorResponse['stdout'] ?? '';
+            $stderr = $executorResponse->stderr ?? '';
+            $stdout = $executorResponse->stdout ?? '';
 
             if ($statusCode >= 200 && $statusCode < 300) {
-                $res = $executorResponse['response'] ?? '';
+                $res = $executorResponse->response ?? '';
                 if (is_array($res)) {
+                    $res = json_encode($res, JSON_UNESCAPED_UNICODE);
+                }
+                if (is_object($res)) {
                     $res = json_encode($res, JSON_UNESCAPED_UNICODE | JSON_FORCE_OBJECT);
                 }
             }
