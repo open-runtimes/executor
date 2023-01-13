@@ -728,29 +728,20 @@ App::post('/v1/runtimes/:runtimeId/execution')
             }
 
             // Extract response
+            $executorResponse = json_decode($executorResponse ?? '{}', false);
+
             $execution = [];
-            $stdout = '';
-            $stderr = '';
             $res = '';
+            $stderr = $executorResponse->stderr ?? '';
+            $stdout = $executorResponse->stdout ?? '';
 
-            $executorResponse = json_decode($executorResponse ?? '{}', true);
-
-            switch (true) {
-                case $statusCode >= 500:
-                    $stderr = $executorResponse['stderr'] ?? '';
-                    $stdout = $executorResponse['stdout'] ?? '';
-                    break;
-                case $statusCode >= 100:
-                    $stdout = $executorResponse['stdout'] ?? '';
-                    $res = $executorResponse['response'] ?? '';
-                    if (is_array($res)) {
-                        $res = json_encode($res, JSON_UNESCAPED_UNICODE);
-                    }
-                    break;
-                default:
-                    $stderr = $executorResponse['stderr'] ?? '';
-                    $stdout = $executorResponse['stdout'] ?? '';
-                    break;
+            if ($statusCode >= 200 && $statusCode < 500) {
+                $res = $executorResponse->response ?? '';
+                if (is_array($res)) {
+                    $res = json_encode($res, JSON_UNESCAPED_UNICODE);
+                } elseif (is_object($res)) {
+                    $res = json_encode($res, JSON_UNESCAPED_UNICODE | JSON_FORCE_OBJECT);
+                }
             }
 
 
