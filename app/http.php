@@ -735,12 +735,11 @@ App::post('/v1/runtimes/:runtimeId/execution')
             $stderr = $executorResponse->stderr ?? '';
             $stdout = $executorResponse->stdout ?? '';
 
-            if ($statusCode >= 200 && $statusCode < 300) {
+            if ($statusCode >= 200 && $statusCode < 500) {
                 $res = $executorResponse->response ?? '';
                 if (is_array($res)) {
                     $res = json_encode($res, JSON_UNESCAPED_UNICODE);
-                }
-                if (is_object($res)) {
+                } elseif (is_object($res)) {
                     $res = json_encode($res, JSON_UNESCAPED_UNICODE | JSON_FORCE_OBJECT);
                 }
             }
