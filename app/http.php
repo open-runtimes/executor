@@ -41,6 +41,7 @@ use Utopia\DSN\DSN;
 use Utopia\Pools\Connection;
 use Utopia\Registry\Registry;
 use Utopia\Validator\Integer;
+use Utopia\Validator\WhiteList;
 
 use function Swoole\Coroutine\batch;
 use function Swoole\Coroutine\run;
@@ -430,9 +431,8 @@ App::post('/v1/runtimes')
             $duration = $endTime - $startTime;
 
             $container = array_merge($container, [
-                'status' => 'ready',
-                'stdout' => \mb_strcut($stdout, 0, 1000000), // Limit to 1MB
-                'stderr' => \mb_strcut($stderr, 0, 1000000), // Limit to 1MB
+                'logs' => \mb_strcut($stdout, 0, 1000000), // Limit to 1MB
+                'errors' => \mb_strcut($stderr, 0, 1000000), // Limit to 1MB
                 'startTime' => $startTime,
                 'duration' => $duration,
             ]);
@@ -548,10 +548,11 @@ App::post('/v1/runtimes/:runtimeId/execution')
     ->param('entrypoint', '', new Text(256), 'Entrypoint of the code file.', true)
     ->param('cpus', 1, new Integer(), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Comtainer RAM memory.', true)
+    ->param('version', 'v2', new WhiteList(['v2', 'v3']), 'Runtime Open Runtime version.', true)
     ->inject('activeRuntimes')
     ->inject('response')
     ->action(
-        function (string $runtimeId, string $payload, array $variables, int $timeout, string $image, string $source, string $entrypoint, int $cpus, int $memory, Table $activeRuntimes, Response $response) {
+        function (string $runtimeId, string $payload, array $variables, int $timeout, string $image, string $source, string $entrypoint, int $cpus, int $memory, string $version, Table $activeRuntimes, Response $response) {
             $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
             $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
@@ -659,7 +660,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
             $startTime = \microtime(true);
 
             // Prepare request to runtime
-            $sendExecuteRequest = function () use ($variables, $payload, $secret, $hostname, &$startTime, $timeout) {
+            $executeV2 = function () use ($variables, $payload, $secret, $hostname, &$startTime, $timeout): array {
                 // Restart execution timer to not could failed attempts
                 $startTime = \microtime(true);
 
@@ -699,63 +700,75 @@ App::post('/v1/runtimes/:runtimeId/execution')
 
                 \curl_close($ch);
 
+                if ($errNo !== 0) {
+                    return [
+                        'errNo' => $errNo,
+                        'error' => $error,
+                    ];
+                }
+
+                // Extract response
+                $executorResponse = json_decode($executorResponse ?? '{}', false);
+
+                $res = '';
+                $stderr = $executorResponse->stderr ?? '';
+                $stdout = $executorResponse->stdout ?? '';
+
+                if ($statusCode >= 200 && $statusCode < 300) {
+                    $res = $executorResponse->response ?? '';
+                    if (is_array($res)) {
+                        $res = json_encode($res, JSON_UNESCAPED_UNICODE);
+                    }
+                    if (is_object($res)) {
+                        $res = json_encode($res, JSON_UNESCAPED_UNICODE | JSON_FORCE_OBJECT);
+                    }
+                }
+
                 return [
                     'errNo' => $errNo,
                     'error' => $error,
                     'statusCode' => $statusCode,
-                    'executorResponse' => $executorResponse
+                    'body' => $res,
+                    'logs' => $stdout,
+                    'errors' => $stderr,
+                    'headers' => []
                 ];
             };
 
             // Execute function
             for ($i = 0; $i < 5; $i++) {
-                [ 'errNo' => $errNo, 'error' => $error, 'statusCode' => $statusCode, 'executorResponse' => $executorResponse ] = \call_user_func($sendExecuteRequest);
+                $executionRequest = $version === 'v2' ? $executeV2 : $executeV2; // TODO: @Meldiron executeV3
+                $executionResponse = \call_user_func($executionRequest);
 
                 // No error
-                if ($errNo === 0) {
+                if ($executionResponse['errNo'] === 0) {
                     break;
                 }
 
-                if ($errNo !== 111) { // Connection Refused - see https://openswoole.com/docs/swoole-error-code
-                    throw new Exception('An internal curl error has occurred within the executor! Error Msg: ' . $error, 500);
+                if ($executionResponse['errNo'] !== 111) { // Connection Refused - see https://openswoole.com/docs/swoole-error-code
+                    throw new Exception('An internal curl error has occurred within the executor! Error Msg: ' . $executionResponse['error'], 500);
                 }
 
                 if ($i === 4) {
-                    throw new Exception('An internal curl error has occurred within the executor! Error Msg: ' . $error, 500);
+                    throw new Exception('An internal curl error has occurred within the executor! Error Msg: ' . $executionResponse['error'], 500);
                 }
 
                 \sleep(1);
             }
 
-            // Extract response
-            $executorResponse = json_decode($executorResponse ?? '{}', false);
-
-            $execution = [];
-            $res = '';
-            $stderr = $executorResponse->stderr ?? '';
-            $stdout = $executorResponse->stdout ?? '';
-
-            if ($statusCode >= 200 && $statusCode < 300) {
-                $res = $executorResponse->response ?? '';
-                if (is_array($res)) {
-                    $res = json_encode($res, JSON_UNESCAPED_UNICODE);
-                }
-                if (is_object($res)) {
-                    $res = json_encode($res, JSON_UNESCAPED_UNICODE | JSON_FORCE_OBJECT);
-                }
-            }
-
+            [ 'statusCode' => $statusCode, 'body' => $body, 'logs' => $logs, 'errors' => $errors, 'headers' => $headers ] = $executionResponse;
 
             $endTime = \microtime(true);
             $duration = $endTime - $startTime;
-            $functionStatus = ($statusCode >= 500) ? 'failed' : 'completed';
+
+            // TODO: @Meldiron move to Appwrite: $functionStatus = ($statusCode >= 500) ? 'failed' : 'completed';
 
             $execution = [
-                'status' => $functionStatus,
                 'statusCode' => $statusCode,
-                'response' => \mb_strcut($res, 0, 1000000), // Limit to 1MB
-                'stdout' => \mb_strcut($stdout, 0, 1000000), // Limit to 1MB
-                'stderr' => \mb_strcut($stderr, 0, 1000000), // Limit to 1MB
+                'headers' => $headers,
+                'body' => \mb_strcut($body, 0, 1000000), // Limit to 1MB
+                'logs' => \mb_strcut($logs, 0, 1000000), // Limit to 1MB
+                'errors' => \mb_strcut($errors, 0, 1000000), // Limit to 1MB
                 'duration' => $duration + $coldStartDuration,
                 'startTime' => $startTime,
             ];

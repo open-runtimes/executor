@@ -8,6 +8,9 @@ use Utopia\CLI\Console;
 // TODO: @Meldiron Write more tests (validators mainly)
 // TODO: @Meldiron Health API tests
 
+// TODO: @Meldiron tests for length of logs
+// TODO: @Meldiron tests for both V2 and V3
+
 final class ExecutorTest extends TestCase
 {
     protected Client $client;
@@ -84,10 +87,9 @@ final class ExecutorTest extends TestCase
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
-        $this->assertEquals('ready', $response['body']['status']);
         $this->assertIsString($response['body']['path']);
-        $this->assertIsString($response['body']['stderr']);
-        $this->assertIsString($response['body']['stdout']);
+        $this->assertIsString($response['body']['errors']);
+        $this->assertIsString($response['body']['logs']);
         $this->assertIsFloat($response['body']['duration']);
         $this->assertIsFloat($response['body']['startTime']);
         $this->assertIsInt($response['body']['size']);
@@ -120,7 +122,6 @@ final class ExecutorTest extends TestCase
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
-        $this->assertEquals('ready', $response['body']['status']);
 
         $response = $this->client->call(Client::METHOD_GET, '/runtimes/test-build-selfdelete', [], []);
         $this->assertEquals(404, $response['headers']['status-code']);
@@ -144,13 +145,11 @@ final class ExecutorTest extends TestCase
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
-        $this->assertEquals('ready', $response['body']['status']);
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/execution');
 
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(200, $response['body']['statusCode']);
-        $this->assertEquals('completed', $response['body']['status']);
 
         /** Execute on cold-started runtime */
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/execution', [], [
@@ -192,10 +191,10 @@ final class ExecutorTest extends TestCase
                 'entrypoint' => 'index.js',
                 'folder' => 'node-empty-object',
                 'assertions' => function ($response) {
-                    $this->assertEquals('completed', $response['body']['status']);
-                    $this->assertEquals('{}', $response['body']['response']);
-                    $this->assertEmpty($response['body']['stdout']);
-                    $this->assertEmpty($response['body']['stderr']);
+                    $this->assertEquals(200, $response['body']['statusCode']);
+                    $this->assertEquals('{}', $response['body']['body']);
+                    $this->assertEmpty($response['body']['logs']);
+                    $this->assertEmpty($response['body']['errors']);
                 }
             ],
             [
@@ -203,10 +202,10 @@ final class ExecutorTest extends TestCase
                 'entrypoint' => 'index.js',
                 'folder' => 'node-empty-array',
                 'assertions' => function ($response) {
-                    $this->assertEquals('completed', $response['body']['status']);
-                    $this->assertEquals('[]', $response['body']['response']);
-                    $this->assertEmpty($response['body']['stdout']);
-                    $this->assertEmpty($response['body']['stderr']);
+                    $this->assertEquals(200, $response['body']['statusCode']);
+                    $this->assertEquals('[]', $response['body']['body']);
+                    $this->assertEmpty($response['body']['logs']);
+                    $this->assertEmpty($response['body']['errors']);
                 }
             ],
             [
@@ -214,10 +213,10 @@ final class ExecutorTest extends TestCase
                 'entrypoint' => 'index.js',
                 'folder' => 'node-stderr',
                 'assertions' => function ($response) {
-                    $this->assertEquals('completed', $response['body']['status']);
-                    $this->assertEquals('{"ok":true}', $response['body']['response']);
-                    $this->assertEmpty($response['body']['stdout']);
-                    $this->assertStringContainsString('Error log', $response['body']['stderr']);
+                    $this->assertEquals(200, $response['body']['statusCode']);
+                    $this->assertEquals('{"ok":true}', $response['body']['body']);
+                    $this->assertEmpty($response['body']['logs']);
+                    $this->assertStringContainsString('Error log', $response['body']['errors']);
                 }
             ],
             [
@@ -230,6 +229,7 @@ final class ExecutorTest extends TestCase
                     $this->assertStringContainsString('Operation timed out', $response['body']['message']);
                 }
             ]
+            // TODO: @Meldiron Add failed execution test
         ];
     }
 
@@ -267,7 +267,6 @@ final class ExecutorTest extends TestCase
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
-        $this->assertEquals('ready', $response['body']['status']);
 
         $path = $response['body']['path'];
 
@@ -338,7 +337,6 @@ final class ExecutorTest extends TestCase
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
-        $this->assertEquals('ready', $response['body']['status']);
         $this->assertIsString($response['body']['path']);
 
         $path = $response['body']['path'];
@@ -361,17 +359,18 @@ final class ExecutorTest extends TestCase
 
         $this->assertEquals(200, $response['headers']['status-code']);
         $body = $response['body'];
-        $this->assertEquals('completed', $body['status']);
         $this->assertEquals(200, $body['statusCode']);
-        $this->assertEmpty($body['stderr']);
-        $this->assertStringContainsString('Sample Log', $body['stdout']);
-        $this->assertIsString($body['response']);
-        $this->assertNotEmpty($body['response']);
-        $response = \json_decode($body['response'], true);
+        $this->assertEmpty($body['errors']); // TODO: @Meldiron Proper assertion
+        $this->assertStringContainsString('Sample Log', $body['logs']);
+        $this->assertIsString($body['body']);
+        $this->assertNotEmpty($body['body']);
+        $response = \json_decode($body['body'], true);
         $this->assertEquals(true, $response['isTest']);
         $this->assertEquals('Hello Open Runtimes 👋', $response['message']);
         $this->assertEquals('Variable secret', $response['variable']);
         $this->assertEquals(1, $response['todo']['userId']);
+
+        // TODO: @Meldiron Add tests for headers
 
         /** Delete runtime */
         $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/custom-execute-{$folder}", [], []);
