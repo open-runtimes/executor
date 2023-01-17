@@ -861,7 +861,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
             $execution = [
                 'statusCode' => $statusCode,
                 'headers' => $headers,
-                'body' => \mb_strcut($body, 0, 1000000), // Limit to 1MB
+                'body' => $body,
                 'logs' => \mb_strcut($logs, 0, 1000000), // Limit to 1MB
                 'errors' => \mb_strcut($errors, 0, 1000000), // Limit to 1MB
                 'duration' => $duration + $coldStartDuration,
