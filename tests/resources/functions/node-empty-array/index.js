@@ -1,3 +1,3 @@
-module.exports = async (req, res) => {
-    res.json([]);
+module.exports = async (context) => {
+    return context.res.json([]);
 }

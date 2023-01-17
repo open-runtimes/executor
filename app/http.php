@@ -540,19 +540,20 @@ App::post('/v1/runtimes/:runtimeId/execution')
     // Execution-related
     ->param('runtimeId', '', new Text(64), 'The runtimeID to execute.')
     ->param('payload', '', new Text(8192), 'Data to be forwarded to the function, this is user specified.', true)
-    ->param('variables', [], new Assoc(), 'Environment variables passed into runtime.', true)
+    ->param('headers', [], new Assoc(), 'Headers passed into runtime.', true)
     ->param('timeout', 15, new Integer(), 'Function maximum execution time in seconds.', true)
     // Runtime-related
     ->param('image', '', new Text(128), 'Base image name of the runtime.', true)
     ->param('source', '', new Text(0), 'Path to source files.', true)
     ->param('entrypoint', '', new Text(256), 'Entrypoint of the code file.', true)
+    ->param('variables', [], new Assoc(), 'Environment variables passed into runtime.', true)
     ->param('cpus', 1, new Integer(), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Comtainer RAM memory.', true)
-    ->param('version', 'v2', new WhiteList(['v2', 'v3']), 'Runtime Open Runtime version.', true)
+    ->param('version', 'v3', new WhiteList(['v2', 'v3']), 'Runtime Open Runtime version.', true)
     ->inject('activeRuntimes')
     ->inject('response')
     ->action(
-        function (string $runtimeId, string $payload, array $variables, int $timeout, string $image, string $source, string $entrypoint, int $cpus, int $memory, string $version, Table $activeRuntimes, Response $response) {
+        function (string $runtimeId, string $payload, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, Table $activeRuntimes, Response $response) {
             $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
             $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
@@ -659,7 +660,6 @@ App::post('/v1/runtimes/:runtimeId/execution')
 
             $startTime = \microtime(true);
 
-            // Prepare request to runtime
             $executeV2 = function () use ($variables, $payload, $secret, $hostname, &$startTime, $timeout): array {
                 // Restart execution timer to not could failed attempts
                 $startTime = \microtime(true);
@@ -673,7 +673,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 $body = \json_encode([
                     'variables' => $variables,
                     'payload' => $payload,
-                    'headers' => [] // TODO: @Meldiron Forward headers when becomes relevant (Appwrite proxy)
+                    'headers' => []
                 ], JSON_FORCE_OBJECT);
 
                 \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000/");
@@ -704,24 +704,29 @@ App::post('/v1/runtimes/:runtimeId/execution')
                     return [
                         'errNo' => $errNo,
                         'error' => $error,
+                        'statusCode' => $statusCode,
+                        'body' => '',
+                        'logs' => '',
+                        'errors' => '',
+                        'headers' => []
                     ];
                 }
 
                 // Extract response
-                $executorResponse = json_decode($executorResponse ?? '{}', false);
+                $executorResponse = json_decode(\strval($executorResponse), false);
 
                 $res = '';
-                $stderr = $executorResponse->stderr ?? '';
-                $stdout = $executorResponse->stdout ?? '';
-
                 if ($statusCode >= 200 && $statusCode < 500) {
                     $res = $executorResponse->response ?? '';
                     if (is_array($res)) {
                         $res = json_encode($res, JSON_UNESCAPED_UNICODE);
-                    } else if (is_object($res)) {
+                    } elseif (is_object($res)) {
                         $res = json_encode($res, JSON_UNESCAPED_UNICODE | JSON_FORCE_OBJECT);
                     }
                 }
+
+                $stderr = $executorResponse->stderr ?? '';
+                $stdout = $executorResponse->stdout ?? '';
 
                 return [
                     'errNo' => $errNo,
@@ -734,9 +739,102 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 ];
             };
 
+            $executeV3 = function () use ($headers, $payload, $secret, $hostname, &$startTime, $timeout): array {
+                // Restart execution timer to not could failed attempts
+                $startTime = \microtime(true);
+
+                $statusCode = 0;
+                $errNo = -1;
+                $executorResponse = '';
+
+                $ch = \curl_init();
+
+                $body = $payload;
+
+                $responseHeaders = [];
+
+                \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000/");
+                \curl_setopt($ch, CURLOPT_POST, true);
+                \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+                \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders) {
+                    $len = strlen($header);
+                    $header = explode(':', $header, 2);
+                    if (count($header) < 2) { // ignore invalid headers
+                        return $len;
+                    }
+
+                    $key = strtolower(trim($header[0]));
+                    $responseHeaders[$key] = trim($header[1]);
+
+                    if (\in_array($key, ['x-open-runtimes-logs', 'x-open-runtimes-errors'])) {
+                        $responseHeaders[$key] = \urldecode($responseHeaders[$key]);
+                    }
+
+                    return $len;
+                });
+                \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+                \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+
+                $headers['x-open-runtimes-secret'] = $secret;
+                $headers['content-type'] = 'text/plain';
+                $headers['content-length'] = \strlen($body ?: '');
+                $headersArr = [];
+                foreach ($headers as $key => $value) {
+                    $headersArr[] = $key . ': ' . $value;
+                }
+
+                \curl_setopt($ch, CURLOPT_HEADEROPT, CURLHEADER_UNIFIED);
+                \curl_setopt($ch, CURLOPT_HTTPHEADER, $headersArr);
+
+                $executorResponse = \curl_exec($ch);
+
+                $statusCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+                $error = \curl_error($ch);
+
+                $errNo = \curl_errno($ch);
+
+                \curl_close($ch);
+
+                if ($errNo !== 0) {
+                    return [
+                        'errNo' => $errNo,
+                        'error' => $error,
+                        'statusCode' => $statusCode,
+                        'body' => '',
+                        'logs' => '',
+                        'errors' => '',
+                        'headers' => $responseHeaders
+                    ];
+                }
+
+                $stdout = $responseHeaders['x-open-runtimes-logs'] ?? '';
+                $stderr = $responseHeaders['x-open-runtimes-errors'] ?? '';
+
+                $outputHeaders = [];
+                foreach ($responseHeaders as $key => $value) {
+                    if (\str_starts_with($key, 'x-open-runtimes-')) {
+                        continue;
+                    }
+
+                    $outputHeaders[$key] = $value;
+                }
+
+                return [
+                    'errNo' => $errNo,
+                    'error' => $error,
+                    'statusCode' => $statusCode,
+                    'body' => $executorResponse,
+                    'logs' => $stdout,
+                    'errors' => $stderr,
+                    'headers' => $outputHeaders
+                ];
+            };
+
             // Execute function
             for ($i = 0; $i < 5; $i++) {
-                $executionRequest = $version === 'v2' ? $executeV2 : $executeV2; // TODO: @Meldiron executeV3
+                $executionRequest = $version === 'v3' ? $executeV3 : $executeV2;
                 $executionResponse = \call_user_func($executionRequest);
 
                 // No error
@@ -759,8 +857,6 @@ App::post('/v1/runtimes/:runtimeId/execution')
 
             $endTime = \microtime(true);
             $duration = $endTime - $startTime;
-
-            // TODO: @Meldiron move to Appwrite: $functionStatus = ($statusCode >= 500) ? 'failed' : 'completed';
 
             $execution = [
                 'statusCode' => $statusCode,
