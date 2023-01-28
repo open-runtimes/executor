@@ -636,16 +636,16 @@ App::post('/v1/runtimes/:runtimeId/execution')
             }
 
             // Ensure runtime started
-            for ($i = 0; $i < 5; $i++) {
+            for ($i = 0; $i < 50; $i++) {
                 if ($activeRuntimes->get($activeRuntimeId)['status'] !== 'pending') {
                     break;
                 }
 
-                if ($i === 4) {
+                if ($i === 49) {
                     throw new Exception('Runtime failed to launch in allocated time.', 500);
                 }
 
-                \sleep(1);
+                \sleep(0.1);
             }
 
             // Ensure we have secret
@@ -708,7 +708,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
             };
 
             // Execute function
-            for ($i = 0; $i < 5; $i++) {
+            for ($i = 0; $i < 50; $i++) {
                 [ 'errNo' => $errNo, 'error' => $error, 'statusCode' => $statusCode, 'executorResponse' => $executorResponse ] = \call_user_func($sendExecuteRequest);
 
                 // No error
@@ -720,11 +720,11 @@ App::post('/v1/runtimes/:runtimeId/execution')
                     throw new Exception('An internal curl error has occurred within the executor! Error Msg: ' . $error, 500);
                 }
 
-                if ($i === 4) {
+                if ($i === 49) {
                     throw new Exception('An internal curl error has occurred within the executor! Error Msg: ' . $error, 500);
                 }
 
-                \sleep(1);
+                \sleep(0.1);
             }
 
             // Extract response
