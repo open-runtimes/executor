@@ -189,9 +189,8 @@ final class ExecutorTest extends TestCase
                 'image' => 'meldiron/php:v3-8.1',
                 'entrypoint' => 'index.php',
                 'folder' => 'php-v3',
+                'version' => 'v3',
                 'assertions' => function ($response) {
-                    \var_dump($response);
-                    die();
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals(200, $response['body']['statusCode']);
                     $this->assertEquals('Developers are amazing.', $response['body']['body']);
@@ -203,6 +202,7 @@ final class ExecutorTest extends TestCase
                 'image' => 'openruntimes/node:v2-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-empty-object',
+                'version' => 'v2',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals(200, $response['body']['statusCode']);
@@ -215,6 +215,7 @@ final class ExecutorTest extends TestCase
                 'image' => 'openruntimes/node:v2-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-empty-array',
+                'version' => 'v2',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals(200, $response['body']['statusCode']);
@@ -227,6 +228,7 @@ final class ExecutorTest extends TestCase
                 'image' => 'openruntimes/php:v2-8.1',
                 'entrypoint' => 'index.php',
                 'folder' => 'php-timeout',
+                'version' => 'v2',
                 'assertions' => function ($response) {
                     $this->assertEquals(500, $response['headers']['status-code']);
                     $this->assertEquals(500, $response['body']['code']);
@@ -244,7 +246,7 @@ final class ExecutorTest extends TestCase
      *
      * @dataProvider provideScenarios
      */
-    public function testScenarios(string $image, string $entrypoint, string $folder, callable $assertions): void
+    public function testScenarios(string $image, string $entrypoint, string $folder, string $version, callable $assertions): void
     {
         /** Prepare deployment */
         $stdout = '';
@@ -265,7 +267,8 @@ final class ExecutorTest extends TestCase
                 'sh', '-c',
                 'tar -zxf /tmp/code.tar.gz -C /usr/code && \
                 cd /usr/local/src/ && ./build.sh'
-            ]
+            ],
+            'version' => $version
         ];
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
@@ -278,6 +281,7 @@ final class ExecutorTest extends TestCase
             'source' => $path,
             'entrypoint' => $entrypoint,
             'image' => $image,
+            'version' => $version
         ]);
 
         call_user_func($assertions, $response);

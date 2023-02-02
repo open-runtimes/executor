@@ -279,10 +279,11 @@ App::post('/v1/runtimes')
     ->param('remove', false, new Boolean(), 'Remove a runtime after execution.', true)
     ->param('cpus', 1, new Integer(), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Comtainer RAM memory.', true)
+    ->param('version', 'v2', new WhiteList(['v2', 'v3']), 'Runtime Open Runtime version.', true)
     ->inject('orchestration')
     ->inject('activeRuntimes')
     ->inject('response')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, array $commands, int $timeout, string $workdir, bool $remove, int $cpus, int $memory, Orchestration $orchestration, Table $activeRuntimes, Response $response) {
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, array $commands, int $timeout, string $workdir, bool $remove, int $cpus, int $memory, string $version, Orchestration $orchestration, Table $activeRuntimes, Response $response) {
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
@@ -343,11 +344,20 @@ App::post('/v1/runtimes')
             /**
              * Create container
              */
-            $variables = \array_merge($variables, [
-                'INTERNAL_RUNTIME_KEY' => $secret,
-                'INTERNAL_RUNTIME_ENTRYPOINT' => $entrypoint,
-                'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
-            ]);
+            if ($version === 'v3') {
+                $variables = \array_merge($variables, [
+                    'OPEN_RUNTIMES_SECRET' => $secret,
+                    'OPEN_RUNTIMES_ENTRYPOINT' => $entrypoint,
+                    'OPEN_RUNTIMES_HOSTNAME' => System::getHostname()
+                ]);
+            } else {
+                $variables = \array_merge($variables, [
+                    'INTERNAL_RUNTIME_KEY' => $secret,
+                    'INTERNAL_RUNTIME_ENTRYPOINT' => $entrypoint,
+                    'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
+                ]);
+            }
+
             $variables = array_map(fn ($v) => strval($v), $variables);
             $orchestration
                 ->setCpus($cpus)
@@ -571,7 +581,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 }
 
                 // Prepare request to executor
-                $sendCreateRuntimeRequest = function () use ($activeRuntimeId, $image, $source, $entrypoint, $variables, $cpus, $memory) {
+                $sendCreateRuntimeRequest = function () use ($activeRuntimeId, $image, $source, $entrypoint, $variables, $cpus, $memory, $version) {
                     $statusCode = 0;
                     $errNo = -1;
                     $executorResponse = '';
@@ -586,6 +596,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                         'variables' => $variables,
                         'cpus' => $cpus,
                         'memory' => $memory,
+                        'version' => $version,
                     ]);
 
                     \curl_setopt($ch, CURLOPT_URL, "http://localhost/v1/runtimes");
