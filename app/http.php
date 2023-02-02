@@ -550,7 +550,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
     ->param('variables', [], new Assoc(), 'Environment variables passed into runtime.', true)
     ->param('cpus', 1, new Integer(), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Comtainer RAM memory.', true)
-    ->param('version', 'v3', new WhiteList(['v2', 'v3']), 'Runtime Open Runtime version.', true)
+    ->param('version', 'v2', new WhiteList(['v2', 'v3']), 'Runtime Open Runtime version.', true)
     ->inject('activeRuntimes')
     ->inject('response')
     ->action(

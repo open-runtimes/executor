@@ -186,15 +186,29 @@ final class ExecutorTest extends TestCase
     {
         return [
             [
+                'image' => 'meldiron/php:v3-8.1',
+                'entrypoint' => 'index.php',
+                'folder' => 'php-v3',
+                'assertions' => function ($response) {
+                    \var_dump($response);
+                    die();
+                    $this->assertEquals(200, $response['headers']['status-code']);
+                    $this->assertEquals(200, $response['body']['statusCode']);
+                    $this->assertEquals('Developers are amazing.', $response['body']['body']);
+                    $this->assertEmpty($response['body']['logs']);
+                    $this->assertEmpty($response['body']['errors']);
+                }
+            ],
+            [
                 'image' => 'openruntimes/node:v2-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-empty-object',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals(200, $response['body']['statusCode']);
-                    $this->assertEquals('{}', $response['body']['response']);
-                    $this->assertEmpty($response['body']['stdout']);
-                    $this->assertEmpty($response['body']['stderr']);
+                    $this->assertEquals('{}', $response['body']['body']);
+                    $this->assertEmpty($response['body']['logs']);
+                    $this->assertEmpty($response['body']['errors']);
                 }
             ],
             [
@@ -204,9 +218,9 @@ final class ExecutorTest extends TestCase
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals(200, $response['body']['statusCode']);
-                    $this->assertEquals('[]', $response['body']['response']);
-                    $this->assertEmpty($response['body']['stdout']);
-                    $this->assertEmpty($response['body']['stderr']);
+                    $this->assertEquals('[]', $response['body']['body']);
+                    $this->assertEmpty($response['body']['logs']);
+                    $this->assertEmpty($response['body']['errors']);
                 }
             ],
             [
@@ -331,9 +345,7 @@ final class ExecutorTest extends TestCase
         $path = $response['body']['path'];
 
         // Execute function
-        $response = $this->client->call(Client::METHOD_POST, "/runtimes/custom-execute-{$folder}/execution", [
-            'content-type' => 'application/json',
-        ], [
+        $response = $this->client->call(Client::METHOD_POST, "/runtimes/custom-execute-{$folder}/execution", [], [
             'source' => $path,
             'entrypoint' => $entrypoint,
             'image' => $image,
@@ -349,11 +361,11 @@ final class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
         $body = $response['body'];
         $this->assertEquals(200, $body['statusCode']);
-        $this->assertEmpty($body['stderr']);
-        $this->assertStringContainsString('Sample Log', $body['stdout']);
-        $this->assertIsString($body['response']);
-        $this->assertNotEmpty($body['response']);
-        $response = \json_decode($body['response'], true);
+        $this->assertEmpty($body['errors']);
+        $this->assertStringContainsString('Sample Log', $body['logs']);
+        $this->assertIsString($body['body']);
+        $this->assertNotEmpty($body['body']);
+        $response = \json_decode($body['body'], true);
         $this->assertEquals(true, $response['isTest']);
         $this->assertEquals('Hello Open Runtimes 👋', $response['message']);
         $this->assertEquals('Variable secret', $response['variable']);

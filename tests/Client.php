@@ -24,7 +24,7 @@ class Client
      * @var array<string, string>
      */
     protected array $headers = [
-        'content-type' => ''
+        'content-type' => 'application/json'
     ];
 
     public function setSelfSigned(bool $status = true): self
