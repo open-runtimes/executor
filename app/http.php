@@ -633,10 +633,19 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 for ($i = 0; $i < 5; $i++) {
                     [ 'errNo' => $errNo, 'error' => $error, 'statusCode' => $statusCode, 'executorResponse' => $executorResponse ] = \call_user_func($sendCreateRuntimeRequest);
 
-                    if ($errNo === 0 && $statusCode < 500) {
+                    if ($errNo === 0) {
                         $body = \json_decode($executorResponse, true);
-                        $coldStartDuration = \floatval($body['duration']);
-                        break;
+
+                        if ($statusCode >= 500) {
+                            $error = $body['message'];
+                        // Continues to retry logic
+                        } elseif ($statusCode >= 400) {
+                            $error = $body['message'];
+                            throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
+                        } else {
+                            $coldStartDuration = \floatval($body['duration']);
+                            break;
+                        }
                     } elseif ($errNo !== 111) { // Connection Refused - see https://openswoole.com/docs/swoole-error-code
                         throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
                     }
