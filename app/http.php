@@ -539,7 +539,8 @@ App::post('/v1/runtimes/:runtimeId/execution')
     ->desc('Create an execution')
     // Execution-related
     ->param('runtimeId', '', new Text(64), 'The runtimeID to execute.')
-    ->param('payload', '', new Text(8192), 'Data to be forwarded to the function, this is user specified.', true)
+    ->param('body', '', new Text(20480), 'Data to be forwarded to the function, this is user specified.', true)
+    ->param('url', '', new Text(2048), 'URL from which execution comes.', true)
     ->param('headers', [], new Assoc(), 'Headers passed into runtime.', true)
     ->param('timeout', 15, new Integer(), 'Function maximum execution time in seconds.', true)
     // Runtime-related
@@ -553,7 +554,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
     ->inject('activeRuntimes')
     ->inject('response')
     ->action(
-        function (string $runtimeId, string $payload, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, Table $activeRuntimes, Response $response) {
+        function (string $runtimeId, string $payload, string $url, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, Table $activeRuntimes, Response $response) {
             $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
             $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
@@ -739,7 +740,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 ];
             };
 
-            $executeV3 = function () use ($headers, $payload, $secret, $hostname, &$startTime, $timeout): array {
+            $executeV3 = function () use ($url, $headers, $payload, $secret, $hostname, &$startTime, $timeout): array {
                 // Restart execution timer to not could failed attempts
                 $startTime = \microtime(true);
 
@@ -783,6 +784,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 foreach ($headers as $key => $value) {
                     $headersArr[] = $key . ': ' . $value;
                 }
+                $headersArr[] = 'x-open-runtimes-original-url: ' . $url;
 
                 \curl_setopt($ch, CURLOPT_HEADEROPT, CURLHEADER_UNIFIED);
                 \curl_setopt($ch, CURLOPT_HTTPHEADER, $headersArr);
@@ -988,7 +990,7 @@ run(function () use ($register) {
      * Warmup: make sure images are ready to run fast 🚀
      */
     Console::info('Pulling runtime images...');
-    $runtimes = new Runtimes('v2'); // TODO: @Meldiron Make part of open runtimes
+    $runtimes = new Runtimes('v3'); // TODO: @Meldiron Make part of open runtimes
     $allowList = empty(App::getEnv('OPR_EXECUTOR_RUNTIMES')) ? [] : \explode(',', App::getEnv('OPR_EXECUTOR_RUNTIMES'));
     $runtimes = $runtimes->getAll(true, $allowList);
     $callables = [];

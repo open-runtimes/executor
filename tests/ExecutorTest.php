@@ -65,17 +65,17 @@ final class ExecutorTest extends TestCase
     {
         $stdout = '';
         $stderr = '';
-        Console::execute('cd /app/tests/resources/functions/node && tar --warning=no-file-changed --exclude code.tar.gz -czf code.tar.gz .', '', $stdout, $stderr);
+        Console::execute('cd /app/tests/resources/functions/php && tar --warning=no-file-changed --exclude code.tar.gz -czf code.tar.gz .', '', $stdout, $stderr);
 
         $this->assertEquals('', $stderr);
 
         /** Build runtime */
         $params = [
             'runtimeId' => 'test-build',
-            'source' => '/storage/functions/node/code.tar.gz',
+            'source' => '/storage/functions/php/code.tar.gz',
             'destination' => '/storage/builds/test',
-            'entrypoint' => 'index.js',
-            'image' => 'meldiron/node:v3-18.0',
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v2-8.1',
             'workdir' => '/usr/code',
             'commands' => [
                 'sh', '-c',
@@ -138,8 +138,8 @@ final class ExecutorTest extends TestCase
         $params = [
             'runtimeId' => 'test-exec',
             'source' => $data['path'],
-            'entrypoint' => 'index.js',
-            'image' => 'meldiron/node:v3-18.0',
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v2-8.1',
         ];
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
@@ -154,7 +154,7 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/execution', [], [
             'payload' => 'test payload',
             'variables' => [
-                'CUSTOM_VARIABLE' => 'mySecret'
+                'customVariable' => 'mySecret'
             ]
         ]);
 
@@ -167,8 +167,8 @@ final class ExecutorTest extends TestCase
         /** Execute on new runtime */
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/execution', [], [
             'source' => $data['path'],
-            'entrypoint' => 'index.js',
-            'image' => 'meldiron/node:v3-18.0',
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v2-8.1',
         ]);
 
         $this->assertEquals(200, $response['headers']['status-code']);
@@ -186,31 +186,33 @@ final class ExecutorTest extends TestCase
     {
         return [
             [
-                'image' => 'meldiron/node:v3-18.0',
+                'image' => 'openruntimes/node:v2-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-empty-object',
                 'assertions' => function ($response) {
+                    $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals(200, $response['body']['statusCode']);
-                    $this->assertEquals('{}', $response['body']['body']);
-                    $this->assertEmpty($response['body']['logs']);
-                    $this->assertEmpty($response['body']['errors']);
+                    $this->assertEquals('{}', $response['body']['response']);
+                    $this->assertEmpty($response['body']['stdout']);
+                    $this->assertEmpty($response['body']['stderr']);
                 }
             ],
             [
-                'image' => 'meldiron/node:v3-18.0',
+                'image' => 'openruntimes/node:v2-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-empty-array',
                 'assertions' => function ($response) {
+                    $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals(200, $response['body']['statusCode']);
-                    $this->assertEquals('[]', $response['body']['body']);
-                    $this->assertEmpty($response['body']['logs']);
-                    $this->assertEmpty($response['body']['errors']);
+                    $this->assertEquals('[]', $response['body']['response']);
+                    $this->assertEmpty($response['body']['stdout']);
+                    $this->assertEmpty($response['body']['stderr']);
                 }
             ],
             [
-                'image' => 'meldiron/node:v3-18.0',
-                'entrypoint' => 'index.js',
-                'folder' => 'node-timeout',
+                'image' => 'openruntimes/php:v2-8.1',
+                'entrypoint' => 'index.php',
+                'folder' => 'php-timeout',
                 'assertions' => function ($response) {
                     $this->assertEquals(500, $response['headers']['status-code']);
                     $this->assertEquals(500, $response['body']['code']);
@@ -278,16 +280,14 @@ final class ExecutorTest extends TestCase
     public function provideCustomRuntimes(): array
     {
         return [
-            [ 'folder' => 'node', 'image' => 'meldiron/node:v3-18.0', 'entrypoint' => 'index.js' ],
-            /*
             [ 'folder' => 'php', 'image' => 'openruntimes/php:v2-8.1', 'entrypoint' => 'index.php' ],
+            [ 'folder' => 'node', 'image' => 'openruntimes/node:v2-18.0', 'entrypoint' => 'index.js' ],
             [ 'folder' => 'deno', 'image' => 'openruntimes/deno:v2-1.24', 'entrypoint' => 'index.ts' ],
             [ 'folder' => 'python', 'image' => 'openruntimes/python:v2-3.9', 'entrypoint' => 'index.py' ],
             [ 'folder' => 'ruby', 'image' => 'openruntimes/ruby:v2-3.1', 'entrypoint' => 'index.rb' ],
             [ 'folder' => 'cpp', 'image' => 'openruntimes/cpp:v2-17', 'entrypoint' => 'index.cc' ],
             [ 'folder' => 'dart', 'image' => 'openruntimes/dart:v2-2.17', 'entrypoint' => 'lib/index.dart' ],
             [ 'folder' => 'dotnet', 'image' => 'openruntimes/dotnet:v2-6.0', 'entrypoint' => 'Index.cs' ],
-            */
             // Swift, Kotlin, Java missing on purpose
         ];
     }
@@ -339,26 +339,22 @@ final class ExecutorTest extends TestCase
             'image' => $image,
             'timeout' => 60,
             'variables' => [
-                'TEST_VARIABLE' => 'Variable secret'
+                'test-variable' => 'Variable secret'
             ],
             'payload' => \json_encode([
                 'id' => '2'
-            ]),
-            'headers' => [
-                'x-my-header' => 'x-my-value'
-            ]
+            ])
         ]);
 
         $this->assertEquals(200, $response['headers']['status-code']);
         $body = $response['body'];
         $this->assertEquals(200, $body['statusCode']);
-        $this->assertStringContainsString('Sample Error', $body['errors']);
-        $this->assertStringContainsString('Sample Log', $body['logs']);
-        $this->assertIsString($body['body']);
-        $this->assertNotEmpty($body['body']);
-        $response = \json_decode($body['body'], true);
+        $this->assertEmpty($body['stderr']);
+        $this->assertStringContainsString('Sample Log', $body['stdout']);
+        $this->assertIsString($body['response']);
+        $this->assertNotEmpty($body['response']);
+        $response = \json_decode($body['response'], true);
         $this->assertEquals(true, $response['isTest']);
-        $this->assertEquals('x-my-value', $response['header']);
         $this->assertEquals('Hello Open Runtimes 👋', $response['message']);
         $this->assertEquals('Variable secret', $response['variable']);
         $this->assertEquals(1, $response['todo']['userId']);
