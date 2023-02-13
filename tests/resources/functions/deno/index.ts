@@ -1,16 +1,15 @@
 import axiod from "https://deno.land/x/axiod/mod.ts";
 
-export default async function(req: any, res: any) {
-    const payload = JSON.parse(req.payload  === '' ? '{}' : req.payload);
+export default async function(context: any) {
+    const todo = (await axiod.get(`https://jsonplaceholder.typicode.com/todos/${context.req.body.id ?? 1}`)).data;
 
-    const todo = (await axiod.get(`https://jsonplaceholder.typicode.com/todos/${payload.id ?? 1}`)).data;
+    context.log('Sample Log');
 
-    console.log('Sample Log');
-
-    res.json({
+    return context.res.json({
         isTest: true,
         message: 'Hello Open Runtimes 👋',
-        variable: req.variables['test-variable'],
+        url: context.req.url,
+        variable: Deno.env.get("TEST_VARIABLE"),
         todo
     });
 }

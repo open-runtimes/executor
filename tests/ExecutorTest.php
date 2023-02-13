@@ -7,8 +7,8 @@ use Utopia\CLI\Console;
 
 // TODO: @Meldiron Write more tests (validators mainly)
 // TODO: @Meldiron Health API tests
-// TODO: v2 test
 // TODO: Lengthy log test
+// TODO: Lengthy body test
 
 final class ExecutorTest extends TestCase
 {
@@ -75,7 +75,7 @@ final class ExecutorTest extends TestCase
             'source' => '/storage/functions/php/code.tar.gz',
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v2-8.1',
+            'image' => 'openruntimes/php:v3-8.1',
             'workdir' => '/usr/code',
             'commands' => [
                 'sh', '-c',
@@ -139,7 +139,7 @@ final class ExecutorTest extends TestCase
             'runtimeId' => 'test-exec',
             'source' => $data['path'],
             'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v2-8.1',
+            'image' => 'openruntimes/php:v3-8.1',
         ];
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
@@ -152,7 +152,7 @@ final class ExecutorTest extends TestCase
 
         /** Execute on cold-started runtime */
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/execution', [], [
-            'payload' => 'test payload',
+            'body' => 'test payload',
             'variables' => [
                 'customVariable' => 'mySecret'
             ]
@@ -168,7 +168,7 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/execution', [], [
             'source' => $data['path'],
             'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v2-8.1',
+            'image' => 'openruntimes/php:v3-8.1',
         ]);
 
         $this->assertEquals(200, $response['headers']['status-code']);
@@ -186,23 +186,23 @@ final class ExecutorTest extends TestCase
     {
         return [
             [
-                'image' => 'meldiron/php:v3-8.1',
-                'entrypoint' => 'index.php',
-                'folder' => 'php-v3',
-                'version' => 'v3',
+                'image' => 'openruntimes/node:v2-18.0',
+                'entrypoint' => 'index.js',
+                'folder' => 'node-v2',
+                'version' => 'v2',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals(200, $response['body']['statusCode']);
-                    $this->assertEquals('Developers are amazing.', $response['body']['body']);
+                    $this->assertEquals('{"message":"Hello Open Runtimes 👋"}', $response['body']['body']);
                     $this->assertEmpty($response['body']['logs']);
                     $this->assertEmpty($response['body']['errors']);
                 }
             ],
             [
-                'image' => 'openruntimes/node:v2-18.0',
+                'image' => 'openruntimes/node:v3-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-empty-object',
-                'version' => 'v2',
+                'version' => 'v3',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals(200, $response['body']['statusCode']);
@@ -212,10 +212,10 @@ final class ExecutorTest extends TestCase
                 }
             ],
             [
-                'image' => 'openruntimes/node:v2-18.0',
+                'image' => 'openruntimes/node:v3-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-empty-array',
-                'version' => 'v2',
+                'version' => 'v3',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals(200, $response['body']['statusCode']);
@@ -225,10 +225,10 @@ final class ExecutorTest extends TestCase
                 }
             ],
             [
-                'image' => 'openruntimes/php:v2-8.1',
+                'image' => 'openruntimes/php:v3-8.1',
                 'entrypoint' => 'index.php',
                 'folder' => 'php-timeout',
-                'version' => 'v2',
+                'version' => 'v3',
                 'assertions' => function ($response) {
                     $this->assertEquals(500, $response['headers']['status-code']);
                     $this->assertEquals(500, $response['body']['code']);
@@ -242,6 +242,7 @@ final class ExecutorTest extends TestCase
      * @param string $image
      * @param string $entrypoint
      * @param string $folder
+     * @param string $version
      * @param callable $assertions
      *
      * @dataProvider provideScenarios
@@ -267,8 +268,7 @@ final class ExecutorTest extends TestCase
                 'sh', '-c',
                 'tar -zxf /tmp/code.tar.gz -C /usr/code && \
                 cd /usr/local/src/ && ./build.sh'
-            ],
-            'version' => $version
+            ]
         ];
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
@@ -298,15 +298,14 @@ final class ExecutorTest extends TestCase
     public function provideCustomRuntimes(): array
     {
         return [
-            [ 'folder' => 'php', 'image' => 'openruntimes/php:v2-8.1', 'entrypoint' => 'index.php' ],
-            [ 'folder' => 'node', 'image' => 'openruntimes/node:v2-18.0', 'entrypoint' => 'index.js' ],
-            [ 'folder' => 'deno', 'image' => 'openruntimes/deno:v2-1.24', 'entrypoint' => 'index.ts' ],
-            [ 'folder' => 'python', 'image' => 'openruntimes/python:v2-3.9', 'entrypoint' => 'index.py' ],
-            [ 'folder' => 'ruby', 'image' => 'openruntimes/ruby:v2-3.1', 'entrypoint' => 'index.rb' ],
-            [ 'folder' => 'cpp', 'image' => 'openruntimes/cpp:v2-17', 'entrypoint' => 'index.cc' ],
-            [ 'folder' => 'dart', 'image' => 'openruntimes/dart:v2-2.17', 'entrypoint' => 'lib/index.dart' ],
-            [ 'folder' => 'dotnet', 'image' => 'openruntimes/dotnet:v2-6.0', 'entrypoint' => 'Index.cs' ],
-            // Swift, Kotlin, Java missing on purpose
+            [ 'folder' => 'php', 'image' => 'openruntimes/php:v3-8.1', 'entrypoint' => 'index.php', 'version' => 'v3' ],
+            [ 'folder' => 'node', 'image' => 'openruntimes/node:v3-18.0', 'entrypoint' => 'index.js', 'version' => 'v3' ],
+            [ 'folder' => 'deno', 'image' => 'openruntimes/deno:v3-1.24', 'entrypoint' => 'index.ts', 'version' => 'v3' ],
+            [ 'folder' => 'python', 'image' => 'openruntimes/python:v3-3.10', 'entrypoint' => 'index.py', 'version' => 'v3' ],
+            [ 'folder' => 'ruby', 'image' => 'openruntimes/ruby:v3-3.1', 'entrypoint' => 'index.rb', 'version' => 'v3' ],
+            [ 'folder' => 'dart', 'image' => 'openruntimes/dart:v3-2.18', 'entrypoint' => 'lib/index.dart', 'version' => 'v3' ],
+            [ 'folder' => 'dotnet', 'image' => 'openruntimes/dotnet:v3-6.0', 'entrypoint' => 'Index.cs', 'version' => 'v3' ],
+            // C++, Swift, Kotlin, Java missing on purpose
         ];
     }
 
@@ -314,10 +313,11 @@ final class ExecutorTest extends TestCase
      * @param string $folder
      * @param string $image
      * @param string $entrypoint
+     * @param string $version
      *
      * @dataProvider provideCustomRuntimes
      */
-    public function testCustomRuntimes(string $folder, string $image, string $entrypoint): void
+    public function testCustomRuntimes(string $folder, string $image, string $entrypoint, string $version): void
     {
         // Prepare tar.gz files
         $stdout = '';
@@ -328,6 +328,7 @@ final class ExecutorTest extends TestCase
 
         // Build deployment
         $params = [
+            'version' => $version,
             'runtimeId' => "custom-build-{$folder}",
             'source' => "/storage/functions/{$folder}/code.tar.gz",
             'destination' => '/storage/builds/test',
@@ -350,14 +351,21 @@ final class ExecutorTest extends TestCase
 
         // Execute function
         $response = $this->client->call(Client::METHOD_POST, "/runtimes/custom-execute-{$folder}/execution", [], [
+            'version' => $version,
             'source' => $path,
             'entrypoint' => $entrypoint,
             'image' => $image,
             'timeout' => 60,
             'variables' => [
-                'test-variable' => 'Variable secret'
+                'TEST_VARIABLE' => 'Variable secret'
             ],
-            'payload' => \json_encode([
+            'path' => '/my-awesome/path?param=paramValue',
+            'headers' => [
+                'host' => 'cloud.appwrite.io',
+                'x-forwarded-proto' => 'https',
+                'content-type' => 'application/json'
+            ],
+            'body' => \json_encode([
                 'id' => '2'
             ])
         ]);
@@ -373,6 +381,7 @@ final class ExecutorTest extends TestCase
         $this->assertEquals(true, $response['isTest']);
         $this->assertEquals('Hello Open Runtimes 👋', $response['message']);
         $this->assertEquals('Variable secret', $response['variable']);
+        $this->assertEquals('https://cloud.appwrite.io/my-awesome/path?param=paramValue', $response['url']);
         $this->assertEquals(1, $response['todo']['userId']);
 
         /** Delete runtime */

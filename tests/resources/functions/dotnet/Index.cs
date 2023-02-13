@@ -1,33 +1,30 @@
+namespace DotNetRuntime;
+
 using System;
 using Newtonsoft.Json;
 
-static readonly HttpClient http = new();
+public class Handler {
+    static readonly HttpClient http = new();
 
-public async Task<RuntimeResponse> Main(RuntimeRequest req, RuntimeResponse res)
-{
-    string id = "1";
-    if (!string.IsNullOrEmpty(req.Payload))
+    public async Task<RuntimeOutput> Main(RuntimeContext Context)
     {
-        var payload = JsonConvert.DeserializeObject<Dictionary<string, object>>(req.Payload, settings: null);
-        id = payload?.TryGetValue("id", out var value) == true
-            ? value.ToString()!
-            : "1";
+        Dictionary<String, Object> Body = (Dictionary<String, Object>) Context.Req.Body;
+
+        string id = Body.TryGetValue("id", out var value) == true ? value.ToString()! : "1";
+        var varData = Environment.GetEnvironmentVariable("TEST_VARIABLE") ?? null;
+
+        var response = await http.GetStringAsync($"https://jsonplaceholder.typicode.com/todos/" + id);
+        var todo = JsonConvert.DeserializeObject<Dictionary<string, object>>(response, settings: null);
+
+        Context.Log("Sample Log");
+
+        return Context.Res.Json(new()
+        {
+            { "isTest", true },
+            { "message", "Hello Open Runtimes 👋" },
+            { "variable", varData },
+            { "url", Context.Req.Url },
+            { "todo", todo }
+        });
     }
-
-    var varData = req.Variables.ContainsKey("test-variable")
-        ? req.Variables["test-variable"]
-        : "";
-
-    var response = await http.GetStringAsync($"https://jsonplaceholder.typicode.com/todos/{id}");
-    var todo = JsonConvert.DeserializeObject<Dictionary<string, object>>(response, settings: null);
-
-    Console.WriteLine("Sample Log");
-
-    return res.Json(new()
-    {
-        { "isTest", true },
-        { "message", "Hello Open Runtimes 👋" },
-        { "variable", varData },
-        { "todo", todo }
-    });
 }

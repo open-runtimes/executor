@@ -1,9 +1,9 @@
 <?php
 
-return function ($request, $response) {
+return function ($context) {
     sleep(60);
 
-    return $response->json([
+    return $context['res']->json([
         'pass' => true
     ]);
 };

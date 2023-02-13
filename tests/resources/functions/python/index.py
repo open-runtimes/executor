@@ -1,19 +1,19 @@
+import os
 import json
 import requests
 
-def main(req, res):
-    payload = json.loads('{}' if not req.payload else req.payload)
-    todo_id = payload.get('id', 1)
-
-    var_data = req.variables.get('test-variable', None)
+def main(context):
+    todo_id = context.req.body.get('id', 1)
+    var_data = os.environ.get('TEST_VARIABLE', None)
 
     todo = (requests.get('https://jsonplaceholder.typicode.com/todos/' + str(todo_id))).json()
 
-    print('Sample Log')
+    context.log('Sample Log')
 
-    return res.json({
+    return context.res.json({
         'isTest': True,
         'message': 'Hello Open Runtimes 👋',
         'todo': todo,
+        'url': context.req.url,
         'variable': var_data
     })

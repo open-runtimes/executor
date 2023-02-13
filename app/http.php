@@ -279,7 +279,7 @@ App::post('/v1/runtimes')
     ->param('remove', false, new Boolean(), 'Remove a runtime after execution.', true)
     ->param('cpus', 1, new Integer(), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Comtainer RAM memory.', true)
-    ->param('version', 'v2', new WhiteList(['v2', 'v3']), 'Runtime Open Runtime version.', true)
+    ->param('version', 'v3', new WhiteList(['v2', 'v3']), 'Runtime Open Runtime version.', true)
     ->inject('orchestration')
     ->inject('activeRuntimes')
     ->inject('response')
@@ -549,8 +549,8 @@ App::post('/v1/runtimes/:runtimeId/execution')
     ->desc('Create an execution')
     // Execution-related
     ->param('runtimeId', '', new Text(64), 'The runtimeID to execute.')
-    ->param('body', '', new Text(20480), 'Data to be forwarded to the function, this is user specified.', true)
-    ->param('url', '', new Text(2048), 'URL from which execution comes.', true)
+    ->param('body', '', new Text(20971520), 'Data to be forwarded to the function, this is user specified.', true)
+    ->param('path', '/', new Text(2048), 'Path from which execution comes.', true)
     ->param('headers', [], new Assoc(), 'Headers passed into runtime.', true)
     ->param('timeout', 15, new Integer(), 'Function maximum execution time in seconds.', true)
     // Runtime-related
@@ -560,11 +560,11 @@ App::post('/v1/runtimes/:runtimeId/execution')
     ->param('variables', [], new Assoc(), 'Environment variables passed into runtime.', true)
     ->param('cpus', 1, new Integer(), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Comtainer RAM memory.', true)
-    ->param('version', 'v2', new WhiteList(['v2', 'v3']), 'Runtime Open Runtime version.', true)
+    ->param('version', 'v3', new WhiteList(['v2', 'v3']), 'Runtime Open Runtime version.', true)
     ->inject('activeRuntimes')
     ->inject('response')
     ->action(
-        function (string $runtimeId, string $payload, string $url, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, Table $activeRuntimes, Response $response) {
+        function (string $runtimeId, string $payload, string $path, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, Table $activeRuntimes, Response $response) {
             $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
             $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
@@ -760,7 +760,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 ];
             };
 
-            $executeV3 = function () use ($url, $headers, $payload, $secret, $hostname, &$startTime, $timeout): array {
+            $executeV3 = function () use ($path, $headers, $payload, $secret, $hostname, &$startTime, $timeout): array {
                 // Restart execution timer to not could failed attempts
                 $startTime = \microtime(true);
 
@@ -774,7 +774,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
 
                 $responseHeaders = [];
 
-                \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000/");
+                \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000" . $path);
                 \curl_setopt($ch, CURLOPT_POST, true);
                 \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
                 \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -798,13 +798,10 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
 
                 $headers['x-open-runtimes-secret'] = $secret;
-                $headers['content-type'] = 'text/plain';
-                $headers['content-length'] = \strlen($body ?: '');
                 $headersArr = [];
                 foreach ($headers as $key => $value) {
                     $headersArr[] = $key . ': ' . $value;
                 }
-                $headersArr[] = 'x-open-runtimes-original-url: ' . $url;
 
                 \curl_setopt($ch, CURLOPT_HEADEROPT, CURLHEADER_UNIFIED);
                 \curl_setopt($ch, CURLOPT_HTTPHEADER, $headersArr);
