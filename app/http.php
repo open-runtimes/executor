@@ -441,8 +441,8 @@ App::post('/v1/runtimes')
             $duration = $endTime - $startTime;
 
             $container = array_merge($container, [
-                'logs' => \mb_strcut($stdout, 0, 1000000), // Limit to 1MB
-                'errors' => \mb_strcut($stderr, 0, 1000000), // Limit to 1MB
+                'stdout' => \mb_strcut($stdout, 0, 1000000), // Limit to 1MB
+                'stderr' => \mb_strcut($stderr, 0, 1000000), // Limit to 1MB
                 'startTime' => $startTime,
                 'duration' => $duration,
             ]);
@@ -551,6 +551,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
     ->param('runtimeId', '', new Text(64), 'The runtimeID to execute.')
     ->param('body', '', new Text(20971520), 'Data to be forwarded to the function, this is user specified.', true)
     ->param('path', '/', new Text(2048), 'Path from which execution comes.', true)
+    ->param('method', 'GET', new Whitelist([ 'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS' ], true), 'Path from which execution comes.', true)
     ->param('headers', [], new Assoc(), 'Headers passed into runtime.', true)
     ->param('timeout', 15, new Integer(), 'Function maximum execution time in seconds.', true)
     // Runtime-related
@@ -564,7 +565,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
     ->inject('activeRuntimes')
     ->inject('response')
     ->action(
-        function (string $runtimeId, string $payload, string $path, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, Table $activeRuntimes, Response $response) {
+        function (string $runtimeId, string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, Table $activeRuntimes, Response $response) {
             $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
             $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
@@ -760,7 +761,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 ];
             };
 
-            $executeV3 = function () use ($path, $headers, $payload, $secret, $hostname, &$startTime, $timeout): array {
+            $executeV3 = function () use ($path, $method, $headers, $payload, $secret, $hostname, &$startTime, $timeout): array {
                 // Restart execution timer to not could failed attempts
                 $startTime = \microtime(true);
 
@@ -775,7 +776,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 $responseHeaders = [];
 
                 \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000" . $path);
-                \curl_setopt($ch, CURLOPT_POST, true);
+                \curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
                 \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
                 \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                 \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders) {
