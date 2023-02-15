@@ -878,6 +878,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
             $endTime = \microtime(true);
             $duration = $endTime - $startTime;
 
+            $header['x-open-runtimes-encoding'] = 'original';
             $execution = [
                 'statusCode' => $statusCode,
                 'headers' => $headers,
@@ -888,6 +889,13 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 'startTime' => $startTime,
             ];
 
+            $executionString = \json_encode($execution, JSON_UNESCAPED_UNICODE);
+            if(!$executionString) {
+                $execution['body'] = \base64_encode($body);
+                $execution['headers']['x-open-runtimes-encoding'] = 'base64';
+                $executionString = \json_encode($execution, JSON_UNESCAPED_UNICODE);
+            }
+
             // Update swoole table
             $runtime = $activeRuntimes->get($activeRuntimeId);
             $runtime['updated'] = \microtime(true);
@@ -896,7 +904,8 @@ App::post('/v1/runtimes/:runtimeId/execution')
             // Finish request
             $response
                 ->setStatusCode(Response::STATUS_CODE_OK)
-                ->json($execution);
+                ->setContentType(Response::CONTENT_TYPE_JSON, Response::CHARSET_UTF8)
+                ->send($executionString);
         }
     );
 
