@@ -672,7 +672,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                     'variables' => $variables,
                     'payload' => $payload,
                     'headers' => [] // TODO: @Meldiron Forward headers when becomes relevant (Appwrite proxy)
-                ]);
+                ], JSON_FORCE_OBJECT);
 
                 \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000/");
                 \curl_setopt($ch, CURLOPT_POST, true);
