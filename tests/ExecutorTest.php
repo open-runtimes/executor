@@ -87,8 +87,8 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
         $this->assertIsString($response['body']['path']);
-        $this->assertIsString($response['body']['errors']);
-        $this->assertIsString($response['body']['logs']);
+        $this->assertIsString($response['body']['stderr']);
+        $this->assertIsString($response['body']['stdout']);
         $this->assertIsFloat($response['body']['duration']);
         $this->assertIsFloat($response['body']['startTime']);
         $this->assertIsInt($response['body']['size']);

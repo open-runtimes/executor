@@ -890,7 +890,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
             ];
 
             $executionString = \json_encode($execution, JSON_UNESCAPED_UNICODE);
-            if(!$executionString) {
+            if (!$executionString) {
                 $execution['body'] = \base64_encode($body);
                 $execution['headers']['x-open-runtimes-encoding'] = 'base64';
                 $executionString = \json_encode($execution, JSON_UNESCAPED_UNICODE);
@@ -905,7 +905,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
             $response
                 ->setStatusCode(Response::STATUS_CODE_OK)
                 ->setContentType(Response::CONTENT_TYPE_JSON, Response::CHARSET_UTF8)
-                ->send($executionString);
+                ->send((string) $executionString);
         }
     );
 
