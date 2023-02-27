@@ -554,6 +554,11 @@ App::post('/v1/runtimes/:runtimeId/execution')
             $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
             $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
+            // Update swoole table
+            $runtime = $activeRuntimes->get($activeRuntimeId);
+            $runtime['updated'] = \time();
+            $activeRuntimes->set($activeRuntimeId, $runtime);
+
             $variables = \array_merge($variables, [
                 'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
             ]);
@@ -633,11 +638,6 @@ App::post('/v1/runtimes/:runtimeId/execution')
                     \sleep(1);
                 }
             }
-
-            // Update swoole table
-            $runtime = $activeRuntimes->get($activeRuntimeId);
-            $runtime['updated'] = \time();
-            $activeRuntimes->set($activeRuntimeId, $runtime);
 
             // Ensure runtime started
             for ($i = 0; $i < 5; $i++) {
@@ -769,6 +769,11 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 'stderr' => \mb_strcut($stderr, 0, 1000000), // Limit to 1MB
                 'duration' => $executionTime + $coldStartTime,
             ];
+
+            // Update swoole table
+            $runtime = $activeRuntimes->get($activeRuntimeId);
+            $runtime['updated'] = \time();
+            $activeRuntimes->set($activeRuntimeId, $runtime);
 
             // Finish request
             $response
