@@ -634,6 +634,11 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 }
             }
 
+            // Update swoole table
+            $runtime = $activeRuntimes->get($activeRuntimeId) ?? [];
+            $runtime['updated'] = \time();
+            $activeRuntimes->set($activeRuntimeId, $runtime);
+
             // Ensure runtime started
             for ($i = 0; $i < 5; $i++) {
                 if ($activeRuntimes->get($activeRuntimeId)['status'] !== 'pending') {
