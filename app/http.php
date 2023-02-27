@@ -287,12 +287,8 @@ App::post('/v1/runtimes')
 
         $runtimeHostname = \uniqid();
 
-        if ($activeRuntimes->exists($activeRuntimeId)) {
-            if ($activeRuntimes->get($activeRuntimeId)['status'] == 'pending') {
-                throw new \Exception('A runtime with the same ID is already being created. Attempt a execution soon.', 500);
-            }
-
-            throw new Exception('Runtime already exists.', 409);
+        if ($activeRuntimes->exists($activeRuntimeId) && $activeRuntimes->get($activeRuntimeId)['status'] == 'pending') {
+            throw new \Exception('A runtime with the same ID is already being created. Attempt a execution soon.', 500);
         }
 
         $container = [];
@@ -554,8 +550,10 @@ App::post('/v1/runtimes/:runtimeId/execution')
             $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
             $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
+            $runtimeExists = $activeRuntimes->exists($activeRuntimeId);
+
             // Update swoole table
-            $runtime = $activeRuntimes->get($activeRuntimeId);
+            $runtime = $activeRuntimes->get($activeRuntimeId) ?? [];
             $runtime['updated'] = \time();
             $activeRuntimes->set($activeRuntimeId, $runtime);
 
@@ -566,7 +564,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
             $coldStartTime = 0;
 
             // Prepare runtime
-            if (!$activeRuntimes->exists($activeRuntimeId)) {
+            if (!$runtimeExists) {
                 if (empty($image) || empty($source) || empty($entrypoint)) {
                     throw new Exception('Runtime not found. Please start it first or provide runtime-related parameters.', 401);
                 }
