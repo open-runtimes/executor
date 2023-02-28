@@ -303,6 +303,7 @@ final class ExecutorTest extends TestCase
             [ 'folder' => 'deno', 'image' => 'openruntimes/deno:v3-1.24', 'entrypoint' => 'index.ts', 'version' => 'v3' ],
             [ 'folder' => 'python', 'image' => 'openruntimes/python:v3-3.10', 'entrypoint' => 'index.py', 'version' => 'v3' ],
             [ 'folder' => 'ruby', 'image' => 'openruntimes/ruby:v3-3.1', 'entrypoint' => 'index.rb', 'version' => 'v3' ],
+            [ 'folder' => 'cpp', 'image' => 'openruntimes/cpp:v3-17', 'entrypoint' => 'index.cc', 'version' => 'v3' ],
             [ 'folder' => 'dart', 'image' => 'openruntimes/dart:v3-2.18', 'entrypoint' => 'lib/index.dart', 'version' => 'v3' ],
             [ 'folder' => 'dotnet', 'image' => 'openruntimes/dotnet:v3-6.0', 'entrypoint' => 'Index.cs', 'version' => 'v3' ],
             // C++, Swift, Kotlin, Java missing on purpose

@@ -344,19 +344,18 @@ App::post('/v1/runtimes')
             /**
              * Create container
              */
-            if ($version === 'v3') {
-                $variables = \array_merge($variables, [
-                    'OPEN_RUNTIMES_SECRET' => $secret,
-                    'OPEN_RUNTIMES_ENTRYPOINT' => $entrypoint,
-                    'OPEN_RUNTIMES_HOSTNAME' => System::getHostname()
-                ]);
-            } else {
-                $variables = \array_merge($variables, [
+            $variables = \array_merge($variables, match ($version) {
+                'v2' => [
                     'INTERNAL_RUNTIME_KEY' => $secret,
                     'INTERNAL_RUNTIME_ENTRYPOINT' => $entrypoint,
                     'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
-                ]);
-            }
+                ],
+                'v3' => [
+                    'OPEN_RUNTIMES_SECRET' => $secret,
+                    'OPEN_RUNTIMES_ENTRYPOINT' => $entrypoint,
+                    'OPEN_RUNTIMES_HOSTNAME' => System::getHostname()
+                ]
+            });
 
             $variables = array_map(fn ($v) => strval($v), $variables);
             $orchestration
@@ -737,14 +736,11 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 // Extract response
                 $executorResponse = json_decode(\strval($executorResponse), false);
 
-                $res = '';
-                if ($statusCode >= 200 && $statusCode < 500) {
-                    $res = $executorResponse->response ?? '';
-                    if (is_array($res)) {
-                        $res = json_encode($res, JSON_UNESCAPED_UNICODE);
-                    } elseif (is_object($res)) {
-                        $res = json_encode($res, JSON_UNESCAPED_UNICODE | JSON_FORCE_OBJECT);
-                    }
+                $res = $executorResponse->response ?? '';
+                if (is_array($res)) {
+                    $res = json_encode($res, JSON_UNESCAPED_UNICODE);
+                } elseif (is_object($res)) {
+                    $res = json_encode($res, JSON_UNESCAPED_UNICODE | JSON_FORCE_OBJECT);
                 }
 
                 $stderr = $executorResponse->stderr ?? '';
