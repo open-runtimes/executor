@@ -225,16 +225,18 @@ final class ExecutorTest extends TestCase
                 }
             ],
             [
-                'image' => 'openruntimes/php:v3-8.1',
-                'entrypoint' => 'index.php',
-                'folder' => 'php-timeout',
+                'image' => 'openruntimes/node:v3-18.0',
+                'entrypoint' => 'index.js',
+                'folder' => 'node-timeout',
                 'version' => 'v3',
                 'assertions' => function ($response) {
-                    $this->assertEquals(500, $response['headers']['status-code']);
-                    $this->assertEquals(500, $response['body']['code']);
-                    $this->assertStringContainsString('Operation timed out', $response['body']['message']);
+                    $this->assertEquals(200, $response['headers']['status-code']);
+                    $this->assertEquals(500, $response['body']['statusCode']);
+                    $this->assertEquals('Execution timed out.', $response['body']['body']);
+                    $this->assertEmpty($response['body']['logs']);
+                    $this->assertEmpty($response['body']['errors']);
                 }
-            ]
+            ],
         ];
     }
 

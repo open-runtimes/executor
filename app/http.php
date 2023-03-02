@@ -791,10 +791,11 @@ App::post('/v1/runtimes/:runtimeId/execution')
 
                     return $len;
                 });
-                \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+                \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout + 1); // Gives extra 1s after safe timeout to recieve response
                 \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
 
                 $headers['x-open-runtimes-secret'] = $secret;
+                $headers['x-open-runtimes-timeout'] = $timeout;
                 $headersArr = [];
                 foreach ($headers as $key => $value) {
                     $headersArr[] = $key . ': ' . $value;
