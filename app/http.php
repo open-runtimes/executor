@@ -558,8 +558,6 @@ App::post('/v1/runtimes/:runtimeId/execution')
             $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
             $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
-            $activeRuntimes->incr($activeRuntimeId, 'executions', 1);
-
             $variables = \array_merge($variables, [
                 'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
             ]);
@@ -639,6 +637,8 @@ App::post('/v1/runtimes/:runtimeId/execution')
                     \sleep(1);
                 }
             }
+
+            $activeRuntimes->incr($activeRuntimeId, 'executions', 1);
 
             // Ensure runtime started
             for ($i = 0; $i < 5; $i++) {
