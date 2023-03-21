@@ -319,8 +319,8 @@ App::post('/v1/runtimes')
          * Temporary file paths in the executor
          */
         $tmpFolder = "tmp/$runtimeId/";
-        $tmpSource = "{$tmpFolder}src/code.tar.gz";
-        $tmpBuild = "{$tmpFolder}builds/code.tar.gz";
+        $tmpSource = "/{$tmpFolder}src/code.tar.gz";
+        $tmpBuild = "/{$tmpFolder}builds/code.tar.gz";
 
         $sourceDevice = getStorageDevice("/");
         $localDevice = new Local();
@@ -329,15 +329,15 @@ App::post('/v1/runtimes')
             /**
              * Copy code files from source to a temporary location on the executor
              */
-            $buffer = $sourceDevice->read($sourceDevice->getPath($source));
-            if (!$localDevice->write($localDevice->getPath($tmpSource), $buffer)) {
+            $buffer = $sourceDevice->read($source);
+            if (!$localDevice->write($tmpSource, $buffer)) {
                 throw new Exception('Failed to copy source code to temporary directory', 500);
             };
 
             /**
              * Create the mount folder
              */
-            if (!$localDevice->createDirectory($localDevice->getPath(\dirname($tmpBuild)))) {
+            if (!$localDevice->createDirectory(\dirname($tmpBuild))) {
                 throw new Exception("Failed to create temporary directory", 500);
             }
 
@@ -381,8 +381,8 @@ App::post('/v1/runtimes')
                 ],
                 workdir: $workdir,
                 volumes: [
-                    '/' . \dirname($tmpSource) . ':/tmp:rw',
-                    '/' . \dirname($tmpBuild) . ':/usr/code:rw'
+                    \dirname($tmpSource) . ':/tmp:rw',
+                    \dirname($tmpBuild) . ':/usr/code:rw'
                 ]
             );
 
@@ -414,19 +414,19 @@ App::post('/v1/runtimes')
              */
             if (!empty($destination)) {
                 // Check if the build was successful by checking if file exists
-                if (!$localDevice->exists($localDevice->getPath($tmpBuild))) {
+                if (!$localDevice->exists($tmpBuild)) {
                     throw new Exception('Something went wrong when starting runtime.', 500);
                 }
 
-                $size = $localDevice->getFileSize($localDevice->getPath($tmpBuild));
+                $size = $localDevice->getFileSize($tmpBuild);
                 $container['size'] = $size;
 
                 $destinationDevice = getStorageDevice($destination);
                 $path = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo('code.tar.gz', PATHINFO_EXTENSION));
 
-                $buffer = $localDevice->read($localDevice->getPath($tmpBuild));
+                $buffer = $localDevice->read($tmpBuild);
 
-                if (!$destinationDevice->write($path, $buffer, $localDevice->getFileMimeType($localDevice->getPath($tmpBuild)))) {
+                if (!$destinationDevice->write($path, $buffer, $localDevice->getFileMimeType($tmpBuild))) {
                     throw new Exception('Failed to move built code to storage', 500);
                 };
 
