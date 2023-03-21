@@ -426,7 +426,7 @@ App::post('/v1/runtimes')
 
                 $buffer = $localDevice->read($localDevice->getPath($tmpBuild));
 
-                if (!$destinationDevice->write($path, $buffer, $localDevice->getFileMimeType($tmpBuild))) {
+                if (!$destinationDevice->write($path, $buffer, $localDevice->getFileMimeType($localDevice->getPath($tmpBuild)))) {
                     throw new Exception('Failed to move built code to storage', 500);
                 };
 
