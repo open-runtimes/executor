@@ -333,7 +333,7 @@ App::post('/v1/runtimes')
             if (!$localDevice->write($tmpSource, $buffer)) {
                 throw new Exception('Failed to copy source code to temporary directory', 500);
             };
-
+            
             /**
              * Create the mount folder
              */
@@ -361,9 +361,6 @@ App::post('/v1/runtimes')
             $orchestration
                 ->setCpus($cpus)
                 ->setMemory($memory);
-
-            \var_dump($startCommands);
-            \var_dump($commands);
 
             /** Keep the container alive if we have commands to be executed */
             $containerId = $orchestration->run(
