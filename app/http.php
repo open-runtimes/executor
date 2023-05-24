@@ -167,7 +167,7 @@ function logError(Log $log, Throwable $error, string $action, Logger $logger = n
             $log->addTag('url', $route->getPath());
         }
 
-        $log->addTag('code', $error->getCode());
+        $log->addTag('code', \strval($error->getCode()));
         $log->addTag('verboseType', get_class($error));
 
         $log->addExtra('file', $error->getFile());
