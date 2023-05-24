@@ -105,6 +105,7 @@ $register->set('activeRuntimes', function () {
     $table->column('hostname', Table::TYPE_STRING, 256);
     $table->column('status', Table::TYPE_STRING, 128);
     $table->column('key', Table::TYPE_STRING, 256);
+    $table->column('executions', Table::TYPE_INT, 11); // Amount of active executions
     $table->create();
 
     return $table;
@@ -311,6 +312,7 @@ App::post('/v1/runtimes')
             'updated' => $startTime,
             'status' => 'pending',
             'key' => $secret,
+            'executions' => 0
         ]);
 
         /**
@@ -445,6 +447,7 @@ App::post('/v1/runtimes')
                 'updated' => \microtime(true),
                 'status' => 'Up ' . \round($duration, 2) . 's',
                 'key' => $secret,
+                'executions' => 0
             ]);
         } catch (Throwable $th) {
             $localDevice->deletePath($tmpFolder);
@@ -635,6 +638,13 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 }
             }
 
+            // Update swoole table
+            $activeRuntimes->set($activeRuntimeId, [
+                'updated' => \microtime(true)
+            ]);
+
+            $activeRuntimes->incr($activeRuntimeId, 'executions', 1);
+
             // Ensure runtime started
             for ($i = 0; $i < 5; $i++) {
                 if ($activeRuntimes->get($activeRuntimeId)['status'] !== 'pending') {
@@ -760,9 +770,11 @@ App::post('/v1/runtimes/:runtimeId/execution')
             ];
 
             // Update swoole table
-            $runtime = $activeRuntimes->get($activeRuntimeId);
-            $runtime['updated'] = \microtime(true);
-            $activeRuntimes->set($activeRuntimeId, $runtime);
+            $activeRuntimes->set($activeRuntimeId, [
+                'updated' => \microtime(true)
+            ]);
+
+            $activeRuntimes->decr($activeRuntimeId, 'executions', 1);
 
             // Finish request
             $response
@@ -914,7 +926,12 @@ run(function () use ($register) {
         Console::info("Running maintenance task ...");
         foreach ($activeRuntimes as $activeRuntimeId => $runtime) {
             $inactiveThreshold = \time() - \intval(App::getEnv('OPR_EXECUTOR_INACTIVE_TRESHOLD', '60'));
-            if ($runtime['updated'] < $inactiveThreshold) {
+            $runtimeThreshold = \time() - \intval(App::getEnv('OPR_EXECUTOR_RUNTIME_TRESHOLD', '600'));
+
+            $softKill = $runtime['updated'] < $inactiveThreshold && $runtime['executions'] === 0;
+            $forceKill = $runtime['updated'] < $runtimeThreshold;
+
+            if ($softKill || $forceKill) {
                 go(function () use ($activeRuntimeId, $runtime, $orchestrationPool, $activeRuntimes) {
                     try {
                         $connection = $orchestrationPool->pop();
