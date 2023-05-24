@@ -657,7 +657,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 }
 
                 if ($i === 4) {
-                    throw new Exception('Runtime failed to launch in allocated time', 500);
+                    throw new Exception('Runtime failed to launch in allocated time.', 500);
                 }
 
                 \sleep(1);
@@ -668,7 +668,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
             $hostname = $runtime['hostname'];
             $secret = $runtime['key'];
             if (empty($secret)) {
-                throw new Exception('Runtime secret not found. Please re-create the runtime', 500);
+                throw new Exception('Runtime secret not found. Please re-create the runtime.', 500);
             }
 
             $executionStart = \microtime(true);
