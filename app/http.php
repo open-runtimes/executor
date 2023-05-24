@@ -765,9 +765,9 @@ App::post('/v1/runtimes/:runtimeId/execution')
             ];
 
             // Update swoole table
-            $runtime = $activeRuntimes->get($activeRuntimeId);
-            $runtime['updated'] = \microtime(true);
-            $activeRuntimes->set($activeRuntimeId, $runtime);
+            $activeRuntimes->set($activeRuntimeId, [
+                'updated' => \microtime(true)
+            ]);
 
             $activeRuntimes->decr($activeRuntimeId, 'executions', 1);
 
