@@ -53,8 +53,8 @@ App::setMode((string) App::getEnv('OPR_EXECUTOR_ENV', App::MODE_TYPE_PRODUCTION)
 $register = new Registry();
 
 /**
-* Create logger for cloud logging
-*/
+ * Create logger for cloud logging
+ */
 $register->set('logger', function () {
     $providerName = App::getEnv('OPR_EXECUTOR_LOGGING_PROVIDER', '');
     $providerConfig = App::getEnv('OPR_EXECUTOR_LOGGING_CONFIG', '');
@@ -93,8 +93,8 @@ $register->set('orchestrationPool', function () {
 });
 
 /**
-* Create a Swoole table to store runtime information
-*/
+ * Create a Swoole table to store runtime information
+ */
 $register->set('activeRuntimes', function () {
     $table = new Table(1024);
 
@@ -111,8 +111,8 @@ $register->set('activeRuntimes', function () {
 });
 
 /**
-* Create a Swoole table of usage stats (separate for host and containers)
-*/
+ * Create a Swoole table of usage stats (separate for host and containers)
+ */
 $register->set('statsContainers', function () {
     $table = new Table(1024);
 
@@ -150,8 +150,11 @@ function logError(Log $log, Throwable $error, string $action, Logger $logger = n
     Console::error('[Error] File: ' . $error->getFile());
     Console::error('[Error] Line: ' . $error->getLine());
 
-    if ($logger) {
-        $version = (string) App::getEnv('OPR_EXECUTOR_VERSION', 'UNKNOWN');
+    if ($logger && ($error->getCode() === 500 || $error->getCode() === 0)) {
+        $version = (string) App::getEnv('OPR_EXECUTOR_VERSION', '');
+        if (empty($version)) {
+            $version = 'UNKNOWN';
+        }
 
         $log->setNamespace("executor");
         $log->setServer(\gethostname() !== false ? \gethostname() : null);
@@ -452,7 +455,7 @@ App::post('/v1/runtimes')
             // Silently try to kill container
             try {
                 $orchestration->remove($containerId, true);
-            } catch(Throwable $th) {
+            } catch (Throwable $th) {
             }
 
             $activeRuntimes->del($activeRuntimeId);
@@ -626,7 +629,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
 
                 // Prepare runtime
                 for ($i = 0; $i < 5; $i++) {
-                    [ 'errNo' => $errNo, 'error' => $error, 'statusCode' => $statusCode, 'executorResponse' => $executorResponse ] = \call_user_func($sendCreateRuntimeRequest);
+                    ['errNo' => $errNo, 'error' => $error, 'statusCode' => $statusCode, 'executorResponse' => $executorResponse] = \call_user_func($sendCreateRuntimeRequest);
 
                     if ($errNo === 0 && $statusCode < 500) {
                         $body = \json_decode($executorResponse, true);
@@ -689,7 +692,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                     'headers' => [] // TODO: @Meldiron Forward headers when becomes relevant (Appwrite proxy)
                 ], JSON_FORCE_OBJECT);
 
-                \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000/");
+                \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3001/");
                 \curl_setopt($ch, CURLOPT_POST, true);
                 \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
                 \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -723,7 +726,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
 
             // Execute function
             for ($i = 0; $i < 5; $i++) {
-                [ 'errNo' => $errNo, 'error' => $error, 'statusCode' => $statusCode, 'executorResponse' => $executorResponse ] = \call_user_func($sendExecuteRequest);
+                ['errNo' => $errNo, 'error' => $error, 'statusCode' => $statusCode, 'executorResponse' => $executorResponse] = \call_user_func($sendExecuteRequest);
 
                 // No error
                 if ($errNo === 0) {
