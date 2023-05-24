@@ -141,7 +141,9 @@ App::setResource('statsHost', fn (Registry $register) => $register->get('statsHo
 App::setResource('orchestrationConnection', fn (Pool $orchestrationPool) => $orchestrationPool->pop(), ['orchestrationPool']);
 App::setResource('orchestration', fn (Connection $orchestrationConnection) => $orchestrationConnection->getResource(), ['orchestrationConnection']);
 
-function logError(Throwable $error, string $action, Logger $logger = null, Utopia\Route $route = null): void
+App::setResource('log', fn () => new Log());
+
+function logError(Log $log, Throwable $error, string $action, Logger $logger = null, Utopia\Route $route = null): void
 {
     Console::error('[Error] Type: ' . get_class($error));
     Console::error('[Error] Message: ' . $error->getMessage());
@@ -456,7 +458,7 @@ App::post('/v1/runtimes')
 
             $activeRuntimes->del($activeRuntimeId);
 
-            throw new Exception('Runtime #' . $activeRuntimeId . ': ' . $th->getMessage() . $stdout, 500);
+            throw new Exception($th->getMessage() . $stdout, 500);
         }
 
         $localDevice->deletePath($tmpFolder);
@@ -498,8 +500,11 @@ App::get('/v1/runtimes/:runtimeId')
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->inject('activeRuntimes')
     ->inject('response')
-    ->action(function (string $runtimeId, Table $activeRuntimes, Response $response) {
+    ->inject('log')
+    ->action(function (string $runtimeId, Table $activeRuntimes, Response $response, Log $log) {
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
+
+        $log->addExtra('runtimeId', $activeRuntimeId);
 
         if (!$activeRuntimes->exists($activeRuntimeId)) {
             throw new Exception('Runtime not found', 404);
@@ -518,9 +523,12 @@ App::delete('/v1/runtimes/:runtimeId')
     ->inject('orchestration')
     ->inject('activeRuntimes')
     ->inject('response')
-    ->action(function (string $runtimeId, Orchestration $orchestration, Table $activeRuntimes, Response $response) {
+    ->inject('log')
+    ->action(function (string $runtimeId, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
+
+        $log->addExtra('runtimeId', $activeRuntimeId);
 
         if (!$activeRuntimes->exists($activeRuntimeId)) {
             throw new Exception('Runtime not found', 404);
@@ -549,10 +557,13 @@ App::post('/v1/runtimes/:runtimeId/execution')
     ->param('memory', 512, new Integer(), 'Comtainer RAM memory.', true)
     ->inject('activeRuntimes')
     ->inject('response')
+    ->inject('log')
     ->action(
-        function (string $runtimeId, string $payload, array $variables, int $timeout, string $image, string $source, string $entrypoint, int $cpus, int $memory, Table $activeRuntimes, Response $response) {
+        function (string $runtimeId, string $payload, array $variables, int $timeout, string $image, string $source, string $entrypoint, int $cpus, int $memory, Table $activeRuntimes, Response $response, Log $log) {
             $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
             $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
+
+            $log->addExtra('runtimeId', $activeRuntimeId);
 
             $variables = \array_merge($variables, [
                 'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
@@ -623,11 +634,11 @@ App::post('/v1/runtimes/:runtimeId/execution')
                         $coldStartTime = \floatval($body['duration']);
                         break;
                     } elseif ($errNo !== 111) { // Connection Refused - see https://openswoole.com/docs/swoole-error-code
-                        throw new Exception('An internal curl error has occurred while starting runtime #' . $activeRuntimeId . '! Error Msg: ' . $error, 500);
+                        throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
                     }
 
                     if ($i === 4) {
-                        throw new Exception('An internal curl error has occurred while starting runtime #' . $activeRuntimeId . '! Error Msg: ' . $error, 500);
+                        throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
                     }
 
                     \sleep(1);
@@ -646,7 +657,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 }
 
                 if ($i === 4) {
-                    throw new Exception('Runtime failed to launch in allocated time for runtime #' . $activeRuntimeId, 500);
+                    throw new Exception('Runtime failed to launch in allocated time', 500);
                 }
 
                 \sleep(1);
@@ -657,7 +668,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
             $hostname = $runtime['hostname'];
             $secret = $runtime['key'];
             if (empty($secret)) {
-                throw new Exception('Runtime secret not found. Please re-create the runtime #' . $activeRuntimeId, 500);
+                throw new Exception('Runtime secret not found. Please re-create the runtime', 500);
             }
 
             $executionStart = \microtime(true);
@@ -721,11 +732,11 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 }
 
                 if ($errNo !== 111) { // Connection Refused - see https://openswoole.com/docs/swoole-error-code
-                    throw new Exception('An internal curl error has occurred within the executor on runtime #' . $activeRuntimeId . '! Error Msg: ' . $error, 500);
+                    throw new Exception('An internal curl error has occurred within the executor! Error Msg: ' . $error, 500);
                 }
 
                 if ($i === 4) {
-                    throw new Exception('An internal curl error has occurred within the executor on runtime #' . $activeRuntimeId . '! Error Msg: ' . $error, 500);
+                    throw new Exception('An internal curl error has occurred within the executor! Error Msg: ' . $error, 500);
                 }
 
                 \sleep(1);
@@ -815,9 +826,10 @@ App::error()
     ->inject('logger')
     ->inject('request')
     ->inject('response')
-    ->action(function (App $utopia, Throwable $error, ?Logger $logger, Request $request, Response $response) {
+    ->inject('log')
+    ->action(function (App $utopia, Throwable $error, ?Logger $logger, Request $request, Response $response, Log $log) {
         $route = $utopia->match($request);
-        logError($error, "httpError", $logger, $route);
+        logError($log, $error, "httpError", $logger, $route);
 
         switch ($error->getCode()) {
             case 400: // Error allowed publicly
@@ -1024,11 +1036,17 @@ run(function () use ($register) {
         } catch (\Throwable $th) {
             $code = 500;
 
+
             /**
              * @var Logger $logger
              */
             $logger = $app->getResource('logger');
-            logError($th, "serverError", $logger);
+
+            /**
+             * @var Log $log
+             */
+            $log = $app->getResource('log');
+            logError($log, $th, "serverError", $logger);
             $swooleResponse->setStatusCode($code);
             $output = [
                 'message' => 'Error: ' . $th->getMessage(),
