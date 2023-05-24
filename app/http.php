@@ -638,6 +638,11 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 }
             }
 
+            // Update swoole table
+            $activeRuntimes->set($activeRuntimeId, [
+                'updated' => \microtime(true)
+            ]);
+
             $activeRuntimes->incr($activeRuntimeId, 'executions', 1);
 
             // Ensure runtime started
@@ -921,8 +926,12 @@ run(function () use ($register) {
         Console::info("Running maintenance task ...");
         foreach ($activeRuntimes as $activeRuntimeId => $runtime) {
             $inactiveThreshold = \time() - \intval(App::getEnv('OPR_EXECUTOR_INACTIVE_TRESHOLD', '60'));
+            $runtimeThreshold = \time() - \intval(App::getEnv('OPR_EXECUTOR_RUNTIME_TRESHOLD', '600'));
 
-            if ($runtime['updated'] < $inactiveThreshold && $runtime['executions'] === 0) {
+            $softKill = $runtime['updated'] < $inactiveThreshold && $runtime['executions'] === 0;
+            $forceKill = $runtime['updated'] < $runtimeThreshold;
+
+            if ($softKill || $forceKill) {
                 go(function () use ($activeRuntimeId, $runtime, $orchestrationPool, $activeRuntimes) {
                     try {
                         $connection = $orchestrationPool->pop();
