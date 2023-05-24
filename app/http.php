@@ -153,7 +153,6 @@ function logError(Log $log, Throwable $error, string $action, Logger $logger = n
     if ($logger) {
         $version = (string) App::getEnv('OPR_EXECUTOR_VERSION', 'UNKNOWN');
 
-        $log = new Log();
         $log->setNamespace("executor");
         $log->setServer(\gethostname() !== false ? \gethostname() : null);
         $log->setVersion($version);
