@@ -285,11 +285,14 @@ App::post('/v1/runtimes')
     ->inject('orchestration')
     ->inject('activeRuntimes')
     ->inject('response')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, array $commands, int $timeout, string $workdir, bool $remove, int $cpus, int $memory, Orchestration $orchestration, Table $activeRuntimes, Response $response) {
+    ->inject('log')
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, array $commands, int $timeout, string $workdir, bool $remove, int $cpus, int $memory, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
         $runtimeHostname = \uniqid();
+
+        $log->addTag('runtimeId', $activeRuntimeId);
 
         if ($activeRuntimes->exists($activeRuntimeId)) {
             if ($activeRuntimes->get($activeRuntimeId)['status'] == 'pending') {
@@ -506,7 +509,7 @@ App::get('/v1/runtimes/:runtimeId')
     ->action(function (string $runtimeId, Table $activeRuntimes, Response $response, Log $log) {
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
 
-        $log->addExtra('runtimeId', $activeRuntimeId);
+        $log->addTag('runtimeId', $activeRuntimeId);
 
         if (!$activeRuntimes->exists($activeRuntimeId)) {
             throw new Exception('Runtime not found', 404);
@@ -530,7 +533,7 @@ App::delete('/v1/runtimes/:runtimeId')
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
-        $log->addExtra('runtimeId', $activeRuntimeId);
+        $log->addTag('runtimeId', $activeRuntimeId);
 
         if (!$activeRuntimes->exists($activeRuntimeId)) {
             throw new Exception('Runtime not found', 404);
@@ -565,7 +568,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
             $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
             $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
-            $log->addExtra('runtimeId', $activeRuntimeId);
+            $log->addTag('runtimeId', $activeRuntimeId);
 
             $variables = \array_merge($variables, [
                 'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
