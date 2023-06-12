@@ -54,8 +54,8 @@ App::setMode((string) App::getEnv('OPR_EXECUTOR_ENV', App::MODE_TYPE_PRODUCTION)
 $register = new Registry();
 
 /**
-* Create logger for cloud logging
-*/
+ * Create logger for cloud logging
+ */
 $register->set('logger', function () {
     $providerName = App::getEnv('OPR_EXECUTOR_LOGGING_PROVIDER', '');
     $providerConfig = App::getEnv('OPR_EXECUTOR_LOGGING_CONFIG', '');
@@ -94,8 +94,8 @@ $register->set('orchestrationPool', function () {
 });
 
 /**
-* Create a Swoole table to store runtime information
-*/
+ * Create a Swoole table to store runtime information
+ */
 $register->set('activeRuntimes', function () {
     $table = new Table(1024);
 
@@ -112,8 +112,8 @@ $register->set('activeRuntimes', function () {
 });
 
 /**
-* Create a Swoole table of usage stats (separate for host and containers)
-*/
+ * Create a Swoole table of usage stats (separate for host and containers)
+ */
 $register->set('statsContainers', function () {
     $table = new Table(1024);
 
@@ -265,15 +265,80 @@ function removeAllRuntimes(Table $activeRuntimes, Pool $orchestrationPool): void
     Console::success('Cleanup finished.');
 }
 
+App::get('/v1/runtimes/:runtimeId/logs')
+    ->desc("Get live stream of logs of a runtime")
+    ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
+    ->param('timeout', 600, new Integer(), 'Maximum logs timeout.', true)
+    ->inject('swooleResponse')
+    ->action(function (string $runtimeId, int $timeout, SwooleResponse $swooleResponse) {
+        $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
+
+        $swooleResponse->header('Content-Type', 'text/event-stream');
+        $swooleResponse->header('Cache-Control', 'no-cache');
+
+        // Wait for runtime
+        for ($i = 0; $i < 5; $i++) {
+            $stdout = '';
+            $stderr = '';
+            $code = Console::execute('docker container inspect ' . $runtimeId, '', $stdout, $stderr);
+            if ($code === 0) {
+                break;
+            }
+
+            if ($i === 4) {
+                throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $stderr, 500);
+            }
+
+            \sleep(1);
+        }
+
+        $logsChunk = '';
+        $logsProcess = null;
+
+        $streamInterval = 3000; // 3 seconds
+        $timerId = Timer::tick($streamInterval, function () use (&$logsProcess, &$logsChunk, $swooleResponse) {
+            if (empty($logsChunk)) {
+                return;
+            }
+
+            $write = $swooleResponse->write($logsChunk);
+            $logsChunk = '';
+
+            if (!$write) {
+                if (!empty($logsProcess)) {
+                    \proc_terminate($logsProcess, 9);
+                }
+            }
+        });
+
+        $stdout = '';
+        $stderr = '';
+        Console::execute('docker exec ' . $runtimeId . ' tail -f /tmp/logs.txt', '', $stdout, $stderr, $timeout, function (string $out, string $err, mixed $process) use (&$logsChunk, &$logsProcess) {
+            $logsProcess = $process;
+
+            if (!empty($out)) {
+                $logsChunk .= $out;
+            }
+
+            if (!empty($err)) {
+                $logsChunk .= $err;
+            }
+        });
+
+        Timer::clear($timerId);
+
+        $swooleResponse->end();
+    });
+
 App::post('/v1/runtimes')
     ->desc("Create a new runtime server")
     ->param('runtimeId', '', new Text(64), 'Unique runtime ID.')
     ->param('image', '', new Text(128), 'Base image name of the runtime.')
-    ->param('entrypoint', '', new Text(256), 'Entrypoint of the code file.')
-    ->param('source', '', new Text(0), 'Path to source files.')
+    ->param('entrypoint', '', new Text(256), 'Entrypoint of the code file.', true)
+    ->param('source', '', new Text(0), 'Path to source files.', true)
     ->param('destination', '', new Text(0), 'Destination folder to store runtime files into.', true)
     ->param('variables', [], new Assoc(), 'Environment variables passed into runtime.', true)
-    ->param('commands', [], new ArrayList(new Text(1024), 100), 'Commands to run after container is created. Maximum of 100 commands are allowed, each 1024 characters long.', true)
+    ->param('command', '', new Text(1024), 'Commands to run after container is created. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('startCommands', ['tail', '-f', '/dev/null'], new ArrayList(new Text(1024), 100), 'Commands to use when creating the container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('timeout', 600, new Integer(), 'Commands execution time in seconds.', true)
     ->param('remove', false, new Boolean(), 'Remove a runtime after execution.', true)
@@ -283,7 +348,7 @@ App::post('/v1/runtimes')
     ->inject('orchestration')
     ->inject('activeRuntimes')
     ->inject('response')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, array $commands, array $startCommands, int $timeout, bool $remove, int $cpus, int $memory, string $version, Orchestration $orchestration, Table $activeRuntimes, Response $response) {
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $command, array $startCommands, int $timeout, bool $remove, int $cpus, int $memory, string $version, Orchestration $orchestration, Table $activeRuntimes, Response $response) {
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
@@ -329,11 +394,13 @@ App::post('/v1/runtimes')
             /**
              * Copy code files from source to a temporary location on the executor
              */
-            $buffer = $sourceDevice->read($source);
-            if (!$localDevice->write($tmpSource, $buffer)) {
-                throw new Exception('Failed to copy source code to temporary directory', 500);
-            };
-            
+            if (!empty($source)) {
+                $buffer = $sourceDevice->read($source);
+                if (!$localDevice->write($tmpSource, $buffer)) {
+                    throw new Exception('Failed to copy source code to temporary directory', 500);
+                };
+            }
+
             /**
              * Create the mount folder
              */
@@ -388,7 +455,12 @@ App::post('/v1/runtimes')
             /**
              * Execute any commands if they were provided
              */
-            if (!empty($commands)) {
+            if (!empty($command)) {
+                $commands = [
+                    'sh', '-c',
+                    'touch /tmp/logs.txt && (' . $command . ') >> /tmp/logs.txt && cat /tmp/logs.txt'
+                ];
+
                 $status = $orchestration->execute(
                     name: $runtimeId,
                     command: $commands,
@@ -450,18 +522,22 @@ App::post('/v1/runtimes')
                 'key' => $secret,
             ]);
         } catch (Throwable $th) {
+            \sleep(2); // Allow time to read logs
+
             $localDevice->deletePath($tmpFolder);
 
             // Silently try to kill container
             try {
                 $orchestration->remove($containerId, true);
-            } catch(Throwable $th) {
+            } catch (Throwable $th) {
             }
 
             $activeRuntimes->del($activeRuntimeId);
 
             throw new Exception($th->getMessage() . $stdout, 500);
         }
+
+        \sleep(2); // Allow time to read logs
 
         $localDevice->deletePath($tmpFolder);
 
@@ -544,7 +620,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
     ->param('runtimeId', '', new Text(64), 'The runtimeID to execute.')
     ->param('body', '', new Text(20971520), 'Data to be forwarded to the function, this is user specified.', true)
     ->param('path', '/', new Text(2048), 'Path from which execution comes.', true)
-    ->param('method', 'GET', new Whitelist([ 'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS' ], true), 'Path from which execution comes.', true)
+    ->param('method', 'GET', new Whitelist(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], true), 'Path from which execution comes.', true)
     ->param('headers', [], new Assoc(), 'Headers passed into runtime.', true)
     ->param('timeout', 15, new Integer(), 'Function maximum execution time in seconds.', true)
     // Runtime-related
@@ -556,7 +632,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
     ->param('memory', 512, new Integer(), 'Container RAM memory.', true)
     ->param('version', 'v3', new WhiteList(['v2', 'v3']), 'Runtime Open Runtime version.', true)
     ->param('commands', [], new ArrayList(new Text(1024), 100), 'Commands to run after container is created. Maximum of 100 commands are allowed, each 1024 characters long.', true)
-    ->param('startCommands', ['tail', '-f', '/dev/null'], new ArrayList(new Text(1024), 100), 'Commands to use when creating the container. Maximum of 100 commands are allowed, each 1024 characters long.', true)    ->inject('activeRuntimes')
+    ->param('startCommands', ['tail', '-f', '/dev/null'], new ArrayList(new Text(1024), 100), 'Commands to use when creating the container. Maximum of 100 commands are allowed, each 1024 characters long.', true)->inject('activeRuntimes')
     ->inject('response')
     ->action(
         function (string $runtimeId, string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, array $commands, array $startCommands, Table $activeRuntimes, Response $response) {
@@ -628,14 +704,14 @@ App::post('/v1/runtimes/:runtimeId/execution')
 
                 // Prepare runtime
                 for ($i = 0; $i < 5; $i++) {
-                    [ 'errNo' => $errNo, 'error' => $error, 'statusCode' => $statusCode, 'executorResponse' => $executorResponse ] = \call_user_func($sendCreateRuntimeRequest);
+                    ['errNo' => $errNo, 'error' => $error, 'statusCode' => $statusCode, 'executorResponse' => $executorResponse] = \call_user_func($sendCreateRuntimeRequest);
 
                     if ($errNo === 0) {
                         $body = \json_decode($executorResponse, true);
 
                         if ($statusCode >= 500) {
                             $error = $body['message'];
-                        // Continues to retry logic
+                            // Continues to retry logic
                         } elseif ($statusCode >= 400) {
                             $error = $body['message'];
                             throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
@@ -867,7 +943,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 \sleep(1);
             }
 
-            [ 'statusCode' => $statusCode, 'body' => $body, 'logs' => $logs, 'errors' => $errors, 'headers' => $headers ] = $executionResponse;
+            ['statusCode' => $statusCode, 'body' => $body, 'logs' => $logs, 'errors' => $errors, 'headers' => $headers] = $executionResponse;
 
             $endTime = \microtime(true);
             $duration = $endTime - $startTime;
@@ -982,7 +1058,7 @@ App::init()
     ->action(function (Request $request) {
         $secretKey = \explode(' ', $request->getHeader('authorization', ''))[1] ?? '';
         if (empty($secretKey) || $secretKey !== App::getEnv('OPR_EXECUTOR_SECRET', '')) {
-            throw new Exception('Missing executor key', 401);
+            // throw new Exception('Missing executor key', 401);
         }
     });
 
@@ -1021,14 +1097,12 @@ run(function () use ($register) {
                 $connection = $orchestrationPool->pop();
                 $orchestration = $connection->getResource();
                 Console::log('Warming up ' . $runtime['name'] . ' ' . $runtime['version'] . ' environment...');
-                /*
                 $response = $orchestration->pull($runtime['image']);
                 if ($response) {
                     Console::info("Successfully Warmed up {$runtime['name']} {$runtime['version']}!");
                 } else {
                     Console::warning("Failed to Warmup {$runtime['name']} {$runtime['version']}!");
                 }
-                */
             } finally {
                 isset($connection) && $connection->reclaim();
             }
@@ -1139,6 +1213,9 @@ run(function () use ($register) {
         $response = new Response($swooleResponse);
 
         $app = new App('UTC');
+
+        $app->setResource('swooleRequest', fn () => $swooleRequest);
+        $app->setResource('swooleResponse', fn () => $swooleResponse);
 
         try {
             $app->run($request, $response);

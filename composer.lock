@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "879a9ced5d1dcedd72d48e9e58455027",
+    "content-hash": "6cf5a3e9aa7f2fcbc2b1aaf218318d02",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -128,16 +128,16 @@
         },
         {
             "name": "utopia-php/cli",
-            "version": "0.14.0",
+            "version": "dev-feat-log-streaming",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/cli.git",
-                "reference": "c30ef985a4e739758a0d95eb0706b357b6d8c086"
+                "reference": "bec6cb6686485f66331ec83d320f3b6306fa8e1e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/cli/zipball/c30ef985a4e739758a0d95eb0706b357b6d8c086",
-                "reference": "c30ef985a4e739758a0d95eb0706b357b6d8c086",
+                "url": "https://api.github.com/repos/utopia-php/cli/zipball/bec6cb6686485f66331ec83d320f3b6306fa8e1e",
+                "reference": "bec6cb6686485f66331ec83d320f3b6306fa8e1e",
                 "shasum": ""
             },
             "require": {
@@ -145,8 +145,10 @@
                 "utopia-php/framework": "0.*.*"
             },
             "require-dev": {
+                "laravel/pint": "1.2.*",
                 "phpunit/phpunit": "^9.3",
-                "squizlabs/php_codesniffer": "^3.6"
+                "squizlabs/php_codesniffer": "^3.6",
+                "vimeo/psalm": "4.0.1"
             },
             "type": "library",
             "autoload": {
@@ -157,12 +159,6 @@
             "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Eldad Fux",
-                    "email": "eldad@appwrite.io"
-                }
             ],
             "description": "A simple CLI library to manage command line applications",
             "keywords": [
@@ -175,9 +171,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/cli/issues",
-                "source": "https://github.com/utopia-php/cli/tree/0.14.0"
+                "source": "https://github.com/utopia-php/cli/tree/feat-log-streaming"
             },
-            "time": "2022-10-09T10:19:07+00:00"
+            "time": "2023-06-09T08:06:08+00:00"
         },
         {
             "name": "utopia-php/dsn",
@@ -534,16 +530,16 @@
         },
         {
             "name": "utopia-php/storage",
-            "version": "dev-feat-fix-local-delete",
+            "version": "dev-main",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/storage.git",
-                "reference": "c8afbaf2dadeae50e863edf332412e266dd63b87"
+                "reference": "adf16904dc1b73f3a607b756043a82d773cf4f8d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/storage/zipball/c8afbaf2dadeae50e863edf332412e266dd63b87",
-                "reference": "c8afbaf2dadeae50e863edf332412e266dd63b87",
+                "url": "https://api.github.com/repos/utopia-php/storage/zipball/adf16904dc1b73f3a607b756043a82d773cf4f8d",
+                "reference": "adf16904dc1b73f3a607b756043a82d773cf4f8d",
                 "shasum": ""
             },
             "require": {
@@ -551,6 +547,7 @@
                 "ext-fileinfo": "*",
                 "ext-lz4": "*",
                 "ext-snappy": "*",
+                "ext-xz": "*",
                 "ext-zlib": "*",
                 "ext-zstd": "*",
                 "php": ">=8.0",
@@ -561,6 +558,7 @@
                 "phpunit/phpunit": "^9.3",
                 "vimeo/psalm": "4.0.1"
             },
+            "default-branch": true,
             "type": "library",
             "autoload": {
                 "psr-4": {
@@ -581,9 +579,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/storage/issues",
-                "source": "https://github.com/utopia-php/storage/tree/feat-fix-local-delete"
+                "source": "https://github.com/utopia-php/storage/tree/main"
             },
-            "time": "2023-03-21T12:38:10+00:00"
+            "time": "2023-04-06T22:34:26+00:00"
         },
         {
             "name": "utopia-php/swoole",
@@ -826,16 +824,16 @@
         },
         {
             "name": "nikic/php-parser",
-            "version": "v4.15.4",
+            "version": "v4.15.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nikic/PHP-Parser.git",
-                "reference": "6bb5176bc4af8bcb7d926f88718db9b96a2d4290"
+                "reference": "11e2663a5bc9db5d714eedb4277ee300403b4a9e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/6bb5176bc4af8bcb7d926f88718db9b96a2d4290",
-                "reference": "6bb5176bc4af8bcb7d926f88718db9b96a2d4290",
+                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/11e2663a5bc9db5d714eedb4277ee300403b4a9e",
+                "reference": "11e2663a5bc9db5d714eedb4277ee300403b4a9e",
                 "shasum": ""
             },
             "require": {
@@ -876,9 +874,9 @@
             ],
             "support": {
                 "issues": "https://github.com/nikic/PHP-Parser/issues",
-                "source": "https://github.com/nikic/PHP-Parser/tree/v4.15.4"
+                "source": "https://github.com/nikic/PHP-Parser/tree/v4.15.5"
             },
-            "time": "2023-03-05T19:49:14+00:00"
+            "time": "2023-05-19T20:20:00+00:00"
         },
         {
             "name": "phar-io/manifest",
@@ -1370,16 +1368,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "9.6.5",
+            "version": "9.6.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "86e761949019ae83f49240b2f2123fb5ab3b2fc5"
+                "reference": "17d621b3aff84d0c8b62539e269e87d8d5baa76e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/86e761949019ae83f49240b2f2123fb5ab3b2fc5",
-                "reference": "86e761949019ae83f49240b2f2123fb5ab3b2fc5",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/17d621b3aff84d0c8b62539e269e87d8d5baa76e",
+                "reference": "17d621b3aff84d0c8b62539e269e87d8d5baa76e",
                 "shasum": ""
             },
             "require": {
@@ -1452,7 +1450,8 @@
             ],
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/9.6.5"
+                "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/9.6.8"
             },
             "funding": [
                 {
@@ -1468,7 +1467,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2023-03-09T06:34:10+00:00"
+            "time": "2023-05-11T05:14:45+00:00"
         },
         {
             "name": "sebastian/cli-parser",
@@ -1770,16 +1769,16 @@
         },
         {
             "name": "sebastian/diff",
-            "version": "4.0.4",
+            "version": "4.0.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/diff.git",
-                "reference": "3461e3fccc7cfdfc2720be910d3bd73c69be590d"
+                "reference": "74be17022044ebaaecfdf0c5cd504fc9cd5a7131"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/diff/zipball/3461e3fccc7cfdfc2720be910d3bd73c69be590d",
-                "reference": "3461e3fccc7cfdfc2720be910d3bd73c69be590d",
+                "url": "https://api.github.com/repos/sebastianbergmann/diff/zipball/74be17022044ebaaecfdf0c5cd504fc9cd5a7131",
+                "reference": "74be17022044ebaaecfdf0c5cd504fc9cd5a7131",
                 "shasum": ""
             },
             "require": {
@@ -1824,7 +1823,7 @@
             ],
             "support": {
                 "issues": "https://github.com/sebastianbergmann/diff/issues",
-                "source": "https://github.com/sebastianbergmann/diff/tree/4.0.4"
+                "source": "https://github.com/sebastianbergmann/diff/tree/4.0.5"
             },
             "funding": [
                 {
@@ -1832,7 +1831,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2020-10-26T13:10:38+00:00"
+            "time": "2023-05-07T05:35:17+00:00"
         },
         {
             "name": "sebastian/environment",
@@ -2529,14 +2528,21 @@
     ],
     "aliases": [
         {
+            "package": "utopia-php/cli",
+            "version": "dev-feat-log-streaming",
+            "alias": "0.14.99",
+            "alias_normalized": "0.14.99.0"
+        },
+        {
             "package": "utopia-php/storage",
-            "version": "dev-feat-fix-local-delete",
+            "version": "dev-main",
             "alias": "0.13.99",
             "alias_normalized": "0.13.99.0"
         }
     ],
     "minimum-stability": "stable",
     "stability-flags": {
+        "utopia-php/cli": 20,
         "utopia-php/storage": 20
     },
     "prefer-stable": false,
