@@ -32,7 +32,6 @@ use Utopia\Storage\Storage;
 use Utopia\Swoole\Request;
 use Utopia\Swoole\Response;
 use Utopia\System\System;
-use Utopia\Validator\ArrayList;
 use Utopia\Validator\Assoc;
 use Utopia\Validator\Boolean;
 use Utopia\Validator\Text;
@@ -268,9 +267,11 @@ function removeAllRuntimes(Table $activeRuntimes, Pool $orchestrationPool): void
 App::get('/v1/runtimes/:runtimeId/logs')
     ->desc("Get live stream of logs of a runtime")
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
-    ->param('timeout', 600, new Integer(), 'Maximum logs timeout.', true)
+    ->param('timeout', '600', new Text(16), 'Maximum logs timeout.', true)
     ->inject('swooleResponse')
-    ->action(function (string $runtimeId, int $timeout, SwooleResponse $swooleResponse) {
+    ->action(function (string $runtimeId, string $timeoutStr, SwooleResponse $swooleResponse) {
+        $timeout = \intval($timeoutStr);
+
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
         $swooleResponse->header('Content-Type', 'text/event-stream');
@@ -286,7 +287,7 @@ App::get('/v1/runtimes/:runtimeId/logs')
             }
 
             if ($i === 4) {
-                throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $stderr, 500);
+                throw new Exception('Runtime not ready. Error Msg: ' . $stderr, 500);
             }
 
             \sleep(1);
@@ -301,6 +302,7 @@ App::get('/v1/runtimes/:runtimeId/logs')
                 return;
             }
 
+            \var_dump("Writing");
             $write = $swooleResponse->write($logsChunk);
             $logsChunk = '';
 
@@ -327,6 +329,7 @@ App::get('/v1/runtimes/:runtimeId/logs')
 
         Timer::clear($timerId);
 
+        \var_dump("Ending");
         $swooleResponse->end();
     });
 
@@ -339,7 +342,6 @@ App::post('/v1/runtimes')
     ->param('destination', '', new Text(0), 'Destination folder to store runtime files into.', true)
     ->param('variables', [], new Assoc(), 'Environment variables passed into runtime.', true)
     ->param('command', '', new Text(1024), 'Commands to run after container is created. Maximum of 100 commands are allowed, each 1024 characters long.', true)
-    ->param('startCommands', ['tail', '-f', '/dev/null'], new ArrayList(new Text(1024), 100), 'Commands to use when creating the container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('timeout', 600, new Integer(), 'Commands execution time in seconds.', true)
     ->param('remove', false, new Boolean(), 'Remove a runtime after execution.', true)
     ->param('cpus', 1, new Integer(), 'Container CPU.', true)
@@ -348,7 +350,7 @@ App::post('/v1/runtimes')
     ->inject('orchestration')
     ->inject('activeRuntimes')
     ->inject('response')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $command, array $startCommands, int $timeout, bool $remove, int $cpus, int $memory, string $version, Orchestration $orchestration, Table $activeRuntimes, Response $response) {
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $command, int $timeout, bool $remove, int $cpus, int $memory, string $version, Orchestration $orchestration, Table $activeRuntimes, Response $response) {
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
@@ -435,7 +437,7 @@ App::post('/v1/runtimes')
                 name: $runtimeId,
                 hostname: $runtimeHostname,
                 vars: $variables,
-                command: $startCommands,
+                command: ['tail', '-f', '/dev/null'],
                 labels: [
                     'openruntimes-executor' => System::getHostname(),
                     'openruntimes-runtime-id' => $activeRuntimeId
@@ -631,11 +633,11 @@ App::post('/v1/runtimes/:runtimeId/execution')
     ->param('cpus', 1, new Integer(), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Container RAM memory.', true)
     ->param('version', 'v3', new WhiteList(['v2', 'v3']), 'Runtime Open Runtime version.', true)
-    ->param('commands', [], new ArrayList(new Text(1024), 100), 'Commands to run after container is created. Maximum of 100 commands are allowed, each 1024 characters long.', true)
-    ->param('startCommands', ['tail', '-f', '/dev/null'], new ArrayList(new Text(1024), 100), 'Commands to use when creating the container. Maximum of 100 commands are allowed, each 1024 characters long.', true)->inject('activeRuntimes')
+    ->param('command', '', new Text(1024), 'Commands to run after container is created. Maximum of 100 commands are allowed, each 1024 characters long.', true)
+    ->inject('activeRuntimes')
     ->inject('response')
     ->action(
-        function (string $runtimeId, string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, array $commands, array $startCommands, Table $activeRuntimes, Response $response) {
+        function (string $runtimeId, string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $command, Table $activeRuntimes, Response $response) {
             $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
             $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
@@ -652,7 +654,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 }
 
                 // Prepare request to executor
-                $sendCreateRuntimeRequest = function () use ($activeRuntimeId, $image, $source, $entrypoint, $variables, $cpus, $memory, $version, $commands, $startCommands) {
+                $sendCreateRuntimeRequest = function () use ($activeRuntimeId, $image, $source, $entrypoint, $variables, $cpus, $memory, $version, $command) {
                     $statusCode = 0;
                     $errNo = -1;
                     $executorResponse = '';
@@ -668,8 +670,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                         'cpus' => $cpus,
                         'memory' => $memory,
                         'version' => $version,
-                        'commands' => $commands,
-                        'startCommands' => $startCommands
+                        'command' => $command
                     ]);
 
                     \curl_setopt($ch, CURLOPT_URL, "http://localhost/v1/runtimes");
@@ -711,7 +712,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
 
                         if ($statusCode >= 500) {
                             $error = $body['message'];
-                            // Continues to retry logic
+                        // Continues to retry logic
                         } elseif ($statusCode >= 400) {
                             $error = $body['message'];
                             throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);

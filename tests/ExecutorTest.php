@@ -43,18 +43,21 @@ final class ExecutorTest extends TestCase
             $runtimeStdout = '';
             $runtimeStderr = '';
 
+            $totalChunks = 0;
+
             $streamStdout = '';
 
             /** Prepare build */
             $stdout = '';
             $stderr = '';
-            Console::execute('cd /app/tests/resources/functions/php && tar --warning=no-file-changed --exclude code.tar.gz -czf code.tar.gz .', '', $stdout, $stderr);
+            Console::execute('cd /app/tests/resources/functions/node && tar --warning=no-file-changed --exclude code.tar.gz -czf code.tar.gz .', '', $stdout, $stderr);
 
             Co::join([
                 /** Watch logs */
-                Co\go(function () use (&$streamStdout) {
-                    $this->client->call(Client::METHOD_GET, '/runtimes/test-log-stream/logs', [], [], true, function ($data) use (&$streamStdout) {
+                Co\go(function () use (&$streamStdout, &$totalChunks) {
+                    $this->client->call(Client::METHOD_GET, '/runtimes/test-log-stream/logs', [], [], true, function ($data) use (&$streamStdout, &$totalChunks) {
                         $streamStdout .= $data;
+                        $totalChunks++;
                     });
                 }),
                 /** Start runtime */
@@ -67,7 +70,7 @@ final class ExecutorTest extends TestCase
                         'image' => 'openruntimes/node:v3-18.0',
                         'workdir' => '/usr/code',
                         'remove' => true,
-                        'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm install"'
+                        'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm install && npm run build"'
                     ];
 
                     $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
@@ -79,6 +82,7 @@ final class ExecutorTest extends TestCase
             ]);
 
             $this->assertEquals($streamStdout, $runtimeStdout);
+            $this->assertGreaterThan(3, $totalChunks);
         });
     }
 
