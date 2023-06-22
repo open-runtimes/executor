@@ -39,6 +39,7 @@ use Utopia\Pools\Pool;
 use Utopia\DSN\DSN;
 use Utopia\Pools\Connection;
 use Utopia\Registry\Registry;
+use Utopia\Route;
 use Utopia\Validator\Integer;
 use Utopia\Validator\WhiteList;
 
@@ -296,13 +297,16 @@ App::get('/v1/runtimes/:runtimeId/logs')
         $logsChunk = '';
         $logsProcess = null;
 
-        $streamInterval = 3000; // 3 seconds
+        var_dump("Start loop");
+        $streamInterval = 1000; // 1 second
         $timerId = Timer::tick($streamInterval, function () use (&$logsProcess, &$logsChunk, $swooleResponse) {
             if (empty($logsChunk)) {
                 return;
             }
 
-            \var_dump("Writing");
+            var_dump("Got non-empty chunk");
+            var_dump($logsChunk);
+
             $write = $swooleResponse->write($logsChunk);
             $logsChunk = '';
 
@@ -319,17 +323,18 @@ App::get('/v1/runtimes/:runtimeId/logs')
             $logsProcess = $process;
 
             if (!empty($out)) {
+                \var_dump("Adding to out");
                 $logsChunk .= $out;
             }
 
             if (!empty($err)) {
+                \var_dump("Adding to err");
                 $logsChunk .= $err;
             }
         });
 
         Timer::clear($timerId);
 
-        \var_dump("Ending");
         $swooleResponse->end();
     });
 
@@ -637,7 +642,11 @@ App::post('/v1/runtimes/:runtimeId/execution')
     ->inject('activeRuntimes')
     ->inject('response')
     ->action(
-        function (string $runtimeId, string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $command, Table $activeRuntimes, Response $response) {
+        function (string $runtimeId, ?string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $command, Table $activeRuntimes, Response $response) {
+            if (empty($payload)) {
+                $payload = '';
+            }
+
             $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
             $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
@@ -712,7 +721,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
 
                         if ($statusCode >= 500) {
                             $error = $body['message'];
-                        // Continues to retry logic
+                            // Continues to retry logic
                         } elseif ($statusCode >= 400) {
                             $error = $body['message'];
                             throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
@@ -1008,13 +1017,11 @@ App::get('/v1/health')
 
 /** Set callbacks */
 App::error()
-    ->inject('utopia')
+    ->inject('route')
     ->inject('error')
     ->inject('logger')
-    ->inject('request')
     ->inject('response')
-    ->action(function (App $utopia, Throwable $error, ?Logger $logger, Request $request, Response $response) {
-        $route = $utopia->match($request);
+    ->action(function (Route $route, Throwable $error, ?Logger $logger, Response $response) {
         logError($error, "httpError", $logger, $route);
 
         switch ($error->getCode()) {
@@ -1212,6 +1219,8 @@ run(function () use ($register) {
     $server->handle('/', function (SwooleRequest $swooleRequest, SwooleResponse $swooleResponse) {
         $request = new Request($swooleRequest);
         $response = new Response($swooleResponse);
+
+        var_dump("Req start" . $request->getURI());
 
         $app = new App('UTC');
 
