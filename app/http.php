@@ -297,15 +297,11 @@ App::get('/v1/runtimes/:runtimeId/logs')
         $logsChunk = '';
         $logsProcess = null;
 
-        var_dump("Start loop");
         $streamInterval = 1000; // 1 second
         $timerId = Timer::tick($streamInterval, function () use (&$logsProcess, &$logsChunk, $swooleResponse) {
             if (empty($logsChunk)) {
                 return;
             }
-
-            var_dump("Got non-empty chunk");
-            var_dump($logsChunk);
 
             $write = $swooleResponse->write($logsChunk);
             $logsChunk = '';
@@ -323,12 +319,10 @@ App::get('/v1/runtimes/:runtimeId/logs')
             $logsProcess = $process;
 
             if (!empty($out)) {
-                \var_dump("Adding to out");
                 $logsChunk .= $out;
             }
 
             if (!empty($err)) {
-                \var_dump("Adding to err");
                 $logsChunk .= $err;
             }
         });
@@ -356,6 +350,7 @@ App::post('/v1/runtimes')
     ->inject('activeRuntimes')
     ->inject('response')
     ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $command, int $timeout, bool $remove, int $cpus, int $memory, string $version, Orchestration $orchestration, Table $activeRuntimes, Response $response) {
+        $t = microtime(true);
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
@@ -457,7 +452,10 @@ App::post('/v1/runtimes')
                 throw new Exception('Failed to create runtime', 500);
             }
 
+            $t = microtime(true);
             $orchestration->networkConnect($runtimeId, \strval(App::getEnv('OPR_EXECUTOR_NETWORK', 'executor_runtimes')));
+            \var_dump("XXX:");
+            \var_dump(microtime(true) - $t);
 
             /**
              * Execute any commands if they were provided
@@ -529,7 +527,9 @@ App::post('/v1/runtimes')
                 'key' => $secret,
             ]);
         } catch (Throwable $th) {
-            \sleep(2); // Allow time to read logs
+            if ($remove) {
+                \sleep(2); // Allow time to read logs
+            }
 
             $localDevice->deletePath($tmpFolder);
 
@@ -544,7 +544,9 @@ App::post('/v1/runtimes')
             throw new Exception($th->getMessage() . $stdout, 500);
         }
 
-        \sleep(2); // Allow time to read logs
+        if ($remove) {
+            \sleep(2); // Allow time to read logs
+        }
 
         $localDevice->deletePath($tmpFolder);
 
@@ -643,6 +645,8 @@ App::post('/v1/runtimes/:runtimeId/execution')
     ->inject('response')
     ->action(
         function (string $runtimeId, ?string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $command, Table $activeRuntimes, Response $response) {
+            $t = microtime(true);
+
             if (empty($payload)) {
                 $payload = '';
             }
@@ -761,6 +765,9 @@ App::post('/v1/runtimes/:runtimeId/execution')
             if (empty($secret)) {
                 throw new Exception('Runtime secret not found. Please re-create the runtime.', 500);
             }
+
+            \var_dump("X Mid:");
+            \var_dump(microtime(true) - $t);
 
             $startTime = \microtime(true);
 
@@ -950,10 +957,14 @@ App::post('/v1/runtimes/:runtimeId/execution')
                     throw new Exception('An internal curl error has occurred within the executor! Error Msg: ' . $executionResponse['error'], 500);
                 }
 
+                \var_dump("Sleep");
                 \sleep(1);
             }
 
             ['statusCode' => $statusCode, 'body' => $body, 'logs' => $logs, 'errors' => $errors, 'headers' => $headers] = $executionResponse;
+
+            \var_dump("X end:");
+            \var_dump(microtime(true) - $t);
 
             $endTime = \microtime(true);
             $duration = $endTime - $startTime;
@@ -1219,8 +1230,6 @@ run(function () use ($register) {
     $server->handle('/', function (SwooleRequest $swooleRequest, SwooleResponse $swooleResponse) {
         $request = new Request($swooleRequest);
         $response = new Response($swooleResponse);
-
-        var_dump("Req start" . $request->getURI());
 
         $app = new App('UTC');
 
