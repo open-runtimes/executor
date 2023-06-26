@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "928f0f5e33e43a496ec306891d3efcd2",
+    "content-hash": "7cf860920e248f2a8f169f93ad87ad99",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -322,16 +322,16 @@
         },
         {
             "name": "utopia-php/orchestration",
-            "version": "0.9.0",
+            "version": "dev-feat-run-with-network",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/orchestration.git",
-                "reference": "1d4f66684b8c4927f31b695817eae6d84aafd172"
+                "reference": "556dcd98f72fb3fafc29f433786cbd6f3828d591"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/1d4f66684b8c4927f31b695817eae6d84aafd172",
-                "reference": "1d4f66684b8c4927f31b695817eae6d84aafd172",
+                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/556dcd98f72fb3fafc29f433786cbd6f3828d591",
+                "reference": "556dcd98f72fb3fafc29f433786cbd6f3828d591",
                 "shasum": ""
             },
             "require": {
@@ -339,6 +339,7 @@
                 "utopia-php/cli": "0.14.*"
             },
             "require-dev": {
+                "laravel/pint": "^1.2",
                 "phpunit/phpunit": "^9.3",
                 "vimeo/psalm": "4.0.1"
             },
@@ -365,9 +366,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/orchestration/issues",
-                "source": "https://github.com/utopia-php/orchestration/tree/0.9.0"
+                "source": "https://github.com/utopia-php/orchestration/tree/feat-run-with-network"
             },
-            "time": "2022-11-09T17:38:00+00:00"
+            "time": "2023-06-24T14:54:45+00:00"
         },
         {
             "name": "utopia-php/pools",
@@ -2541,6 +2542,12 @@
             "alias_normalized": "0.25.99.0"
         },
         {
+            "package": "utopia-php/orchestration",
+            "version": "dev-feat-run-with-network",
+            "alias": "0.9.99",
+            "alias_normalized": "0.9.99.0"
+        },
+        {
             "package": "utopia-php/storage",
             "version": "dev-main",
             "alias": "0.13.99",
@@ -2551,7 +2558,8 @@
     "stability-flags": {
         "utopia-php/framework": 20,
         "utopia-php/cli": 20,
-        "utopia-php/storage": 20
+        "utopia-php/storage": 20,
+        "utopia-php/orchestration": 20
     },
     "prefer-stable": false,
     "prefer-lowest": false,

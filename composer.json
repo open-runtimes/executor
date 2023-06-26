@@ -34,7 +34,7 @@
         "utopia-php/registry": "0.5.*",
         "utopia-php/preloader": "0.2.*",
         "utopia-php/system": "0.6.*",
-        "utopia-php/orchestration": "0.9.*",
+        "utopia-php/orchestration": "dev-feat-run-with-network as 0.9.99",
         "appwrite/php-runtimes": "0.11.*"
     },
     "require-dev": {

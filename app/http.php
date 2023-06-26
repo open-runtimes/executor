@@ -279,7 +279,7 @@ App::get('/v1/runtimes/:runtimeId/logs')
         $swooleResponse->header('Cache-Control', 'no-cache');
 
         // Wait for runtime
-        for ($i = 0; $i < 5; $i++) {
+        for ($i = 0; $i < 10; $i++) {
             $stdout = '';
             $stderr = '';
             $code = Console::execute('docker container inspect ' . $runtimeId, '', $stdout, $stderr);
@@ -287,11 +287,11 @@ App::get('/v1/runtimes/:runtimeId/logs')
                 break;
             }
 
-            if ($i === 4) {
+            if ($i === 9) {
                 throw new Exception('Runtime not ready. Error Msg: ' . $stderr, 500);
             }
 
-            \sleep(1);
+            \usleep(500000);
         }
 
         $logsChunk = '';
@@ -340,6 +340,7 @@ App::post('/v1/runtimes')
     ->param('source', '', new Text(0), 'Path to source files.', true)
     ->param('destination', '', new Text(0), 'Destination folder to store runtime files into.', true)
     ->param('variables', [], new Assoc(), 'Environment variables passed into runtime.', true)
+    ->param('runtimeEntrypoint', '', new Text(1024), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('command', '', new Text(1024), 'Commands to run after container is created. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('timeout', 600, new Integer(), 'Commands execution time in seconds.', true)
     ->param('remove', false, new Boolean(), 'Remove a runtime after execution.', true)
@@ -349,7 +350,7 @@ App::post('/v1/runtimes')
     ->inject('orchestration')
     ->inject('activeRuntimes')
     ->inject('response')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $command, int $timeout, bool $remove, int $cpus, int $memory, string $version, Orchestration $orchestration, Table $activeRuntimes, Response $response) {
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, int $cpus, int $memory, string $version, Orchestration $orchestration, Table $activeRuntimes, Response $response) {
         $t = microtime(true);
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
@@ -431,13 +432,21 @@ App::post('/v1/runtimes')
                 ->setCpus($cpus)
                 ->setMemory($memory);
 
+            $runtimeEntrypointCommands = [];
+
+            if (empty($runtimeEntrypoint)) {
+                $runtimeEntrypointCommands = ['tail', '-f', '/dev/null'];
+            } else {
+                $runtimeEntrypointCommands = ['sh', '-c', $runtimeEntrypoint];
+            }
+
             /** Keep the container alive if we have commands to be executed */
             $containerId = $orchestration->run(
                 image: $image,
                 name: $runtimeId,
                 hostname: $runtimeHostname,
                 vars: $variables,
-                command: ['tail', '-f', '/dev/null'],
+                command: $runtimeEntrypointCommands,
                 labels: [
                     'openruntimes-executor' => System::getHostname(),
                     'openruntimes-runtime-id' => $activeRuntimeId
@@ -445,17 +454,13 @@ App::post('/v1/runtimes')
                 volumes: [
                     \dirname($tmpSource) . ':/tmp:rw',
                     \dirname($tmpBuild) . ':/mnt/code:rw'
-                ]
+                ],
+                network: \strval(App::getEnv('OPR_EXECUTOR_NETWORK', 'executor_runtimes'))
             );
 
             if (empty($containerId)) {
                 throw new Exception('Failed to create runtime', 500);
             }
-
-            $t = microtime(true);
-            $orchestration->networkConnect($runtimeId, \strval(App::getEnv('OPR_EXECUTOR_NETWORK', 'executor_runtimes')));
-            \var_dump("XXX:");
-            \var_dump(microtime(true) - $t);
 
             /**
              * Execute any commands if they were provided
@@ -548,6 +553,7 @@ App::post('/v1/runtimes')
             \sleep(2); // Allow time to read logs
         }
 
+        // TODO: This must wait for run() to finish, otherwise we might hit race condition with bigger builds
         $localDevice->deletePath($tmpFolder);
 
         // Container cleanup
@@ -640,11 +646,11 @@ App::post('/v1/runtimes/:runtimeId/execution')
     ->param('cpus', 1, new Integer(), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Container RAM memory.', true)
     ->param('version', 'v3', new WhiteList(['v2', 'v3']), 'Runtime Open Runtime version.', true)
-    ->param('command', '', new Text(1024), 'Commands to run after container is created. Maximum of 100 commands are allowed, each 1024 characters long.', true)
+    ->param('runtimeEntrypoint', '', new Text(1024), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->inject('activeRuntimes')
     ->inject('response')
     ->action(
-        function (string $runtimeId, ?string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $command, Table $activeRuntimes, Response $response) {
+        function (string $runtimeId, ?string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $runtimeEntrypoint, Table $activeRuntimes, Response $response) {
             $t = microtime(true);
 
             if (empty($payload)) {
@@ -667,7 +673,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 }
 
                 // Prepare request to executor
-                $sendCreateRuntimeRequest = function () use ($activeRuntimeId, $image, $source, $entrypoint, $variables, $cpus, $memory, $version, $command) {
+                $sendCreateRuntimeRequest = function () use ($activeRuntimeId, $image, $source, $entrypoint, $variables, $cpus, $memory, $version, $runtimeEntrypoint) {
                     $statusCode = 0;
                     $errNo = -1;
                     $executorResponse = '';
@@ -683,7 +689,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                         'cpus' => $cpus,
                         'memory' => $memory,
                         'version' => $version,
-                        'command' => $command
+                        'runtimeEntrypoint' => $runtimeEntrypoint
                     ]);
 
                     \curl_setopt($ch, CURLOPT_URL, "http://localhost/v1/runtimes");
@@ -717,7 +723,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 };
 
                 // Prepare runtime
-                for ($i = 0; $i < 5; $i++) {
+                for ($i = 0; $i < 10; $i++) {
                     ['errNo' => $errNo, 'error' => $error, 'statusCode' => $statusCode, 'executorResponse' => $executorResponse] = \call_user_func($sendCreateRuntimeRequest);
 
                     if ($errNo === 0) {
@@ -725,7 +731,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
 
                         if ($statusCode >= 500) {
                             $error = $body['message'];
-                        // Continues to retry logic
+                            // Continues to retry logic
                         } elseif ($statusCode >= 400) {
                             $error = $body['message'];
                             throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
@@ -737,25 +743,25 @@ App::post('/v1/runtimes/:runtimeId/execution')
                         throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
                     }
 
-                    if ($i === 4) {
+                    if ($i === 9) {
                         throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
                     }
 
-                    \sleep(1);
+                    \usleep(500000);
                 }
             }
 
             // Ensure runtime started
-            for ($i = 0; $i < 5; $i++) {
+            for ($i = 0; $i < 10; $i++) {
                 if ($activeRuntimes->get($activeRuntimeId)['status'] !== 'pending') {
                     break;
                 }
 
-                if ($i === 4) {
+                if ($i === 9) {
                     throw new Exception('Runtime failed to launch in allocated time.', 500);
                 }
 
-                \sleep(1);
+                \usleep(500000);
             }
 
             // Ensure we have secret
@@ -765,9 +771,6 @@ App::post('/v1/runtimes/:runtimeId/execution')
             if (empty($secret)) {
                 throw new Exception('Runtime secret not found. Please re-create the runtime.', 500);
             }
-
-            \var_dump("X Mid:");
-            \var_dump(microtime(true) - $t);
 
             $startTime = \microtime(true);
 
@@ -940,7 +943,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
             };
 
             // Execute function
-            for ($i = 0; $i < 5; $i++) {
+            for ($i = 0; $i < 10; $i++) {
                 $executionRequest = $version === 'v3' ? $executeV3 : $executeV2;
                 $executionResponse = \call_user_func($executionRequest);
 
@@ -953,18 +956,14 @@ App::post('/v1/runtimes/:runtimeId/execution')
                     throw new Exception('An internal curl error has occurred within the executor! Error Msg: ' . $executionResponse['error'], 500);
                 }
 
-                if ($i === 4) {
-                    throw new Exception('An internal curl error has occurred within the executor! Error Msg: ' . $executionResponse['error'], 500);
+                if ($i === 9) {
+                    throw new Exception('Multiple internal curl errors has occurred within the executor! Error Number: ' . $executionResponse['errNo'] . '. Error Msg: ' . $executionResponse['error'], 500);
                 }
 
-                \var_dump("Sleep");
-                \sleep(1);
+                \usleep(500000);
             }
 
             ['statusCode' => $statusCode, 'body' => $body, 'logs' => $logs, 'errors' => $errors, 'headers' => $headers] = $executionResponse;
-
-            \var_dump("X end:");
-            \var_dump(microtime(true) - $t);
 
             $endTime = \microtime(true);
             $duration = $endTime - $startTime;
