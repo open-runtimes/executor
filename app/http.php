@@ -554,7 +554,7 @@ App::post('/v1/runtimes')
         }
 
         // TODO: This must wait for run() to finish, otherwise we might hit race condition with bigger builds
-        $localDevice->deletePath($tmpFolder);
+        // $localDevice->deletePath($tmpFolder);
 
         // Container cleanup
         if ($remove) {
