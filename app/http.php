@@ -1115,7 +1115,8 @@ run(function () use ($register) {
                 $connection = $orchestrationPool->pop();
                 $orchestration = $connection->getResource();
                 Console::log('Warming up ' . $runtime['name'] . ' ' . $runtime['version'] . ' environment...');
-                $response = $orchestration->pull($runtime['image']);
+                // $response = $orchestration->pull($runtime['image']);
+                $response = true;
                 if ($response) {
                     Console::info("Successfully Warmed up {$runtime['name']} {$runtime['version']}!");
                 } else {

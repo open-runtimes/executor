@@ -4,25 +4,25 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "7cf860920e248f2a8f169f93ad87ad99",
+    "content-hash": "f1852f7fcfd82c2dedf7d1047fe90bff",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
-            "version": "0.11.1",
+            "version": "dev-feat-add-start-commands",
             "source": {
                 "type": "git",
                 "url": "https://github.com/appwrite/runtimes.git",
-                "reference": "9d74a477ba3333cbcfac565c46fcf19606b7b603"
+                "reference": "2c690b008a4b32ed2b43d32ece144e4d4156165b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/appwrite/runtimes/zipball/9d74a477ba3333cbcfac565c46fcf19606b7b603",
-                "reference": "9d74a477ba3333cbcfac565c46fcf19606b7b603",
+                "url": "https://api.github.com/repos/appwrite/runtimes/zipball/2c690b008a4b32ed2b43d32ece144e4d4156165b",
+                "reference": "2c690b008a4b32ed2b43d32ece144e4d4156165b",
                 "shasum": ""
             },
             "require": {
                 "php": ">=8.0",
-                "utopia-php/system": "0.6.*"
+                "utopia-php/system": "dev-feat-add-new-arch as 0.6.99"
             },
             "require-dev": {
                 "phpunit/phpunit": "^9.3",
@@ -56,9 +56,9 @@
             ],
             "support": {
                 "issues": "https://github.com/appwrite/runtimes/issues",
-                "source": "https://github.com/appwrite/runtimes/tree/0.11.1"
+                "source": "https://github.com/appwrite/runtimes/tree/feat-add-start-commands"
             },
-            "time": "2022-11-07T16:45:52+00:00"
+            "time": "2023-07-27T22:09:58+00:00"
         },
         {
             "name": "laravel/pint",
@@ -326,12 +326,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/orchestration.git",
-                "reference": "556dcd98f72fb3fafc29f433786cbd6f3828d591"
+                "reference": "d9508c7902f328a61fb2b8287c4240c07919fc5b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/556dcd98f72fb3fafc29f433786cbd6f3828d591",
-                "reference": "556dcd98f72fb3fafc29f433786cbd6f3828d591",
+                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/d9508c7902f328a61fb2b8287c4240c07919fc5b",
+                "reference": "d9508c7902f328a61fb2b8287c4240c07919fc5b",
                 "shasum": ""
             },
             "require": {
@@ -368,7 +368,7 @@
                 "issues": "https://github.com/utopia-php/orchestration/issues",
                 "source": "https://github.com/utopia-php/orchestration/tree/feat-run-with-network"
             },
-            "time": "2023-06-24T14:54:45+00:00"
+            "time": "2023-07-20T16:56:49+00:00"
         },
         {
             "name": "utopia-php/pools",
@@ -638,16 +638,16 @@
         },
         {
             "name": "utopia-php/system",
-            "version": "0.6.0",
+            "version": "dev-feat-add-new-arch",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/system.git",
-                "reference": "289c4327713deadc9c748b5317d248133a02f245"
+                "reference": "90050f0bf2d0fffa2a4070c34e6d72704a2beb8c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/system/zipball/289c4327713deadc9c748b5317d248133a02f245",
-                "reference": "289c4327713deadc9c748b5317d248133a02f245",
+                "url": "https://api.github.com/repos/utopia-php/system/zipball/90050f0bf2d0fffa2a4070c34e6d72704a2beb8c",
+                "reference": "90050f0bf2d0fffa2a4070c34e6d72704a2beb8c",
                 "shasum": ""
             },
             "require": {
@@ -689,9 +689,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/system/issues",
-                "source": "https://github.com/utopia-php/system/tree/0.6.0"
+                "source": "https://github.com/utopia-php/system/tree/feat-add-new-arch"
             },
-            "time": "2022-11-07T13:51:59+00:00"
+            "time": "2023-07-27T09:31:57+00:00"
         }
     ],
     "packages-dev": [
@@ -826,16 +826,16 @@
         },
         {
             "name": "nikic/php-parser",
-            "version": "v4.15.5",
+            "version": "v4.16.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nikic/PHP-Parser.git",
-                "reference": "11e2663a5bc9db5d714eedb4277ee300403b4a9e"
+                "reference": "19526a33fb561ef417e822e85f08a00db4059c17"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/11e2663a5bc9db5d714eedb4277ee300403b4a9e",
-                "reference": "11e2663a5bc9db5d714eedb4277ee300403b4a9e",
+                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/19526a33fb561ef417e822e85f08a00db4059c17",
+                "reference": "19526a33fb561ef417e822e85f08a00db4059c17",
                 "shasum": ""
             },
             "require": {
@@ -876,9 +876,9 @@
             ],
             "support": {
                 "issues": "https://github.com/nikic/PHP-Parser/issues",
-                "source": "https://github.com/nikic/PHP-Parser/tree/v4.15.5"
+                "source": "https://github.com/nikic/PHP-Parser/tree/v4.16.0"
             },
-            "time": "2023-05-19T20:20:00+00:00"
+            "time": "2023-06-25T14:52:30+00:00"
         },
         {
             "name": "phar-io/manifest",
@@ -1052,16 +1052,16 @@
         },
         {
             "name": "phpunit/php-code-coverage",
-            "version": "9.2.26",
+            "version": "9.2.27",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/php-code-coverage.git",
-                "reference": "443bc6912c9bd5b409254a40f4b0f4ced7c80ea1"
+                "reference": "b0a88255cb70d52653d80c890bd7f38740ea50d1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/php-code-coverage/zipball/443bc6912c9bd5b409254a40f4b0f4ced7c80ea1",
-                "reference": "443bc6912c9bd5b409254a40f4b0f4ced7c80ea1",
+                "url": "https://api.github.com/repos/sebastianbergmann/php-code-coverage/zipball/b0a88255cb70d52653d80c890bd7f38740ea50d1",
+                "reference": "b0a88255cb70d52653d80c890bd7f38740ea50d1",
                 "shasum": ""
             },
             "require": {
@@ -1117,7 +1117,8 @@
             ],
             "support": {
                 "issues": "https://github.com/sebastianbergmann/php-code-coverage/issues",
-                "source": "https://github.com/sebastianbergmann/php-code-coverage/tree/9.2.26"
+                "security": "https://github.com/sebastianbergmann/php-code-coverage/security/policy",
+                "source": "https://github.com/sebastianbergmann/php-code-coverage/tree/9.2.27"
             },
             "funding": [
                 {
@@ -1125,7 +1126,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2023-03-06T12:58:08+00:00"
+            "time": "2023-07-26T13:44:30+00:00"
         },
         {
             "name": "phpunit/php-file-iterator",
@@ -1370,16 +1371,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "9.6.9",
+            "version": "9.6.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "a9aceaf20a682aeacf28d582654a1670d8826778"
+                "reference": "a6d351645c3fe5a30f5e86be6577d946af65a328"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/a9aceaf20a682aeacf28d582654a1670d8826778",
-                "reference": "a9aceaf20a682aeacf28d582654a1670d8826778",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/a6d351645c3fe5a30f5e86be6577d946af65a328",
+                "reference": "a6d351645c3fe5a30f5e86be6577d946af65a328",
                 "shasum": ""
             },
             "require": {
@@ -1453,7 +1454,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/9.6.9"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/9.6.10"
             },
             "funding": [
                 {
@@ -1469,7 +1470,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2023-06-11T06:13:56+00:00"
+            "time": "2023-07-10T04:04:23+00:00"
         },
         {
             "name": "sebastian/cli-parser",
@@ -2530,6 +2531,12 @@
     ],
     "aliases": [
         {
+            "package": "appwrite/php-runtimes",
+            "version": "dev-feat-add-start-commands",
+            "alias": "0.11.99",
+            "alias_normalized": "0.11.99.0"
+        },
+        {
             "package": "utopia-php/cli",
             "version": "dev-feat-log-streaming",
             "alias": "0.14.99",
@@ -2552,6 +2559,12 @@
             "version": "dev-main",
             "alias": "0.13.99",
             "alias_normalized": "0.13.99.0"
+        },
+        {
+            "package": "utopia-php/system",
+            "version": "dev-feat-add-new-arch",
+            "alias": "0.6.99",
+            "alias_normalized": "0.6.99.0"
         }
     ],
     "minimum-stability": "stable",
@@ -2559,7 +2572,9 @@
         "utopia-php/framework": 20,
         "utopia-php/cli": 20,
         "utopia-php/storage": 20,
-        "utopia-php/orchestration": 20
+        "utopia-php/system": 20,
+        "utopia-php/orchestration": 20,
+        "appwrite/php-runtimes": 20
     },
     "prefer-stable": false,
     "prefer-lowest": false,
