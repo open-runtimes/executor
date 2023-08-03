@@ -270,7 +270,8 @@ App::get('/v1/runtimes/:runtimeId/logs')
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->param('timeout', '600', new Text(16), 'Maximum logs timeout.', true)
     ->inject('swooleResponse')
-    ->action(function (string $runtimeId, string $timeoutStr, SwooleResponse $swooleResponse) {
+    ->inject('orchestrationConnection')
+    ->action(function (string $runtimeId, string $timeoutStr, SwooleResponse $swooleResponse, Connection $connection) {
         $timeout = \intval($timeoutStr);
 
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
@@ -329,6 +330,7 @@ App::get('/v1/runtimes/:runtimeId/logs')
 
         Timer::clear($timerId);
 
+        $connection->reclaim();
         $swooleResponse->end();
     });
 
