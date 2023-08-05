@@ -314,7 +314,7 @@ App::get('/v1/runtimes/:runtimeId/logs')
         });
 
         $output = '';
-        Console::execute('docker exec ' . $runtimeId . ' tail -f /tmp/logs.txt', '', $output, $timeout, function (string $outputChunk, mixed $process) use (&$logsChunk, &$logsProcess) {
+        Console::execute('docker exec ' . $runtimeId . ' tail -F /tmp/logs.txt', '', $output, $timeout, function (string $outputChunk, mixed $process) use (&$logsChunk, &$logsProcess) {
             $logsProcess = $process;
 
             if (!empty($outputChunk)) {
@@ -462,7 +462,7 @@ App::post('/v1/runtimes')
             if (!empty($command)) {
                 $commands = [
                     'sh', '-c',
-                    'touch /tmp/logs.txt && (' . $command . ') >> /tmp/logs.txt && cat /tmp/logs.txt'
+                    'touch /tmp/logs.txt && (' . $command . ') >> /tmp/logs.txt 2>&1 && cat /tmp/logs.txt'
                 ];
 
                 $status = $orchestration->execute(
@@ -723,7 +723,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
 
                         if ($statusCode >= 500) {
                             $error = $body['message'];
-                        // Continues to retry logic
+                            // Continues to retry logic
                         } elseif ($statusCode >= 400) {
                             $error = $body['message'];
                             throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
