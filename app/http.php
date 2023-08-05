@@ -281,15 +281,14 @@ App::get('/v1/runtimes/:runtimeId/logs')
 
         // Wait for runtime
         for ($i = 0; $i < 10; $i++) {
-            $stdout = '';
-            $stderr = '';
-            $code = Console::execute('docker container inspect ' . $runtimeId, '', $stdout, $stderr);
+            $output = '';
+            $code = Console::execute('docker container inspect ' . $runtimeId, '', $output);
             if ($code === 0) {
                 break;
             }
 
             if ($i === 9) {
-                throw new Exception('Runtime not ready. Error Msg: ' . $stderr, 500);
+                throw new Exception('Runtime not ready. Error Msg: ' . $output, 500);
             }
 
             \usleep(500000);
@@ -314,17 +313,12 @@ App::get('/v1/runtimes/:runtimeId/logs')
             }
         });
 
-        $stdout = '';
-        $stderr = '';
-        Console::execute('docker exec ' . $runtimeId . ' tail -f /tmp/logs.txt', '', $stdout, $stderr, $timeout, function (string $out, string $err, mixed $process) use (&$logsChunk, &$logsProcess) {
+        $output = '';
+        Console::execute('docker exec ' . $runtimeId . ' tail -f /tmp/logs.txt', '', $output, $timeout, function (string $outputChunk, mixed $process) use (&$logsChunk, &$logsProcess) {
             $logsProcess = $process;
 
-            if (!empty($out)) {
-                $logsChunk .= $out;
-            }
-
-            if (!empty($err)) {
-                $logsChunk .= $err;
+            if (!empty($outputChunk)) {
+                $logsChunk .= $outputChunk;
             }
         });
 
@@ -353,7 +347,6 @@ App::post('/v1/runtimes')
     ->inject('activeRuntimes')
     ->inject('response')
     ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, int $cpus, int $memory, string $version, Orchestration $orchestration, Table $activeRuntimes, Response $response) {
-        $t = microtime(true);
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
@@ -369,8 +362,7 @@ App::post('/v1/runtimes')
 
         $container = [];
         $containerId = '';
-        $stdout = '';
-        $stderr = '';
+        $output = '';
         $startTime = \microtime(true);
 
         $secret = \bin2hex(\random_bytes(16));
@@ -476,13 +468,12 @@ App::post('/v1/runtimes')
                 $status = $orchestration->execute(
                     name: $runtimeId,
                     command: $commands,
-                    stdout: $stdout,
-                    stderr: $stderr,
+                    output: $output,
                     timeout: $timeout
                 );
 
                 if (!$status) {
-                    throw new Exception('Failed to create runtime: ' . $stderr, 500);
+                    throw new Exception('Failed to create runtime: ' . $output, 500);
                 }
             }
 
@@ -510,16 +501,15 @@ App::post('/v1/runtimes')
                 $container['path'] = $path;
             }
 
-            if ($stdout === '') {
-                $stdout = 'Runtime created successfully!';
+            if ($output === '') {
+                $output = 'Runtime created successfully!';
             }
 
             $endTime = \microtime(true);
             $duration = $endTime - $startTime;
 
             $container = array_merge($container, [
-                'stdout' => \mb_strcut($stdout, 0, 1000000), // Limit to 1MB
-                'stderr' => \mb_strcut($stderr, 0, 1000000), // Limit to 1MB
+                'output' => \mb_strcut($output, 0, 1000000), // Limit to 1MB
                 'startTime' => $startTime,
                 'duration' => $duration,
             ]);
@@ -733,7 +723,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
 
                         if ($statusCode >= 500) {
                             $error = $body['message'];
-                            // Continues to retry logic
+                        // Continues to retry logic
                         } elseif ($statusCode >= 400) {
                             $error = $body['message'];
                             throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);

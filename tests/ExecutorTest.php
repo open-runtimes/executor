@@ -48,9 +48,8 @@ final class ExecutorTest extends TestCase
             $streamStdout = '';
 
             /** Prepare build */
-            $stdout = '';
-            $stderr = '';
-            Console::execute('cd /app/tests/resources/functions/node && tar --warning=no-file-changed --exclude code.tar.gz -czf code.tar.gz .', '', $stdout, $stderr);
+            $output = '';
+            Console::execute('cd /app/tests/resources/functions/node && tar --warning=no-file-changed --exclude code.tar.gz -czf code.tar.gz .', '', $output);
 
             Co::join([
                 /** Watch logs */
