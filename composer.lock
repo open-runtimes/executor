@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0fbcaac7a8275917aa9f37fc751c7181",
+    "content-hash": "c028b827ded2377b90abddd4b5acc04b",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -528,7 +528,7 @@
         },
         {
             "name": "utopia-php/storage",
-            "version": "dev-main",
+            "version": "0.15.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/storage.git",
@@ -556,7 +556,6 @@
                 "phpunit/phpunit": "^9.3",
                 "vimeo/psalm": "4.0.1"
             },
-            "default-branch": true,
             "type": "library",
             "autoload": {
                 "psr-4": {
@@ -577,7 +576,7 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/storage/issues",
-                "source": "https://github.com/utopia-php/storage/tree/main"
+                "source": "https://github.com/utopia-php/storage/tree/0.15.0"
             },
             "time": "2023-08-01T01:52:03+00:00"
         },
@@ -2531,18 +2530,11 @@
             "version": "dev-fix-coroutine-style-two",
             "alias": "0.30.0",
             "alias_normalized": "0.30.0.0"
-        },
-        {
-            "package": "utopia-php/storage",
-            "version": "dev-main",
-            "alias": "0.13.99",
-            "alias_normalized": "0.13.99.0"
         }
     ],
     "minimum-stability": "stable",
     "stability-flags": {
-        "utopia-php/framework": 20,
-        "utopia-php/storage": 20
+        "utopia-php/framework": 20
     },
     "prefer-stable": false,
     "prefer-lowest": false,
