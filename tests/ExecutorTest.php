@@ -48,7 +48,7 @@ final class ExecutorTest extends TestCase
 
             /** Prepare build */
             $output = '';
-            Console::execute('cd /app/tests/resources/functions/node && tar --warning=no-file-changed --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+            Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
 
             Co::join([
                 /** Watch logs */
@@ -114,9 +114,7 @@ final class ExecutorTest extends TestCase
     public function testBuild(): array
     {
         $output = '';
-        $code = Console::execute('cd /app/tests/resources/functions/php && tar --warning=no-file-changed --exclude code.tar.gz -czf code.tar.gz .', '', $output);
-
-        $this->assertEquals(0, $code);
+        Console::execute('cd /app/tests/resources/functions/php && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
 
         /** Build runtime */
         $params = [
@@ -125,7 +123,6 @@ final class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v3-8.1',
-            'workdir' => '/usr/code',
             'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "composer install"'
         ];
 
@@ -169,191 +166,200 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_GET, '/runtimes/test-build-selfdelete', [], []);
         $this->assertEquals(404, $response['headers']['status-code']);
 
-        return [ 'path' => $buildPath ];
+        return ['path' => $buildPath];
     }
 
-    // /**
-    //  * @depends testBuild
-    //  *
-    //  * @param array<string,mixed> $data
-    //  */
-    // public function testExecute(array $data): void
-    // {
-    //     $params = [
-    //         'runtimeId' => 'test-exec',
-    //         'source' => $data['path'],
-    //         'entrypoint' => 'index.php',
-    //         'image' => 'openruntimes/php:v3-8.1',
-    //     ];
+    /**
+     * @depends testBuild
+     *
+     * @param array<string,mixed> $data
+     */
+    public function testExecute(array $data): void
+    {
+        $command = 'php src/server.php';
+        $params = [
+            'runtimeId' => 'test-exec',
+            'source' => $data['path'],
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v3-8.1',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
+        ];
 
-    //     $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
-    //     $this->assertEquals(201, $response['headers']['status-code']);
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(201, $response['headers']['status-code']);
 
-    //     $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/execution');
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/execution');
 
-    //     $this->assertEquals(200, $response['headers']['status-code']);
-    //     $this->assertEquals(200, $response['body']['statusCode']);
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals(200, $response['body']['statusCode']);
 
-    //     /** Execute on cold-started runtime */
-    //     $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/execution', [], [
-    //         'body' => 'test payload',
-    //         'variables' => [
-    //             'customVariable' => 'mySecret'
-    //         ]
-    //     ]);
+        /** Execute on cold-started runtime */
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/execution', [], [
+            'body' => 'test payload',
+            'variables' => [
+                'customVariable' => 'mySecret'
+            ]
+        ]);
 
-    //     $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals(200, $response['headers']['status-code']);
 
-    //     /** Delete runtime */
-    //     $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec', [], []);
-    //     $this->assertEquals(200, $response['headers']['status-code']);
+        /** Delete runtime */
+        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec', [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
 
-    //     /** Execute on new runtime */
-    //     $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/execution', [], [
-    //         'source' => $data['path'],
-    //         'entrypoint' => 'index.php',
-    //         'image' => 'openruntimes/php:v3-8.1',
-    //     ]);
+        /** Execute on new runtime */
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/execution', [], [
+            'source' => $data['path'],
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v3-8.1',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
+        ]);
 
-    //     $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals(200, $response['headers']['status-code']);
 
-    //     /** Delete runtime */
-    //     $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-coldstart', [], []);
-    //     $this->assertEquals(200, $response['headers']['status-code']);
-    // }
+        /** Delete runtime */
+        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-coldstart', [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
+    }
 
-    // /**
-    //  *
-    //  * @return array<mixed>
-    //  */
-    // public function provideScenarios(): array
-    // {
-    //     return [
-    //         [
-    //             'image' => 'openruntimes/node:v2-18.0',
-    //             'entrypoint' => 'index.js',
-    //             'folder' => 'node-v2',
-    //             'version' => 'v2',
-    //             'assertions' => function ($response) {
-    //                 $this->assertEquals(200, $response['headers']['status-code']);
-    //                 $this->assertEquals(200, $response['body']['statusCode']);
-    //                 $this->assertEquals('{"message":"Hello Open Runtimes 👋"}', $response['body']['body']);
-    //                 $this->assertEmpty($response['body']['logs']);
-    //                 $this->assertEmpty($response['body']['errors']);
-    //             }
-    //         ],
-    //         [
-    //             'image' => 'openruntimes/node:v3-18.0',
-    //             'entrypoint' => 'index.js',
-    //             'folder' => 'node-empty-object',
-    //             'version' => 'v3',
-    //             'assertions' => function ($response) {
-    //                 $this->assertEquals(200, $response['headers']['status-code']);
-    //                 $this->assertEquals(200, $response['body']['statusCode']);
-    //                 $this->assertEquals('{}', $response['body']['body']);
-    //                 $this->assertEmpty($response['body']['logs']);
-    //                 $this->assertEmpty($response['body']['errors']);
-    //             }
-    //         ],
-    //         [
-    //             'image' => 'openruntimes/node:v3-18.0',
-    //             'entrypoint' => 'index.js',
-    //             'folder' => 'node-empty-array',
-    //             'version' => 'v3',
-    //             'assertions' => function ($response) {
-    //                 $this->assertEquals(200, $response['headers']['status-code']);
-    //                 $this->assertEquals(200, $response['body']['statusCode']);
-    //                 $this->assertEquals('[]', $response['body']['body']);
-    //                 $this->assertEmpty($response['body']['logs']);
-    //                 $this->assertEmpty($response['body']['errors']);
-    //             }
-    //         ],
-    //         [
-    //             'image' => 'openruntimes/node:v3-18.0',
-    //             'entrypoint' => 'index.js',
-    //             'folder' => 'node-timeout',
-    //             'version' => 'v3',
-    //             'assertions' => function ($response) {
-    //                 $this->assertEquals(200, $response['headers']['status-code']);
-    //                 $this->assertEquals(500, $response['body']['statusCode']);
-    //                 $this->assertEquals('Execution timed out.', $response['body']['body']);
-    //                 $this->assertEmpty($response['body']['logs']);
-    //                 $this->assertEmpty($response['body']['errors']);
-    //             }
-    //         ],
-    //     ];
-    // }
+    /**
+     *
+     * @return array<mixed>
+     */
+    public function provideScenarios(): array
+    {
+        return [
+            [
+                'image' => 'openruntimes/node:v2-18.0',
+                'entrypoint' => 'index.js',
+                'folder' => 'node-v2',
+                'version' => 'v2',
+                'startCommand' => '',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /usr/code && cd /usr/local/src/ && ./build.sh',
+                'assertions' => function ($response) {
+                    $this->assertEquals(200, $response['headers']['status-code']);
+                    $this->assertEquals(200, $response['body']['statusCode']);
+                    $this->assertEquals('{"message":"Hello Open Runtimes 👋"}', $response['body']['body']);
+                    $this->assertEmpty($response['body']['logs']);
+                    $this->assertEmpty($response['body']['errors']);
+                }
+            ],
+            [
+                'image' => 'openruntimes/node:v3-18.0',
+                'entrypoint' => 'index.js',
+                'folder' => 'node-empty-object',
+                'version' => 'v3',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'assertions' => function ($response) {
+                    $this->assertEquals(200, $response['headers']['status-code']);
+                    $this->assertEquals(200, $response['body']['statusCode']);
+                    $this->assertEquals('{}', $response['body']['body']);
+                    $this->assertEmpty($response['body']['logs']);
+                    $this->assertEmpty($response['body']['errors']);
+                }
+            ],
+            [
+                'image' => 'openruntimes/node:v3-18.0',
+                'entrypoint' => 'index.js',
+                'folder' => 'node-empty-array',
+                'version' => 'v3',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'assertions' => function ($response) {
+                    $this->assertEquals(200, $response['headers']['status-code']);
+                    $this->assertEquals(200, $response['body']['statusCode']);
+                    $this->assertEquals('[]', $response['body']['body']);
+                    $this->assertEmpty($response['body']['logs']);
+                    $this->assertEmpty($response['body']['errors']);
+                }
+            ],
+            [
+                'image' => 'openruntimes/node:v3-18.0',
+                'entrypoint' => 'index.js',
+                'folder' => 'node-timeout',
+                'version' => 'v3',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'assertions' => function ($response) {
+                    $this->assertEquals(200, $response['headers']['status-code']);
+                    $this->assertEquals(500, $response['body']['statusCode']);
+                    $this->assertStringContainsString('Execution timed out.', $response['body']['errors']);
+                    $this->assertEmpty($response['body']['logs']);
+                }
+            ],
+        ];
+    }
 
-    // /**
-    //  * @param string $image
-    //  * @param string $entrypoint
-    //  * @param string $folder
-    //  * @param string $version
-    //  * @param callable $assertions
-    //  *
-    //  * @dataProvider provideScenarios
-    //  */
-    // public function testScenarios(string $image, string $entrypoint, string $folder, string $version, callable $assertions): void
-    // {
-    //     /** Prepare deployment */
-    //     $output = '';
-    //     $code = Console::execute("cd /app/tests/resources/functions/{$folder} && tar --warning=no-file-changed --exclude code.tar.gz -czf code.tar.gz .", '', $output);
+    /**
+     * @param string $image
+     * @param string $entrypoint
+     * @param string $folder
+     * @param string $version
+     * @param string $startCommand
+     * @param string $buildCommand
+     * @param callable $assertions
+     *
+     * @dataProvider provideScenarios
+     */
+    public function testScenarios(string $image, string $entrypoint, string $folder, string $version, string $startCommand, string $buildCommand, callable $assertions): void
+    {
+        /** Prepare deployment */
+        $output = '';
+        Console::execute("cd /app/tests/resources/functions/{$folder} && tar --exclude code.tar.gz -czf code.tar.gz .", '', $output);
 
-    //     $this->assertEquals(0, $code);
+        /** Build runtime */
+        $params = [
+            'runtimeId' => "scenario-build-{$folder}",
+            'source' => "/storage/functions/{$folder}/code.tar.gz",
+            'destination' => '/storage/builds/test',
+            'version' => $version,
+            'entrypoint' => $entrypoint,
+            'image' => $image,
+            'workdir' => '/usr/code',
+            'remove' => true,
+            'command' => $buildCommand
+        ];
 
-    //     /** Build runtime */
-    //     $params = [
-    //         'runtimeId' => "scenario-build-{$folder}",
-    //         'source' => "/storage/functions/{$folder}/code.tar.gz",
-    //         'destination' => '/storage/builds/test',
-    //         'entrypoint' => $entrypoint,
-    //         'image' => $image,
-    //         'workdir' => '/usr/code',
-    //         'commands' => [
-    //             'sh', '-c',
-    //             'tar -zxf /tmp/code.tar.gz -C /usr/code && \
-    //             cd /usr/local/src/ && ./build.sh'
-    //         ]
-    //     ];
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(201, $response['headers']['status-code']);
 
-    //     $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
-    //     $this->assertEquals(201, $response['headers']['status-code']);
+        $path = $response['body']['path'];
 
-    //     $path = $response['body']['path'];
+        /** Execute function */
+        $response = $this->client->call(Client::METHOD_POST, "/runtimes/scenario-execute-{$folder}/execution", [], [
+            'source' => $path,
+            'entrypoint' => $entrypoint,
+            'image' => $image,
+            'version' => $version,
+            'runtimeEntrypoint' => $startCommand
+        ]);
 
-    //     /** Execute function */
-    //     $response = $this->client->call(Client::METHOD_POST, "/runtimes/scenario-execute-{$folder}/execution", [], [
-    //         'source' => $path,
-    //         'entrypoint' => $entrypoint,
-    //         'image' => $image,
-    //         'version' => $version
-    //     ]);
+        call_user_func($assertions, $response);
 
-    //     call_user_func($assertions, $response);
+        /** Delete runtime */
+        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/scenario-execute-{$folder}", [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
+    }
 
-    //     /** Delete runtime */
-    //     $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/scenario-execute-{$folder}", [], []);
-    //     $this->assertEquals(200, $response['headers']['status-code']);
-    // }
-
-    // /**
-    //  *
-    //  * @return array<mixed>
-    //  */
-    // public function provideCustomRuntimes(): array
-    // {
-    //     return [
-    //         [ 'folder' => 'php', 'image' => 'openruntimes/php:v3-8.1', 'entrypoint' => 'index.php', 'version' => 'v3' ],
-    //         [ 'folder' => 'node', 'image' => 'openruntimes/node:v3-18.0', 'entrypoint' => 'index.js', 'version' => 'v3' ],
-    //         [ 'folder' => 'deno', 'image' => 'openruntimes/deno:v3-1.24', 'entrypoint' => 'index.ts', 'version' => 'v3' ],
-    //         [ 'folder' => 'python', 'image' => 'openruntimes/python:v3-3.10', 'entrypoint' => 'index.py', 'version' => 'v3' ],
-    //         [ 'folder' => 'ruby', 'image' => 'openruntimes/ruby:v3-3.1', 'entrypoint' => 'index.rb', 'version' => 'v3' ],
-    //         [ 'folder' => 'cpp', 'image' => 'openruntimes/cpp:v3-17', 'entrypoint' => 'index.cc', 'version' => 'v3' ],
-    //         [ 'folder' => 'dart', 'image' => 'openruntimes/dart:v3-2.18', 'entrypoint' => 'lib/index.dart', 'version' => 'v3' ],
-    //         [ 'folder' => 'dotnet', 'image' => 'openruntimes/dotnet:v3-6.0', 'entrypoint' => 'Index.cs', 'version' => 'v3' ],
-    //         // C++, Swift, Kotlin, Java missing on purpose
-    //     ];
-    // }
+    /**
+     *
+     * @return array<mixed>
+     */
+    public function provideCustomRuntimes(): array
+    {
+        return [
+            [ 'folder' => 'php', 'image' => 'openruntimes/php:v3-8.1', 'entrypoint' => 'index.php', 'version' => 'v3' ],
+            [ 'folder' => 'node', 'image' => 'openruntimes/node:v3-18.0', 'entrypoint' => 'index.js', 'version' => 'v3' ],
+            [ 'folder' => 'deno', 'image' => 'openruntimes/deno:v3-1.24', 'entrypoint' => 'index.ts', 'version' => 'v3' ],
+            [ 'folder' => 'python', 'image' => 'openruntimes/python:v3-3.10', 'entrypoint' => 'index.py', 'version' => 'v3' ],
+            [ 'folder' => 'ruby', 'image' => 'openruntimes/ruby:v3-3.1', 'entrypoint' => 'index.rb', 'version' => 'v3' ],
+            [ 'folder' => 'cpp', 'image' => 'openruntimes/cpp:v3-17', 'entrypoint' => 'index.cc', 'version' => 'v3' ],
+            [ 'folder' => 'dart', 'image' => 'openruntimes/dart:v3-2.18', 'entrypoint' => 'lib/index.dart', 'version' => 'v3' ],
+            [ 'folder' => 'dotnet', 'image' => 'openruntimes/dotnet:v3-6.0', 'entrypoint' => 'Index.cs', 'version' => 'v3' ],
+            // C++, Swift, Kotlin, Java missing on purpose
+        ];
+    }
 
     // /**
     //  * @param string $folder
@@ -367,9 +373,7 @@ final class ExecutorTest extends TestCase
     // {
     //     // Prepare tar.gz files
     //     $output = '';
-    //     $code = Console::execute("cd /app/tests/resources/functions/{$folder} && tar --warning=no-file-changed --exclude code.tar.gz -czf code.tar.gz .", '', $output);
-
-    //     $this->assertEquals(0, $code);
+    //     Console::execute("cd /app/tests/resources/functions/{$folder} && tar --exclude code.tar.gz -czf code.tar.gz .", '', $output);
 
     //     // Build deployment
     //     $params = [

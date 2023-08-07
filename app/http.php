@@ -343,7 +343,7 @@ App::post('/v1/runtimes')
     ->param('source', '', new Text(0), 'Path to source files.', true)
     ->param('destination', '', new Text(0), 'Destination folder to store runtime files into.', true)
     ->param('variables', [], new Assoc(), 'Environment variables passed into runtime.', true)
-    ->param('runtimeEntrypoint', '', new Text(1024), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
+    ->param('runtimeEntrypoint', '', new Text(1024, 0), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('command', '', new Text(1024), 'Commands to run after container is created. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('timeout', 600, new Integer(), 'Commands execution time in seconds.', true)
     ->param('remove', false, new Boolean(), 'Remove a runtime after execution.', true)
@@ -436,10 +436,17 @@ App::post('/v1/runtimes')
             $runtimeEntrypointCommands = [];
 
             if (empty($runtimeEntrypoint)) {
-                $runtimeEntrypointCommands = ['tail', '-f', '/dev/null'];
+                if ($version === 'v2' && empty($command)) {
+                    $runtimeEntrypointCommands = [];
+                } else {
+                    $runtimeEntrypointCommands = ['tail', '-f', '/dev/null'];
+                }
             } else {
                 $runtimeEntrypointCommands = ['sh', '-c', $runtimeEntrypoint];
             }
+
+            $codeMountPath = $version === 'v2' ? '/usr/code' : '/mnt/code';
+            $workdir = $version === 'v2' ? '/usr/code' : '';
 
             /** Keep the container alive if we have commands to be executed */
             $containerId = $orchestration->run(
@@ -454,9 +461,10 @@ App::post('/v1/runtimes')
                 ],
                 volumes: [
                     \dirname($tmpSource) . ':/tmp:rw',
-                    \dirname($tmpBuild) . ':/mnt/code:rw'
+                    \dirname($tmpBuild) . ':' . $codeMountPath . ':rw'
                 ],
-                network: \strval(App::getEnv('OPR_EXECUTOR_NETWORK', 'executor_runtimes'))
+                network: \strval(App::getEnv('OPR_EXECUTOR_NETWORK', 'executor_runtimes')),
+                workdir: $workdir
             );
 
             if (empty($containerId)) {
@@ -552,9 +560,6 @@ App::post('/v1/runtimes')
             \sleep(2); // Allow time to read logs
         }
 
-        // TODO: This must wait for run() to finish, otherwise we might hit race condition with bigger builds
-        // $localDevice->deletePath($tmpFolder);
-
         // Container cleanup
         if ($remove) {
             // Silently try to kill container
@@ -645,7 +650,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
     ->param('cpus', 1, new Integer(), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Container RAM memory.', true)
     ->param('version', 'v3', new WhiteList(['v2', 'v3']), 'Runtime Open Runtime version.', true)
-    ->param('runtimeEntrypoint', '', new Text(1024), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
+    ->param('runtimeEntrypoint', '', new Text(1024, 0), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->inject('activeRuntimes')
     ->inject('response')
     ->action(
@@ -1100,6 +1105,8 @@ run(function () use ($register) {
 
     Console::success("Orphan runtimes removal finished.");
 
+    // TODO: Remove all /tmp folders starting with System::hostname() -
+
     /**
      * Warmup: make sure images are ready to run fast 🚀
      */
@@ -1137,6 +1144,7 @@ run(function () use ($register) {
     $interval = (int) App::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
     Timer::tick($interval * 1000, function () use ($orchestrationPool, $activeRuntimes) {
         Console::info("Running maintenance task ...");
+        // TODO: Cleanup /tmp folders when they are not used anymore
         foreach ($activeRuntimes as $activeRuntimeId => $runtime) {
             $inactiveThreshold = \time() - \intval(App::getEnv('OPR_EXECUTOR_INACTIVE_TRESHOLD', '60'));
             if ($runtime['updated'] < $inactiveThreshold) {
