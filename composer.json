@@ -24,8 +24,8 @@
         "ext-curl": "*",
         "ext-json": "*",
         "ext-swoole": "*",
-        "utopia-php/framework": "dev-fix-coroutine-style-two as 0.25.99",
-        "utopia-php/swoole": "0.7.*",
+        "utopia-php/framework": "dev-fix-coroutine-style-two as 0.30.0",
+        "utopia-php/swoole": "0.5.*",
         "utopia-php/pools": "0.4.*",
         "utopia-php/logger": "0.3.*",
         "utopia-php/cli": "0.16.*",
@@ -33,9 +33,9 @@
         "utopia-php/dsn": "0.1.*",
         "utopia-php/registry": "0.5.*",
         "utopia-php/preloader": "0.2.*",
-        "utopia-php/system": "dev-feat-add-new-arch as 0.6.99",
+        "utopia-php/system": "0.7.*",
         "utopia-php/orchestration": "0.10.*",
-        "appwrite/php-runtimes": "dev-feat-add-start-commands as 0.11.99"
+        "appwrite/php-runtimes": "0.12.*"
     },
     "require-dev": {
         "swoole/ide-helper": "4.8.5",

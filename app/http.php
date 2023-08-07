@@ -294,7 +294,14 @@ App::get('/v1/runtimes/:runtimeId/logs')
             \usleep(500000);
         }
 
+        /**
+         * @var mixed $logsChunk
+         */
         $logsChunk = '';
+
+        /**
+         * @var mixed $logsProcess
+         */
         $logsProcess = null;
 
         $streamInterval = 1000; // 1 second
@@ -538,7 +545,7 @@ App::post('/v1/runtimes')
 
             $activeRuntimes->del($activeRuntimeId);
 
-            throw new Exception($th->getMessage() . $stdout, 500);
+            throw new Exception($th->getMessage() . $output, 500);
         }
 
         if ($remove) {
@@ -723,7 +730,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
 
                         if ($statusCode >= 500) {
                             $error = $body['message'];
-                            // Continues to retry logic
+                        // Continues to retry logic
                         } elseif ($statusCode >= 400) {
                             $error = $body['message'];
                             throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
@@ -1107,8 +1114,7 @@ run(function () use ($register) {
                 $connection = $orchestrationPool->pop();
                 $orchestration = $connection->getResource();
                 Console::log('Warming up ' . $runtime['name'] . ' ' . $runtime['version'] . ' environment...');
-                // $response = $orchestration->pull($runtime['image']);
-                $response = true;
+                $response = $orchestration->pull($runtime['image']);
                 if ($response) {
                     Console::info("Successfully Warmed up {$runtime['name']} {$runtime['version']}!");
                 } else {
@@ -1228,15 +1234,17 @@ run(function () use ($register) {
         $app->setResource('swooleRequest', fn () => $swooleRequest);
         $app->setResource('swooleResponse', fn () => $swooleResponse);
 
+        $transaction = $app->createTransaction($request, $response);
+
         try {
-            $app->run($request, $response);
+            $app->run($request, $response, $transaction);
         } catch (\Throwable $th) {
             $code = 500;
 
             /**
              * @var Logger $logger
              */
-            $logger = $app->getResource('logger');
+            $logger = $transaction->getResource('logger');
             logError($th, "serverError", $logger);
             $swooleResponse->setStatusCode($code);
             $output = [
