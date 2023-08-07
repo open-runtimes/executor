@@ -142,7 +142,7 @@ App::setResource('statsHost', fn (Registry $register) => $register->get('statsHo
 App::setResource('orchestrationConnection', fn (Pool $orchestrationPool) => $orchestrationPool->pop(), ['orchestrationPool']);
 App::setResource('orchestration', fn (Connection $orchestrationConnection) => $orchestrationConnection->getResource(), ['orchestrationConnection']);
 
-function logError(Throwable $error, string $action, Logger $logger = null, Utopia\Route $route = null): void
+function logError(Throwable $error, string $action, Logger $logger = null, ?Utopia\Route $route = null): void
 {
     Console::error('[Error] Type: ' . get_class($error));
     Console::error('[Error] Message: ' . $error->getMessage());
@@ -1030,7 +1030,7 @@ App::error()
     ->inject('error')
     ->inject('logger')
     ->inject('response')
-    ->action(function (Route $route, Throwable $error, ?Logger $logger, Response $response) {
+    ->action(function (?Route $route, Throwable $error, ?Logger $logger, Response $response) {
         logError($error, "httpError", $logger, $route);
 
         switch ($error->getCode()) {
@@ -1075,7 +1075,7 @@ App::init()
     ->action(function (Request $request) {
         $secretKey = \explode(' ', $request->getHeader('authorization', ''))[1] ?? '';
         if (empty($secretKey) || $secretKey !== App::getEnv('OPR_EXECUTOR_SECRET', '')) {
-            // throw new Exception('Missing executor key', 401);
+            throw new Exception('Missing executor key', 401);
         }
     });
 

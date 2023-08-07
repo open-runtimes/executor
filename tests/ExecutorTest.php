@@ -63,7 +63,7 @@ final class ExecutorTest extends TestCase
                     $params = [
                         'runtimeId' => 'test-log-stream',
                         'source' => '/storage/functions/node/code.tar.gz',
-                        'destination' => '/storage/builds/test',
+                        'destination' => '/storage/builds/test-logs',
                         'entrypoint' => 'index.js',
                         'image' => 'openruntimes/node:v3-18.0',
                         'workdir' => '/usr/code',
@@ -126,11 +126,7 @@ final class ExecutorTest extends TestCase
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v3-8.1',
             'workdir' => '/usr/code',
-            'commands' => [
-                'sh', '-c',
-                'tar -zxf /tmp/code.tar.gz -C /usr/code && \
-                cd /usr/local/src/ && ./build.sh'
-            ]
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "composer install"'
         ];
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
