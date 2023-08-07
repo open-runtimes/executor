@@ -321,7 +321,7 @@ App::get('/v1/runtimes/:runtimeId/logs')
         });
 
         $output = '';
-        Console::execute('docker exec ' . $runtimeId . ' tail -F /tmp/logs.txt', '', $output, $timeout, function (string $outputChunk, mixed $process) use (&$logsChunk, &$logsProcess) {
+        Console::execute('docker exec ' . $runtimeId . ' tail -F /var/tmp/logs.txt', '', $output, $timeout, function (string $outputChunk, mixed $process) use (&$logsChunk, &$logsProcess) {
             $logsProcess = $process;
 
             if (!empty($outputChunk)) {
@@ -469,7 +469,7 @@ App::post('/v1/runtimes')
             if (!empty($command)) {
                 $commands = [
                     'sh', '-c',
-                    'touch /tmp/logs.txt && (' . $command . ') >> /tmp/logs.txt 2>&1 && cat /tmp/logs.txt'
+                    'touch /var/tmp/logs.txt && (' . $command . ') >> /var/tmp/logs.txt 2>&1 && cat /var/tmp/logs.txt'
                 ];
 
                 $status = $orchestration->execute(
