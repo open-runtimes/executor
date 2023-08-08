@@ -23,7 +23,7 @@ final class ExecutorTest extends TestCase
     /**
      * @var string
      */
-    protected $endpoint = 'http://exc1/v1';
+    protected $endpoint = 'http://executor/v1';
 
     protected function setUp(): void
     {
