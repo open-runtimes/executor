@@ -142,17 +142,21 @@ App::setResource('statsHost', fn (Registry $register) => $register->get('statsHo
 App::setResource('orchestrationConnection', fn (Pool $orchestrationPool) => $orchestrationPool->pop(), ['orchestrationPool']);
 App::setResource('orchestration', fn (Connection $orchestrationConnection) => $orchestrationConnection->getResource(), ['orchestrationConnection']);
 
-function logError(Throwable $error, string $action, Logger $logger = null, ?Utopia\Route $route = null): void
+App::setResource('log', fn () => new Log());
+
+function logError(Log $log, Throwable $error, string $action, Logger $logger = null, ?Utopia\Route $route = null): void
 {
     Console::error('[Error] Type: ' . get_class($error));
     Console::error('[Error] Message: ' . $error->getMessage());
     Console::error('[Error] File: ' . $error->getFile());
     Console::error('[Error] Line: ' . $error->getLine());
 
-    if ($logger) {
-        $version = (string) App::getEnv('OPR_EXECUTOR_VERSION', 'UNKNOWN');
+    if ($logger && ($error->getCode() === 500 || $error->getCode() === 0)) {
+        $version = (string) App::getEnv('OPR_EXECUTOR_VERSION', '');
+        if (empty($version)) {
+            $version = 'UNKNOWN';
+        }
 
-        $log = new Log();
         $log->setNamespace("executor");
         $log->setServer(\gethostname() !== false ? \gethostname() : null);
         $log->setVersion($version);
@@ -164,7 +168,7 @@ function logError(Throwable $error, string $action, Logger $logger = null, ?Utop
             $log->addTag('url', $route->getPath());
         }
 
-        $log->addTag('code', $error->getCode());
+        $log->addTag('code', \strval($error->getCode()));
         $log->addTag('verboseType', get_class($error));
 
         $log->addExtra('file', $error->getFile());
@@ -353,11 +357,14 @@ App::post('/v1/runtimes')
     ->inject('orchestration')
     ->inject('activeRuntimes')
     ->inject('response')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, int $cpus, int $memory, string $version, Orchestration $orchestration, Table $activeRuntimes, Response $response) {
+    ->inject('log')
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, int $cpus, int $memory, string $version, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
         $runtimeHostname = \uniqid();
+
+        $log->addTag('runtimeId', $activeRuntimeId);
 
         if ($activeRuntimes->exists($activeRuntimeId)) {
             if ($activeRuntimes->get($activeRuntimeId)['status'] == 'pending') {
@@ -597,8 +604,11 @@ App::get('/v1/runtimes/:runtimeId')
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->inject('activeRuntimes')
     ->inject('response')
-    ->action(function (string $runtimeId, Table $activeRuntimes, Response $response) {
+    ->inject('log')
+    ->action(function (string $runtimeId, Table $activeRuntimes, Response $response, Log $log) {
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
+
+        $log->addTag('runtimeId', $activeRuntimeId);
 
         if (!$activeRuntimes->exists($activeRuntimeId)) {
             throw new Exception('Runtime not found', 404);
@@ -617,9 +627,12 @@ App::delete('/v1/runtimes/:runtimeId')
     ->inject('orchestration')
     ->inject('activeRuntimes')
     ->inject('response')
-    ->action(function (string $runtimeId, Orchestration $orchestration, Table $activeRuntimes, Response $response) {
+    ->inject('log')
+    ->action(function (string $runtimeId, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
+
+        $log->addTag('runtimeId', $activeRuntimeId);
 
         if (!$activeRuntimes->exists($activeRuntimeId)) {
             throw new Exception('Runtime not found', 404);
@@ -653,16 +666,17 @@ App::post('/v1/runtimes/:runtimeId/execution')
     ->param('runtimeEntrypoint', '', new Text(1024, 0), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->inject('activeRuntimes')
     ->inject('response')
+    ->inject('log')
     ->action(
-        function (string $runtimeId, ?string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $runtimeEntrypoint, Table $activeRuntimes, Response $response) {
-            $t = microtime(true);
-
+        function (string $runtimeId, ?string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $runtimeEntrypoint, Table $activeRuntimes, Response $response, Log $log) {
             if (empty($payload)) {
                 $payload = '';
             }
 
             $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
             $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
+
+            $log->addTag('runtimeId', $activeRuntimeId);
 
             $variables = \array_merge($variables, [
                 'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
@@ -754,6 +768,11 @@ App::post('/v1/runtimes/:runtimeId/execution')
                     \usleep(500000);
                 }
             }
+
+            // Update swoole table
+            $runtime = $activeRuntimes->get($activeRuntimeId) ?? [];
+            $runtime['updated'] = \time();
+            $activeRuntimes->set($activeRuntimeId, $runtime);
 
             // Ensure runtime started
             for ($i = 0; $i < 10; $i++) {
@@ -1035,8 +1054,9 @@ App::error()
     ->inject('error')
     ->inject('logger')
     ->inject('response')
-    ->action(function (?Route $route, Throwable $error, ?Logger $logger, Response $response) {
-        logError($error, "httpError", $logger, $route);
+    ->inject('log')
+    ->action(function (?Route $route, Throwable $error, ?Logger $logger, Response $response, Log $log) {
+        logError($log, $error, "httpError", $logger, $route);
 
         switch ($error->getCode()) {
             case 400: // Error allowed publicly
@@ -1249,11 +1269,12 @@ run(function () use ($register) {
         } catch (\Throwable $th) {
             $code = 500;
 
+
             /**
              * @var Logger $logger
              */
             $logger = $transaction->getResource('logger');
-            logError($th, "serverError", $logger);
+            logError($log, $th, "serverError", $logger);
             $swooleResponse->setStatusCode($code);
             $output = [
                 'message' => 'Error: ' . $th->getMessage(),
