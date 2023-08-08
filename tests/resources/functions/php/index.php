@@ -1,13 +1,26 @@
 <?php
 
-// TODO: @Meldiron Add dependencies to this, to test build step
 
-return function ($request, $response) {
-    echo "log1";
+require 'vendor/autoload.php';
 
-    return $response->json([
-        'payload' => $request['payload'] ?? '',
-        'variable' => $request['variables']['customVariable'] ?? '',
-        'unicode' => "Unicode magic: êä"
+use GuzzleHttp\Client;
+
+$client = new Client([
+    'base_uri' => 'https://jsonplaceholder.typicode.com'
+]);
+
+return function ($req, $res) use ($client) {
+    $payload = \json_decode($req['payload'] === '' ? '{}' : $req['payload'], true);
+
+    $response = $client->request('GET', '/todos/' . ($payload['id'] ?? 1));
+    $todo = \json_decode($response->getBody()->getContents(), true);
+
+    echo "Sample Log";
+
+    $res->json([
+        'isTest' => true,
+        'message' => 'Hello Open Runtimes 👋',
+        'variable' => $req['variables']['test-variable'],
+        'todo' => $todo
     ]);
 };

@@ -1,7 +1,7 @@
 <?php
 
 return function ($request, $response) {
-    sleep(15);
+    sleep(60);
 
     return $response->json([
         'pass' => true

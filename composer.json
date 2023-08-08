@@ -14,8 +14,8 @@
         }
     },
     "scripts": {
-        "lint": "./vendor/bin/pint --preset psr12 --test",
-        "format": "./vendor/bin/pint --preset psr12",
+        "lint": "./vendor/bin/pint --test --config pint.json",
+        "format": "./vendor/bin/pint --config pint.json",
         "check": "./vendor/bin/phpstan analyse --level 8 -c phpstan.neon app src tests",
         "test": "./vendor/bin/phpunit --configuration phpunit.xml --debug"
     },
