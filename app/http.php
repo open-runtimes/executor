@@ -1269,11 +1269,11 @@ run(function () use ($register) {
         } catch (\Throwable $th) {
             $code = 500;
 
-
             /**
              * @var Logger $logger
              */
             $logger = $transaction->getResource('logger');
+            $log = $transaction->getResource('log');
             logError($log, $th, "serverError", $logger);
             $swooleResponse->setStatusCode($code);
             $output = [
