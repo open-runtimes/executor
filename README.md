@@ -34,7 +34,7 @@ version: '3'
 services:
   openruntimes-executor:
     container_name: openruntimes-executor
-    hostname: exc1
+    hostname: executor
     stop_signal: SIGINT
     image: openruntimes/executor
     networks:

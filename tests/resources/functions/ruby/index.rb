@@ -1,17 +1,16 @@
 require 'httparty'
 require 'json'
 
-def main(req, res)
-    payload = JSON.parse(req.payload === '' ? '{}' : req.payload)
+def main(context)
+    todo = JSON.parse(HTTParty.get("https://jsonplaceholder.typicode.com/todos/" + (context.req.body['id'] || '1')).body)
 
-    todo = JSON.parse(HTTParty.get("https://jsonplaceholder.typicode.com/todos/" + (payload['id'] || '1')).body)
-
-    puts 'Sample Log'
+    context.log('Sample Log')
     
-    return res.json({
+    return context.res.json({
         'isTest': true,
         'message': 'Hello Open Runtimes 👋',
         'todo': todo,
-        'variable': req.variables['test-variable']
+        'url': context.req.url,
+        'variable': ENV['TEST_VARIABLE'] || nil,
     })
 end

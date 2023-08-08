@@ -1,15 +1,14 @@
 const fetch = require("node-fetch");
 
-module.exports = async (req, res) => {
-    const payload = JSON.parse(req.payload === '' ? '{}' : req.payload);
+module.exports = async (context)=> {
+    const todo = await fetch(`https://jsonplaceholder.typicode.com/todos/${context.req.body.id ?? 1}`).then(r => r.json());
+    context.log('Sample Log');
 
-    const todo = await fetch(`https://jsonplaceholder.typicode.com/todos/${payload.id ?? 1}`).then(r => r.json());
-    console.log('Sample Log');
-
-    res.json({
+    return context.res.json({
         isTest: true,
         message: 'Hello Open Runtimes 👋',
-        variable: req.variables['test-variable'],
+        url: context.req.url,
+        variable: process.env['TEST_VARIABLE'],
         todo
     });
 }

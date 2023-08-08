@@ -24,7 +24,7 @@ class Client
      * @var array<string, string>
      */
     protected array $headers = [
-        'content-type' => ''
+        'content-type' => 'application/json'
     ];
 
     public function setSelfSigned(bool $status = true): self
@@ -58,7 +58,7 @@ class Client
      * @param array<string, mixed> $params
      * @return array<string, mixed>
      */
-    public function call(string $method, string $path = '', array $headers = [], array $params = [], bool $decode = true): array
+    public function call(string $method, string $path = '', array $headers = [], array $params = [], bool $decode = true, callable $callback = null): array
     {
         $headers            = array_merge($this->headers, $headers);
         $ch                 = curl_init($this->endpoint . $path . (($method == self::METHOD_GET && !empty($params)) ? '?' . http_build_query($params) : ''));
@@ -91,9 +91,21 @@ class Client
             unset($headers[$i]);
         }
 
+        if (isset($callback)) {
+            $headers[] = 'accept: text/event-stream';
+
+            $handleEvent = function ($ch, $data) use ($callback) {
+                $callback($data);
+                return \strlen($data);
+            };
+
+            curl_setopt($ch, CURLOPT_WRITEFUNCTION, $handleEvent);
+        } else {
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        }
+
         curl_setopt($ch, CURLOPT_PATH_AS_IS, 1);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36');
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
@@ -123,6 +135,12 @@ class Client
         }
 
         $responseBody   = curl_exec($ch);
+
+        if (isset($callback)) {
+            curl_close($ch);
+            return [];
+        }
+
         $responseType   = $responseHeaders['content-type'] ?? '';
         $responseStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 

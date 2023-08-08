@@ -1,19 +1,18 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:dio/dio.dart' hide Response;
+import 'dart:io' show Platform;
 
-Future<void> start(final req, final res) async {
-  final payload = jsonDecode(req.payload == '' ? '{}' : req.payload);
+Future<dynamic> main(final context) async {
+  final id = context.req.body['id'] ?? '1';
+  final todo = await Dio().get('https://jsonplaceholder.typicode.com/todos/$id');
+  context.log('Sample Log');
 
-  final id = payload['id'] ?? '1';
-  final todo =
-      await Dio().get('https://jsonplaceholder.typicode.com/todos/$id');
-  print('Sample Log');
-
-  res.json({
+  return context.res.json({
     'isTest': true,
     'message': "Hello Open Runtimes 👋",
-    'variable': req.variables['test-variable'],
+    'url': context.req.url,
+    'variable': Platform.environment['TEST_VARIABLE'] ?? '',
     'todo': todo.data,
   });
 }
