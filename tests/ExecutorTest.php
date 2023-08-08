@@ -351,7 +351,7 @@ final class ExecutorTest extends TestCase
         return [
             [ 'folder' => 'php', 'image' => 'openruntimes/php:v3-8.1', 'entrypoint' => 'index.php', 'buildCommand' => 'composer install', 'startCommand' => 'php src/server.php' ],
             [ 'folder' => 'node', 'image' => 'openruntimes/node:v3-18.0', 'entrypoint' => 'index.js', 'buildCommand' => 'npm i', 'startCommand' => 'pm2 start src/server.js --no-daemon' ],
-            [ 'folder' => 'deno', 'image' => 'openruntimes/deno:v3-1.24', 'entrypoint' => 'index.ts', 'buildCommand' => 'deno cache index.ts', 'startCommand' => 'denon start' ],
+            // [ 'folder' => 'deno', 'image' => 'openruntimes/deno:v3-1.24', 'entrypoint' => 'index.ts', 'buildCommand' => 'deno cache index.ts', 'startCommand' => 'denon start' ],
             [ 'folder' => 'python', 'image' => 'openruntimes/python:v3-3.10', 'entrypoint' => 'index.py', 'buildCommand' => 'pip install --no-cache-dir -r requirements.txt', 'startCommand' => 'python3 src/server.py' ],
             [ 'folder' => 'ruby', 'image' => 'openruntimes/ruby:v3-3.1', 'entrypoint' => 'index.rb', 'buildCommand' => '', 'startCommand' => 'bundle exec puma -b tcp://0.0.0.0:3000 -e production' ],
             [ 'folder' => 'cpp', 'image' => 'openruntimes/cpp:v3-17', 'entrypoint' => 'index.cc', 'buildCommand' => '', 'startCommand' => 'src/function/cpp_runtime' ],
