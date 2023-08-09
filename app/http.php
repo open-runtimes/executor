@@ -80,7 +80,7 @@ $register->set('logger', function () {
  * Create orchestration pool
  */
 $register->set('orchestrationPool', function () {
-    $pool = new Pool('orchestration-pool', 30, function () {
+    $pool = new Pool('orchestration-pool', 100, function () {
         $dockerUser = (string) App::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
         $dockerPass = (string) App::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
         $orchestration = new Orchestration(new DockerCLI($dockerUser, $dockerPass));
