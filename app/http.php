@@ -563,12 +563,12 @@ App::post('/v1/runtimes')
             throw new Exception($th->getMessage() . $output, 500);
         }
 
-        if ($remove) {
-            \sleep(2); // Allow time to read logs
-        }
-
         // Container cleanup
         if ($remove) {
+            \sleep(2); // Allow time to read logs
+
+            $localDevice->deletePath($tmpFolder);
+
             // Silently try to kill container
             try {
                 $orchestration->remove($containerId, true);
@@ -1164,7 +1164,7 @@ run(function () use ($register) {
     $interval = (int) App::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
     Timer::tick($interval * 1000, function () use ($orchestrationPool, $activeRuntimes) {
         Console::info("Running maintenance task ...");
-        // TODO: Cleanup /tmp folders when they are not used anymore
+        // Stop idling runtimes
         foreach ($activeRuntimes as $activeRuntimeId => $runtime) {
             $inactiveThreshold = \time() - \intval(App::getEnv('OPR_EXECUTOR_INACTIVE_TRESHOLD', '60'));
             if ($runtime['updated'] < $inactiveThreshold) {
@@ -1183,6 +1183,28 @@ run(function () use ($register) {
                 });
             }
         }
+        // Clear leftover build folders
+        $localDevice = new Local();
+        $tmpPath = DIRECTORY_SEPARATOR . 'tmp' . DIRECTORY_SEPARATOR;
+        $entries = $localDevice->getFiles($tmpPath);
+        $prefix = $tmpPath . System::getHostname() . '-';
+        foreach ($entries as $entry) {
+            if (\str_starts_with($entry, $prefix)) {
+                $isActive = false;
+
+                foreach ($activeRuntimes as $activeRuntimeId => $runtime) {
+                    if (\str_ends_with($entry, $activeRuntimeId)) {
+                        $isActive = true;
+                        break;
+                    }
+                }
+
+                if (!$isActive) {
+                    $localDevice->deletePath($entry);
+                }
+            }
+        }
+
         Console::success("Maintanance task finished.");
     });
 
