@@ -286,7 +286,7 @@ App::get('/v1/runtimes/:runtimeId/logs')
         // Wait for runtime
         for ($i = 0; $i < 10; $i++) {
             $output = '';
-            $code = Console::execute('docker container inspect ' . $runtimeId, '', $output);
+            $code = Console::execute('docker container inspect ' . \escapeshellarg($runtimeId), '', $output);
             if ($code === 0) {
                 break;
             }
@@ -325,7 +325,7 @@ App::get('/v1/runtimes/:runtimeId/logs')
         });
 
         $output = '';
-        Console::execute('docker exec ' . $runtimeId . ' tail -F /var/tmp/logs.txt', '', $output, $timeout, function (string $outputChunk, mixed $process) use (&$logsChunk, &$logsProcess) {
+        Console::execute('docker exec ' . \escapeshellarg($runtimeId) . ' tail -F /var/tmp/logs.txt', '', $output, $timeout, function (string $outputChunk, mixed $process) use (&$logsChunk, &$logsProcess) {
             $logsProcess = $process;
 
             if (!empty($outputChunk)) {
