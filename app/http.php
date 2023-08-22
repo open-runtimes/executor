@@ -527,6 +527,25 @@ App::post('/v1/runtimes')
                 'key' => $secret,
             ]);
         } catch (Throwable $th) {
+            $error = $th->getMessage() . $output;
+
+            // Extract as much logs as we can
+            try {
+                $logs = '';
+                $status = $orchestration->execute(
+                    name: $runtimeId,
+                    command: [ 'sh', '-c', 'cat /var/tmp/logs.txt' ],
+                    output: $logs,
+                    timeout: 15
+                );
+
+                if (!empty($logs)) {
+                    $error = $th->getMessage() . $logs;
+                }
+            } catch(Throwable $err) {
+                // Ignore, use fallback error message
+            }
+
             if ($remove) {
                 \sleep(2); // Allow time to read logs
             }
@@ -541,7 +560,7 @@ App::post('/v1/runtimes')
 
             $activeRuntimes->del($activeRuntimeId);
 
-            throw new Exception($th->getMessage() . $output, 500);
+            throw new Exception($error, 500);
         }
 
         // Container cleanup
