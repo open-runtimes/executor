@@ -78,7 +78,21 @@ final class ExecutorTest extends TestCase
                 }),
             ]);
 
-            $this->assertStringContainsString($runtimeLogs, $streamLogs);
+            $this->assertStringContainsString($runtimeLogs, 'Preparing for build');
+            $this->assertStringContainsString($streamLogs, 'Preparing for build');
+
+            $this->assertStringContainsString($runtimeLogs, 'Step: 1');
+            $this->assertStringContainsString($streamLogs, 'Step: 1');
+
+            $this->assertStringContainsString($runtimeLogs, 'Step: 2');
+            $this->assertStringContainsString($streamLogs, 'Step: 2');
+
+            $this->assertStringContainsString($runtimeLogs, 'Step: 30');
+            $this->assertStringContainsString($streamLogs, 'Step: 30');
+
+            $this->assertStringContainsString($runtimeLogs, 'Build finished');
+            $this->assertStringContainsString($streamLogs, 'Build finished');
+
             $this->assertGreaterThan(3, $totalChunks);
         });
     }
