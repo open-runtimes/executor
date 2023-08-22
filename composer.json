@@ -26,7 +26,6 @@
         "ext-swoole": "*",
         "utopia-php/framework": "dev-fix-coroutine-style-two as 0.30.0",
         "utopia-php/swoole": "0.5.*",
-        "utopia-php/pools": "0.4.*",
         "utopia-php/logger": "0.3.*",
         "utopia-php/cli": "0.16.*",
         "utopia-php/storage": "0.17.*",
