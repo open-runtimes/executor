@@ -43,7 +43,7 @@ final class ExecutorTest extends TestCase
         $streamLogs = '';
         $totalChunks = 0;
 
-        Co\run(function () use(&$runtimeLogs, &$streamLogs, &$totalChunks) {
+        Co\run(function () use (&$runtimeLogs, &$streamLogs, &$totalChunks) {
             /** Prepare build */
             $output = '';
             Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
@@ -77,20 +77,20 @@ final class ExecutorTest extends TestCase
             ]);
         });
 
-        $this->assertStringContainsString($runtimeLogs, 'Preparing for build');
-        $this->assertStringContainsString($streamLogs, 'Preparing for build');
+        $this->assertStringContainsString('Preparing for build', $runtimeLogs);
+        $this->assertStringContainsString('Preparing for build', $streamLogs);
 
-        $this->assertStringContainsString($runtimeLogs, 'Step: 1');
-        $this->assertStringContainsString($streamLogs, 'Step: 1');
+        $this->assertStringContainsString('Step: 1', $runtimeLogs);
+        $this->assertStringContainsString('Step: 1', $streamLogs);
 
-        $this->assertStringContainsString($runtimeLogs, 'Step: 2');
-        $this->assertStringContainsString($streamLogs, 'Step: 2');
+        $this->assertStringContainsString('Step: 2', $runtimeLogs);
+        $this->assertStringContainsString('Step: 2', $streamLogs);
 
-        $this->assertStringContainsString($runtimeLogs, 'Step: 30');
-        $this->assertStringContainsString($streamLogs, 'Step: 30');
+        $this->assertStringContainsString('Step: 30', $runtimeLogs);
+        $this->assertStringContainsString('Step: 30', $streamLogs);
 
-        $this->assertStringContainsString($runtimeLogs, 'Build finished');
-        $this->assertStringContainsString($streamLogs, 'Build finished');
+        $this->assertStringContainsString('Build finished', $runtimeLogs);
+        $this->assertStringContainsString('Build finished', $streamLogs);
 
         $this->assertGreaterThan(3, $totalChunks);
     }
