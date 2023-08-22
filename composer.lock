@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "adcea2b302faee0b666a2f6b64497243",
+    "content-hash": "218f0fd995e741c6de9ce34da47cf0e3",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -369,57 +369,6 @@
                 "source": "https://github.com/utopia-php/orchestration/tree/0.10.0"
             },
             "time": "2023-08-05T14:03:45+00:00"
-        },
-        {
-            "name": "utopia-php/pools",
-            "version": "0.4.2",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/utopia-php/pools.git",
-                "reference": "d2870ab74b31b7f4027799f082e85122154f8bed"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/pools/zipball/d2870ab74b31b7f4027799f082e85122154f8bed",
-                "reference": "d2870ab74b31b7f4027799f082e85122154f8bed",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=8.0"
-            },
-            "require-dev": {
-                "laravel/pint": "1.2.*",
-                "phpstan/phpstan": "1.8.*",
-                "phpunit/phpunit": "^9.3"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "Utopia\\Pools\\": "src/Pools"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Team Appwrite",
-                    "email": "team@appwrite.io"
-                }
-            ],
-            "description": "A simple library to manage connection pools",
-            "keywords": [
-                "framework",
-                "php",
-                "pools",
-                "utopia"
-            ],
-            "support": {
-                "issues": "https://github.com/utopia-php/pools/issues",
-                "source": "https://github.com/utopia-php/pools/tree/0.4.2"
-            },
-            "time": "2022-11-22T07:55:45+00:00"
         },
         {
             "name": "utopia-php/preloader",
