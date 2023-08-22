@@ -39,13 +39,11 @@ final class ExecutorTest extends TestCase
 
     public function testLogStream(): void
     {
-        Co\run(function () {
-            $runtimeLogs = '';
+        $runtimeLogs = '';
+        $streamLogs = '';
+        $totalChunks = 0;
 
-            $totalChunks = 0;
-
-            $streamLogs = '';
-
+        Co\run(function () use (&$runtimeLogs, &$streamLogs, &$totalChunks) {
             /** Prepare build */
             $output = '';
             Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
@@ -77,10 +75,24 @@ final class ExecutorTest extends TestCase
                     $runtimeLogs = $response['body']['output'];
                 }),
             ]);
-
-            $this->assertStringContainsString($runtimeLogs, $streamLogs);
-            $this->assertGreaterThan(3, $totalChunks);
         });
+
+        $this->assertStringContainsString('Preparing for build', $runtimeLogs);
+        $this->assertStringContainsString('Preparing for build', $streamLogs);
+
+        $this->assertStringContainsString('Step: 1', $runtimeLogs);
+        $this->assertStringContainsString('Step: 1', $streamLogs);
+
+        $this->assertStringContainsString('Step: 2', $runtimeLogs);
+        $this->assertStringContainsString('Step: 2', $streamLogs);
+
+        $this->assertStringContainsString('Step: 30', $runtimeLogs);
+        $this->assertStringContainsString('Step: 30', $streamLogs);
+
+        $this->assertStringContainsString('Build finished', $runtimeLogs);
+        $this->assertStringContainsString('Build finished', $streamLogs);
+
+        $this->assertGreaterThan(3, $totalChunks);
     }
 
     public function testErrors(): void

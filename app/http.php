@@ -35,9 +35,7 @@ use Utopia\System\System;
 use Utopia\Validator\Assoc;
 use Utopia\Validator\Boolean;
 use Utopia\Validator\Text;
-use Utopia\Pools\Pool;
 use Utopia\DSN\DSN;
-use Utopia\Pools\Connection;
 use Utopia\Registry\Registry;
 use Utopia\Route;
 use Utopia\Validator\Integer;
@@ -77,20 +75,14 @@ $register->set('logger', function () {
 });
 
 /**
- * Create orchestration pool
+ * Create orchestration
  */
-$register->set('orchestrationPool', function () {
-    $pool = new Pool('orchestration-pool', 100, function () {
-        $dockerUser = (string) App::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
-        $dockerPass = (string) App::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
-        $orchestration = new Orchestration(new DockerCLI($dockerUser, $dockerPass));
-        return $orchestration;
-    });
+$register->set('orchestration', function () {
+    $dockerUser = (string) App::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
+    $dockerPass = (string) App::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
+    $orchestration = new Orchestration(new DockerCLI($dockerUser, $dockerPass));
 
-    $pool->setReconnectAttempts(3);
-    $pool->setReconnectSleep(5);
-
-    return $pool;
+    return $orchestration;
 });
 
 /**
@@ -134,13 +126,11 @@ $register->set('statsHost', function () {
 
 /** Set Resources */
 App::setResource('register', fn () => $register);
-App::setResource('orchestrationPool', fn (Registry $register) => $register->get('orchestrationPool'), ['register']);
+App::setResource('orchestration', fn (Registry $register) => $register->get('orchestration'), ['register']);
 App::setResource('activeRuntimes', fn (Registry $register) => $register->get('activeRuntimes'), ['register']);
 App::setResource('logger', fn (Registry $register) => $register->get('logger'), ['register']);
 App::setResource('statsContainers', fn (Registry $register) => $register->get('statsContainers'), ['register']);
 App::setResource('statsHost', fn (Registry $register) => $register->get('statsHost'), ['register']);
-App::setResource('orchestrationConnection', fn (Pool $orchestrationPool) => $orchestrationPool->pop(), ['orchestrationPool']);
-App::setResource('orchestration', fn (Connection $orchestrationConnection) => $orchestrationConnection->getResource(), ['orchestrationConnection']);
 
 App::setResource('log', fn () => new Log());
 
@@ -226,14 +216,11 @@ function getStorageDevice(string $root): Device
     }
 }
 
-function removeAllRuntimes(Table $activeRuntimes, Pool $orchestrationPool): void
+function removeAllRuntimes(Table $activeRuntimes, Orchestration $orchestration): void
 {
     Console::log('Cleaning up containers...');
 
-    $connection = $orchestrationPool->pop();
-    $orchestration = $connection->getResource();
     $functionsToRemove = $orchestration->list(['label' => 'openruntimes-executor=' . System::getHostname()]);
-    $connection->reclaim();
 
     if (\count($functionsToRemove) === 0) {
         Console::info('No containers found to clean up.');
@@ -242,10 +229,8 @@ function removeAllRuntimes(Table $activeRuntimes, Pool $orchestrationPool): void
     $callables = [];
 
     foreach ($functionsToRemove as $container) {
-        $callables[] = function () use ($container, $activeRuntimes, $orchestrationPool) {
+        $callables[] = function () use ($container, $activeRuntimes, $orchestration) {
             try {
-                $connection = $orchestrationPool->pop();
-                $orchestration = $connection->getResource();
                 $orchestration->remove($container->getId(), true);
 
                 $activeRuntimeId = $container->getLabels()['openruntimes-runtime-id'];
@@ -258,8 +243,6 @@ function removeAllRuntimes(Table $activeRuntimes, Pool $orchestrationPool): void
             } catch (\Throwable $th) {
                 Console::error('Failed to remove container: ' . $container->getName());
                 Console::error($th);
-            } finally {
-                isset($connection) && $connection->reclaim();
             }
         };
     }
@@ -274,8 +257,7 @@ App::get('/v1/runtimes/:runtimeId/logs')
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->param('timeout', '600', new Text(16), 'Maximum logs timeout.', true)
     ->inject('swooleResponse')
-    ->inject('orchestrationConnection')
-    ->action(function (string $runtimeId, string $timeoutStr, SwooleResponse $swooleResponse, Connection $connection) {
+    ->action(function (string $runtimeId, string $timeoutStr, SwooleResponse $swooleResponse) {
         $timeout = \intval($timeoutStr);
 
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
@@ -335,7 +317,6 @@ App::get('/v1/runtimes/:runtimeId/logs')
 
         Timer::clear($timerId);
 
-        $connection->reclaim();
         $swooleResponse->end();
     });
 
@@ -1123,14 +1104,8 @@ App::init()
         }
     });
 
-App::shutdown()
-    ->inject('orchestrationConnection')
-    ->action(function (Connection $connection) {
-        $connection->reclaim();
-    });
-
 run(function () use ($register) {
-    $orchestrationPool = $register->get('orchestrationPool');
+    $orchestration = $register->get('orchestration');
     $statsContainers = $register->get('statsContainers');
     $activeRuntimes = $register->get('activeRuntimes');
     $statsHost = $register->get('statsHost');
@@ -1140,7 +1115,7 @@ run(function () use ($register) {
      */
     Console::info('Removing orphan runtimes...');
 
-    removeAllRuntimes($activeRuntimes, $orchestrationPool);
+    removeAllRuntimes($activeRuntimes, $orchestration);
 
     Console::success("Orphan runtimes removal finished.");
 
@@ -1155,19 +1130,13 @@ run(function () use ($register) {
     $runtimes = $runtimes->getAll(true, $allowList);
     $callables = [];
     foreach ($runtimes as $runtime) {
-        $callables[] = function () use ($runtime, $orchestrationPool) {
-            try {
-                $connection = $orchestrationPool->pop();
-                $orchestration = $connection->getResource();
-                Console::log('Warming up ' . $runtime['name'] . ' ' . $runtime['version'] . ' environment...');
-                $response = $orchestration->pull($runtime['image']);
-                if ($response) {
-                    Console::info("Successfully Warmed up {$runtime['name']} {$runtime['version']}!");
-                } else {
-                    Console::warning("Failed to Warmup {$runtime['name']} {$runtime['version']}!");
-                }
-            } finally {
-                isset($connection) && $connection->reclaim();
+        $callables[] = function () use ($runtime, $orchestration) {
+            Console::log('Warming up ' . $runtime['name'] . ' ' . $runtime['version'] . ' environment...');
+            $response = $orchestration->pull($runtime['image']);
+            if ($response) {
+                Console::info("Successfully Warmed up {$runtime['name']} {$runtime['version']}!");
+            } else {
+                Console::warning("Failed to Warmup {$runtime['name']} {$runtime['version']}!");
             }
         };
     }
@@ -1181,23 +1150,20 @@ run(function () use ($register) {
      */
     Console::info('Starting maintenance interval...');
     $interval = (int) App::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
-    Timer::tick($interval * 1000, function () use ($orchestrationPool, $activeRuntimes) {
+    Timer::tick($interval * 1000, function () use ($orchestration, $activeRuntimes) {
         Console::info("Running maintenance task ...");
         // Stop idling runtimes
         foreach ($activeRuntimes as $activeRuntimeId => $runtime) {
             $inactiveThreshold = \time() - \intval(App::getEnv('OPR_EXECUTOR_INACTIVE_TRESHOLD', '60'));
             if ($runtime['updated'] < $inactiveThreshold) {
-                go(function () use ($activeRuntimeId, $runtime, $orchestrationPool, $activeRuntimes) {
+                go(function () use ($activeRuntimeId, $runtime, $orchestration, $activeRuntimes) {
                     try {
-                        $connection = $orchestrationPool->pop();
-                        $orchestration = $connection->getResource();
                         $orchestration->remove($runtime['id'], true);
                         Console::success("Successfully removed {$runtime['name']}");
                     } catch (\Throwable $th) {
                         Console::error('Inactive Runtime deletion failed: ' . $th->getMessage());
                     } finally {
-                        isset($connection) && $activeRuntimes->del($activeRuntimeId);
-                        isset($connection) && $connection->reclaim();
+                        $activeRuntimes->del($activeRuntimeId);
                     }
                 });
             }
@@ -1279,14 +1245,10 @@ run(function () use ($register) {
     }
 
     // Load initial stats in blocking way
-    $connection = $orchestrationPool->pop();
-    $orchestration = $connection->getResource();
     getStats($statsHost, $statsContainers, $orchestration);
-    $connection->reclaim();
 
     // Setup infinite recurssion in non-blocking way
-    \go(function () use ($statsHost, $statsContainers, $orchestrationPool) {
-        $orchestration = $orchestrationPool->pop()->getResource(); // We never reclaim this, as this runs forever
+    \go(function () use ($statsHost, $statsContainers, $orchestration) {
         getStats($statsHost, $statsContainers, $orchestration, true);
     });
 
@@ -1330,10 +1292,10 @@ run(function () use ($register) {
 
     Console::success('Executor is ready.');
 
-    Process::signal(SIGINT, fn () => removeAllRuntimes($activeRuntimes, $orchestrationPool));
-    Process::signal(SIGQUIT, fn () => removeAllRuntimes($activeRuntimes, $orchestrationPool));
-    Process::signal(SIGKILL, fn () => removeAllRuntimes($activeRuntimes, $orchestrationPool));
-    Process::signal(SIGTERM, fn () => removeAllRuntimes($activeRuntimes, $orchestrationPool));
+    Process::signal(SIGINT, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
+    Process::signal(SIGQUIT, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
+    Process::signal(SIGKILL, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
+    Process::signal(SIGTERM, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
 
     $server->start();
 });
