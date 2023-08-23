@@ -89,6 +89,8 @@ OPR_EXECUTOR_DOCKER_HUB_PASSWORD=
 
 > `OPR_EXECUTOR_CONNECTION_STORAGE` takes a DSN string that represents a connection to your storage device. If you would like to use your local filesystem, you can use `file://localhost`. If using S3 or any other provider for storage, use a DSN of the following format `s3://access_key:access_secret@host:port/bucket_name?region=us-east-1`
 
+> For backwards compatibility, executor also supports `OPR_EXECUTOR_STORAGE_*` variables as replacement for `OPR_EXECUTOR_CONNECTION_STORAGE`, as seen in [Appwrite repository](https://github.com/appwrite/appwrite/blob/1.3.8/.env#L26-L46). 
+
 4. Start Docker container:
 
 ```bash
