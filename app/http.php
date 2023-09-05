@@ -1168,7 +1168,7 @@ run(function () use ($register) {
      */
     $allowList = empty(App::getEnv('OPR_EXECUTOR_RUNTIMES')) ? [] : \explode(',', App::getEnv('OPR_EXECUTOR_RUNTIMES'));
 
-    $runtimeVersions = \explode(',', App::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v3'));
+    $runtimeVersions = \explode(',', App::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v3') ?? 'v3');
     foreach ($runtimeVersions as $runtimeVersion) {
         Console::success("Pulling $runtimeVersion images...");
         $runtimes = new Runtimes($runtimeVersion); // TODO: @Meldiron Make part of open runtimes
@@ -1185,7 +1185,7 @@ run(function () use ($register) {
                 }
             };
         }
-    
+
         batch($callables);
     }
 
