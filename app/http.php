@@ -1166,24 +1166,28 @@ run(function () use ($register) {
     /**
      * Warmup: make sure images are ready to run fast 🚀
      */
-    Console::info('Pulling runtime images...');
-    $runtimes = new Runtimes('v3'); // TODO: @Meldiron Make part of open runtimes
     $allowList = empty(App::getEnv('OPR_EXECUTOR_RUNTIMES')) ? [] : \explode(',', App::getEnv('OPR_EXECUTOR_RUNTIMES'));
-    $runtimes = $runtimes->getAll(true, $allowList);
-    $callables = [];
-    foreach ($runtimes as $runtime) {
-        $callables[] = function () use ($runtime, $orchestration) {
-            Console::log('Warming up ' . $runtime['name'] . ' ' . $runtime['version'] . ' environment...');
-            $response = $orchestration->pull($runtime['image']);
-            if ($response) {
-                Console::info("Successfully Warmed up {$runtime['name']} {$runtime['version']}!");
-            } else {
-                Console::warning("Failed to Warmup {$runtime['name']} {$runtime['version']}!");
-            }
-        };
-    }
 
-    batch($callables);
+    $runtimeVersions = \explode(',', App::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v3'));
+    foreach ($runtimeVersions as $runtimeVersion) {
+        Console::success("Pulling $runtimeVersion images...");
+        $runtimes = new Runtimes($runtimeVersion); // TODO: @Meldiron Make part of open runtimes
+        $runtimes = $runtimes->getAll(true, $allowList);
+        $callables = [];
+        foreach ($runtimes as $runtime) {
+            $callables[] = function () use ($runtime, $orchestration) {
+                Console::log('Warming up ' . $runtime['name'] . ' ' . $runtime['version'] . ' environment...');
+                $response = $orchestration->pull($runtime['image']);
+                if ($response) {
+                    Console::info("Successfully Warmed up {$runtime['name']} {$runtime['version']}!");
+                } else {
+                    Console::warning("Failed to Warmup {$runtime['name']} {$runtime['version']}!");
+                }
+            };
+        }
+    
+        batch($callables);
+    }
 
     Console::success("Image pulling finished.");
 

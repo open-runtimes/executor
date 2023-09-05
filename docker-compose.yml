@@ -44,6 +44,7 @@ services:
       - OPR_EXECUTOR_LOGGING_CONFIG
       - OPR_EXECUTOR_DOCKER_HUB_USERNAME
       - OPR_EXECUTOR_DOCKER_HUB_PASSWORD
+      - OPR_EXECUTOR_RUNTIME_VERSIONS
 
 networks:
   openruntimes-runtimes:
