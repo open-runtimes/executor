@@ -715,7 +715,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                 $payload = '';
             }
 
-            $activeRuntimeId = $runtimeId + '_exec'; // Used with Swoole table (key)
+            $activeRuntimeId = $runtimeId . '_exec'; // Used with Swoole table (key)
             $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
             $log->addTag('runtimeId', $activeRuntimeId);
