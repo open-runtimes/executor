@@ -429,8 +429,7 @@ App::post('/v1/runtimes')
              * Copy code files from source to a temporary location on the executor
              */
             if (!empty($source)) {
-                $buffer = $sourceDevice->read($source);
-                if (!$localDevice->write($tmpSource, $buffer)) {
+                if (!$localDevice->transfer($source, $tmpSource, $sourceDevice)) {
                     throw new Exception('Failed to copy source code to temporary directory', 500);
                 };
             }
@@ -537,9 +536,8 @@ App::post('/v1/runtimes')
                 $destinationDevice = getStorageDevice($destination);
                 $path = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo('code.tar.gz', PATHINFO_EXTENSION));
 
-                $buffer = $localDevice->read($tmpBuild);
 
-                if (!$destinationDevice->write($path, $buffer, $localDevice->getFileMimeType($tmpBuild))) {
+                if (!$localDevice->transfer($tmpBuild, $path, $destinationDevice)) {
                     throw new Exception('Failed to move built code to storage', 500);
                 };
 
