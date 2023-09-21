@@ -429,7 +429,7 @@ App::post('/v1/runtimes')
              * Copy code files from source to a temporary location on the executor
              */
             if (!empty($source)) {
-                if (!$localDevice->transfer($source, $tmpSource, $sourceDevice)) {
+                if (!$sourceDevice->transfer($source, $tmpSource, $localDevice)) {
                     throw new Exception('Failed to copy source code to temporary directory', 500);
                 };
             }
