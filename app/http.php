@@ -6,12 +6,11 @@ use Appwrite\Runtimes\Runtimes;
 use OpenRuntimes\Executor\Usage;
 use Swoole\Http\Request as SwooleRequest;
 use Swoole\Http\Response as SwooleResponse;
-use Swoole\Coroutine\Http\Server;
+use Utopia\Http\Adapter\Swoole\Server;
 use Swoole\Process;
 use Swoole\Runtime;
 use Swoole\Table;
 use Swoole\Timer;
-use Utopia\App;
 use Utopia\CLI\Console;
 use Utopia\Logger\Log;
 use Utopia\Logger\Logger;
@@ -29,24 +28,25 @@ use Utopia\Storage\Device\Linode;
 use Utopia\Storage\Device\Wasabi;
 use Utopia\Storage\Device\S3;
 use Utopia\Storage\Storage;
-use Utopia\Swoole\Request;
-use Utopia\Swoole\Response;
 use Utopia\System\System;
-use Utopia\Validator\Assoc;
-use Utopia\Validator\Boolean;
-use Utopia\Validator\Text;
+use Utopia\Http\Validator\Assoc;
+use Utopia\Http\Validator\Boolean;
+use Utopia\Http\Validator\Text;
 use Utopia\DSN\DSN;
+use Utopia\Http\Adapter\Swoole\Request;
+use Utopia\Http\Adapter\Swoole\Response;
+use Utopia\Http\Http;
+use Utopia\Http\Route;
 use Utopia\Registry\Registry;
-use Utopia\Route;
-use Utopia\Validator\Integer;
-use Utopia\Validator\WhiteList;
+use Utopia\Http\Validator\Integer;
+use Utopia\Http\Validator\WhiteList;
 
 use function Swoole\Coroutine\batch;
 use function Swoole\Coroutine\run;
 
 Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
 
-App::setMode((string) App::getEnv('OPR_EXECUTOR_ENV', App::MODE_TYPE_PRODUCTION));
+Http::setMode((string) Http::getEnv('OPR_EXECUTOR_ENV', Http::MODE_TYPE_PRODUCTION));
 
 // Setup Registry
 $register = new Registry();
@@ -55,8 +55,8 @@ $register = new Registry();
  * Create logger for cloud logging
  */
 $register->set('logger', function () {
-    $providerName = App::getEnv('OPR_EXECUTOR_LOGGING_PROVIDER', '');
-    $providerConfig = App::getEnv('OPR_EXECUTOR_LOGGING_CONFIG', '');
+    $providerName = Http::getEnv('OPR_EXECUTOR_LOGGING_PROVIDER', '');
+    $providerConfig = Http::getEnv('OPR_EXECUTOR_LOGGING_CONFIG', '');
     $logger = null;
 
     if (!empty($providerName) && !empty($providerConfig) && Logger::hasProvider($providerName)) {
@@ -78,8 +78,8 @@ $register->set('logger', function () {
  * Create orchestration
  */
 $register->set('orchestration', function () {
-    $dockerUser = (string) App::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
-    $dockerPass = (string) App::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
+    $dockerUser = (string) Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
+    $dockerPass = (string) Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
     $orchestration = new Orchestration(new DockerCLI($dockerUser, $dockerPass));
 
     return $orchestration;
@@ -125,16 +125,16 @@ $register->set('statsHost', function () {
 });
 
 /** Set Resources */
-App::setResource('register', fn () => $register);
-App::setResource('orchestration', fn (Registry $register) => $register->get('orchestration'), ['register']);
-App::setResource('activeRuntimes', fn (Registry $register) => $register->get('activeRuntimes'), ['register']);
-App::setResource('logger', fn (Registry $register) => $register->get('logger'), ['register']);
-App::setResource('statsContainers', fn (Registry $register) => $register->get('statsContainers'), ['register']);
-App::setResource('statsHost', fn (Registry $register) => $register->get('statsHost'), ['register']);
+Http::setResource('register', fn () => $register);
+Http::setResource('orchestration', fn (Registry $register) => $register->get('orchestration'), ['register']);
+Http::setResource('activeRuntimes', fn (Registry $register) => $register->get('activeRuntimes'), ['register']);
+Http::setResource('logger', fn (Registry $register) => $register->get('logger'), ['register']);
+Http::setResource('statsContainers', fn (Registry $register) => $register->get('statsContainers'), ['register']);
+Http::setResource('statsHost', fn (Registry $register) => $register->get('statsHost'), ['register']);
 
-App::setResource('log', fn () => new Log());
+Http::setResource('log', fn () => new Log());
 
-function logError(Log $log, Throwable $error, string $action, Logger $logger = null, ?Utopia\Route $route = null): void
+function logError(Log $log, Throwable $error, string $action, Logger $logger = null, ?Route $route = null): void
 {
     Console::error('[Error] Type: ' . get_class($error));
     Console::error('[Error] Message: ' . $error->getMessage());
@@ -142,7 +142,7 @@ function logError(Log $log, Throwable $error, string $action, Logger $logger = n
     Console::error('[Error] Line: ' . $error->getLine());
 
     if ($logger && ($error->getCode() === 500 || $error->getCode() === 0)) {
-        $version = (string) App::getEnv('OPR_EXECUTOR_VERSION', '');
+        $version = (string) Http::getEnv('OPR_EXECUTOR_VERSION', '');
         if (empty($version)) {
             $version = 'UNKNOWN';
         }
@@ -169,7 +169,7 @@ function logError(Log $log, Throwable $error, string $action, Logger $logger = n
 
         $log->setAction($action);
 
-        $log->setEnvironment(App::isProduction() ? Log::ENVIRONMENT_PRODUCTION : Log::ENVIRONMENT_STAGING);
+        $log->setEnvironment(Http::isProduction() ? Log::ENVIRONMENT_PRODUCTION : Log::ENVIRONMENT_STAGING);
 
         $responseCode = $logger->addLog($log);
         Console::info('Executor log pushed with status code: ' . $responseCode);
@@ -178,7 +178,7 @@ function logError(Log $log, Throwable $error, string $action, Logger $logger = n
 
 function getStorageDevice(string $root): Device
 {
-    $connection = App::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '');
+    $connection = Http::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '');
 
     if (!empty($connection)) {
         $acl = 'private';
@@ -215,43 +215,43 @@ function getStorageDevice(string $root): Device
                 return new Local($root);
         }
     } else {
-        switch (strtolower(App::getEnv('OPR_EXECUTOR_STORAGE_DEVICE', Storage::DEVICE_LOCAL) ?? '')) {
+        switch (strtolower(Http::getEnv('OPR_EXECUTOR_STORAGE_DEVICE', Storage::DEVICE_LOCAL) ?? '')) {
             case Storage::DEVICE_LOCAL:
             default:
                 return new Local($root);
             case Storage::DEVICE_S3:
-                $s3AccessKey = App::getEnv('OPR_EXECUTOR_STORAGE_S3_ACCESS_KEY', '') ?? '';
-                $s3SecretKey = App::getEnv('OPR_EXECUTOR_STORAGE_S3_SECRET', '') ?? '';
-                $s3Region = App::getEnv('OPR_EXECUTOR_STORAGE_S3_REGION', '') ?? '';
-                $s3Bucket = App::getEnv('OPR_EXECUTOR_STORAGE_S3_BUCKET', '') ?? '';
+                $s3AccessKey = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_ACCESS_KEY', '') ?? '';
+                $s3SecretKey = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_SECRET', '') ?? '';
+                $s3Region = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_REGION', '') ?? '';
+                $s3Bucket = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_BUCKET', '') ?? '';
                 $s3Acl = 'private';
                 return new S3($root, $s3AccessKey, $s3SecretKey, $s3Bucket, $s3Region, $s3Acl);
             case Storage::DEVICE_DO_SPACES:
-                $doSpacesAccessKey = App::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_ACCESS_KEY', '') ?? '';
-                $doSpacesSecretKey = App::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_SECRET', '') ?? '';
-                $doSpacesRegion = App::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_REGION', '') ?? '';
-                $doSpacesBucket = App::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_BUCKET', '') ?? '';
+                $doSpacesAccessKey = Http::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_ACCESS_KEY', '') ?? '';
+                $doSpacesSecretKey = Http::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_SECRET', '') ?? '';
+                $doSpacesRegion = Http::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_REGION', '') ?? '';
+                $doSpacesBucket = Http::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_BUCKET', '') ?? '';
                 $doSpacesAcl = 'private';
                 return new DOSpaces($root, $doSpacesAccessKey, $doSpacesSecretKey, $doSpacesBucket, $doSpacesRegion, $doSpacesAcl);
             case Storage::DEVICE_BACKBLAZE:
-                $backblazeAccessKey = App::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_ACCESS_KEY', '') ?? '';
-                $backblazeSecretKey = App::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_SECRET', '') ?? '';
-                $backblazeRegion = App::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_REGION', '') ?? '';
-                $backblazeBucket = App::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_BUCKET', '') ?? '';
+                $backblazeAccessKey = Http::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_ACCESS_KEY', '') ?? '';
+                $backblazeSecretKey = Http::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_SECRET', '') ?? '';
+                $backblazeRegion = Http::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_REGION', '') ?? '';
+                $backblazeBucket = Http::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_BUCKET', '') ?? '';
                 $backblazeAcl = 'private';
                 return new Backblaze($root, $backblazeAccessKey, $backblazeSecretKey, $backblazeBucket, $backblazeRegion, $backblazeAcl);
             case Storage::DEVICE_LINODE:
-                $linodeAccessKey = App::getEnv('OPR_EXECUTOR_STORAGE_LINODE_ACCESS_KEY', '') ?? '';
-                $linodeSecretKey = App::getEnv('OPR_EXECUTOR_STORAGE_LINODE_SECRET', '') ?? '';
-                $linodeRegion = App::getEnv('OPR_EXECUTOR_STORAGE_LINODE_REGION', '') ?? '';
-                $linodeBucket = App::getEnv('OPR_EXECUTOR_STORAGE_LINODE_BUCKET', '') ?? '';
+                $linodeAccessKey = Http::getEnv('OPR_EXECUTOR_STORAGE_LINODE_ACCESS_KEY', '') ?? '';
+                $linodeSecretKey = Http::getEnv('OPR_EXECUTOR_STORAGE_LINODE_SECRET', '') ?? '';
+                $linodeRegion = Http::getEnv('OPR_EXECUTOR_STORAGE_LINODE_REGION', '') ?? '';
+                $linodeBucket = Http::getEnv('OPR_EXECUTOR_STORAGE_LINODE_BUCKET', '') ?? '';
                 $linodeAcl = 'private';
                 return new Linode($root, $linodeAccessKey, $linodeSecretKey, $linodeBucket, $linodeRegion, $linodeAcl);
             case Storage::DEVICE_WASABI:
-                $wasabiAccessKey = App::getEnv('OPR_EXECUTOR_STORAGE_WASABI_ACCESS_KEY', '') ?? '';
-                $wasabiSecretKey = App::getEnv('OPR_EXECUTOR_STORAGE_WASABI_SECRET', '') ?? '';
-                $wasabiRegion = App::getEnv('OPR_EXECUTOR_STORAGE_WASABI_REGION', '') ?? '';
-                $wasabiBucket = App::getEnv('OPR_EXECUTOR_STORAGE_WASABI_BUCKET', '') ?? '';
+                $wasabiAccessKey = Http::getEnv('OPR_EXECUTOR_STORAGE_WASABI_ACCESS_KEY', '') ?? '';
+                $wasabiSecretKey = Http::getEnv('OPR_EXECUTOR_STORAGE_WASABI_SECRET', '') ?? '';
+                $wasabiRegion = Http::getEnv('OPR_EXECUTOR_STORAGE_WASABI_REGION', '') ?? '';
+                $wasabiBucket = Http::getEnv('OPR_EXECUTOR_STORAGE_WASABI_BUCKET', '') ?? '';
                 $wasabiAcl = 'private';
                 return new Wasabi($root, $wasabiAccessKey, $wasabiSecretKey, $wasabiBucket, $wasabiRegion, $wasabiAcl);
         }
@@ -294,7 +294,7 @@ function removeAllRuntimes(Table $activeRuntimes, Orchestration $orchestration):
     Console::success('Cleanup finished.');
 }
 
-App::get('/v1/runtimes/:runtimeId/logs')
+Http::get('/v1/runtimes/:runtimeId/logs')
     ->desc("Get live stream of logs of a runtime")
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->param('timeout', '600', new Text(16), 'Maximum logs timeout.', true)
@@ -362,7 +362,7 @@ App::get('/v1/runtimes/:runtimeId/logs')
         $swooleResponse->end();
     });
 
-App::post('/v1/runtimes')
+Http::post('/v1/runtimes')
     ->desc("Create a new runtime server")
     ->param('runtimeId', '', new Text(64), 'Unique runtime ID.')
     ->param('image', '', new Text(128), 'Base image name of the runtime.')
@@ -492,7 +492,7 @@ App::post('/v1/runtimes')
                     \dirname($tmpSource) . ':/tmp:rw',
                     \dirname($tmpBuild) . ':' . $codeMountPath . ':rw'
                 ],
-                network: \strval(App::getEnv('OPR_EXECUTOR_NETWORK', 'executor_runtimes')),
+                network: \strval(Http::getEnv('OPR_EXECUTOR_NETWORK', 'executor_runtimes')),
                 workdir: $workdir
             );
 
@@ -623,7 +623,7 @@ App::post('/v1/runtimes')
             ->json($container);
     });
 
-App::get('/v1/runtimes')
+Http::get('/v1/runtimes')
     ->desc("List currently active runtimes")
     ->inject('activeRuntimes')
     ->inject('response')
@@ -639,7 +639,7 @@ App::get('/v1/runtimes')
             ->json($runtimes);
     });
 
-App::get('/v1/runtimes/:runtimeId')
+Http::get('/v1/runtimes/:runtimeId')
     ->desc("Get a runtime by its ID")
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->inject('activeRuntimes')
@@ -661,7 +661,7 @@ App::get('/v1/runtimes/:runtimeId')
             ->json($runtime);
     });
 
-App::delete('/v1/runtimes/:runtimeId')
+Http::delete('/v1/runtimes/:runtimeId')
     ->desc('Delete a runtime')
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.', false)
     ->inject('orchestration')
@@ -686,7 +686,7 @@ App::delete('/v1/runtimes/:runtimeId')
             ->send();
     });
 
-App::post('/v1/runtimes/:runtimeId/execution')
+Http::post('/v1/runtimes/:runtimeId/execution')
     ->desc('Create an execution')
     // Execution-related
     ->param('runtimeId', '', new Text(64), 'The runtimeID to execute.')
@@ -759,7 +759,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
                     \curl_setopt($ch, CURLOPT_HTTPHEADER, [
                         'Content-Type: application/json',
                         'Content-Length: ' . \strlen($body ?: ''),
-                        'authorization: Bearer ' . App::getEnv('OPR_EXECUTOR_SECRET', '')
+                        'authorization: Bearer ' . Http::getEnv('OPR_EXECUTOR_SECRET', '')
                     ]);
 
                     $executorResponse = \curl_exec($ch);
@@ -1062,7 +1062,7 @@ App::post('/v1/runtimes/:runtimeId/execution')
         }
     );
 
-App::get('/v1/health')
+Http::get('/v1/health')
     ->desc("Get health status of host machine and runtimes.")
     ->inject('statsHost')
     ->inject('statsContainers')
@@ -1089,7 +1089,7 @@ App::get('/v1/health')
     });
 
 /** Set callbacks */
-App::error()
+Http::error()
     ->inject('route')
     ->inject('error')
     ->inject('logger')
@@ -1123,7 +1123,7 @@ App::error()
             'file' => $error->getFile(),
             'line' => $error->getLine(),
             'trace' => $error->getTrace(),
-            'version' => App::getEnv('OPR_EXECUTOR_VERSION', 'UNKNOWN')
+            'version' => Http::getEnv('OPR_EXECUTOR_VERSION', 'UNKNOWN')
         ];
 
         $response
@@ -1135,11 +1135,11 @@ App::error()
         $response->json($output);
     });
 
-App::init()
+Http::init()
     ->inject('request')
     ->action(function (Request $request) {
         $secretKey = \explode(' ', $request->getHeader('authorization', ''))[1] ?? '';
-        if (empty($secretKey) || $secretKey !== App::getEnv('OPR_EXECUTOR_SECRET', '')) {
+        if (empty($secretKey) || $secretKey !== Http::getEnv('OPR_EXECUTOR_SECRET', '')) {
             throw new Exception('Missing executor key', 401);
         }
     });
@@ -1159,14 +1159,12 @@ run(function () use ($register) {
 
     Console::success("Orphan runtimes removal finished.");
 
-    // TODO: Remove all /tmp folders starting with System::hostname() -
-
     /**
      * Warmup: make sure images are ready to run fast 🚀
      */
-    $allowList = empty(App::getEnv('OPR_EXECUTOR_RUNTIMES')) ? [] : \explode(',', App::getEnv('OPR_EXECUTOR_RUNTIMES'));
+    $allowList = empty(Http::getEnv('OPR_EXECUTOR_RUNTIMES')) ? [] : \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIMES'));
 
-    $runtimeVersions = \explode(',', App::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v3') ?? 'v3');
+    $runtimeVersions = \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v3') ?? 'v3');
     foreach ($runtimeVersions as $runtimeVersion) {
         Console::success("Pulling $runtimeVersion images...");
         $runtimes = new Runtimes($runtimeVersion); // TODO: @Meldiron Make part of open runtimes
@@ -1193,12 +1191,12 @@ run(function () use ($register) {
      * Run a maintenance worker every X seconds to remove inactive runtimes
      */
     Console::info('Starting maintenance interval...');
-    $interval = (int) App::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
+    $interval = (int) Http::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
     Timer::tick($interval * 1000, function () use ($orchestration, $activeRuntimes) {
         Console::info("Running maintenance task ...");
         // Stop idling runtimes
         foreach ($activeRuntimes as $activeRuntimeId => $runtime) {
-            $inactiveThreshold = \time() - \intval(App::getEnv('OPR_EXECUTOR_INACTIVE_TRESHOLD', '60'));
+            $inactiveThreshold = \time() - \intval(Http::getEnv('OPR_EXECUTOR_INACTIVE_TRESHOLD', '60'));
             if ($runtime['updated'] < $inactiveThreshold) {
                 go(function () use ($activeRuntimeId, $runtime, $orchestration, $activeRuntimes) {
                     try {
@@ -1298,29 +1296,27 @@ run(function () use ($register) {
 
     Console::success('Stats interval started.');
 
-    $server = new Server('0.0.0.0', 80, false);
+    $server = new Server('0.0.0.0', '80');
 
-    $server->handle('/', function (SwooleRequest $swooleRequest, SwooleResponse $swooleResponse) {
+    $server->onRequest(function (SwooleRequest $swooleRequest, SwooleResponse $swooleResponse, string $context) use ($server) {
         $request = new Request($swooleRequest);
         $response = new Response($swooleResponse);
 
-        $app = new App('UTC');
+        $app = new Http($server, 'UTC');
 
         $app->setResource('swooleRequest', fn () => $swooleRequest);
         $app->setResource('swooleResponse', fn () => $swooleResponse);
 
-        $transaction = $app->createTransaction($request, $response);
-
         try {
-            $app->run($request, $response, $transaction);
+            $app->run($request, $response, $context);
         } catch (\Throwable $th) {
             $code = 500;
 
             /**
              * @var Logger $logger
              */
-            $logger = $transaction->getResource('logger');
-            $log = $transaction->getResource('log');
+            $logger = $app->getResource('logger', $context);
+            $log = $app->getResource('log', $context);
             logError($log, $th, "serverError", $logger);
             $swooleResponse->setStatusCode($code);
             $output = [
