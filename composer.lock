@@ -228,12 +228,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/framework.git",
-                "reference": "69b83a3ffdb9ed8b5db4d44abe42fc8aeaa1215a"
+                "reference": "c9ea90ea4326852ec530c0f17912c78cd2fceebf"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/framework/zipball/69b83a3ffdb9ed8b5db4d44abe42fc8aeaa1215a",
-                "reference": "69b83a3ffdb9ed8b5db4d44abe42fc8aeaa1215a",
+                "url": "https://api.github.com/repos/utopia-php/framework/zipball/c9ea90ea4326852ec530c0f17912c78cd2fceebf",
+                "reference": "c9ea90ea4326852ec530c0f17912c78cd2fceebf",
                 "shasum": ""
             },
             "require": {
@@ -267,7 +267,7 @@
                 "issues": "https://github.com/utopia-php/framework/issues",
                 "source": "https://github.com/utopia-php/framework/tree/fix-v2-swoole-coroutines"
             },
-            "time": "2023-10-02T13:05:16+00:00"
+            "time": "2023-10-03T12:56:31+00:00"
         },
         {
             "name": "utopia-php/logger",
