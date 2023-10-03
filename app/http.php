@@ -4,7 +4,6 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use Appwrite\Runtimes\Runtimes;
 use OpenRuntimes\Executor\Usage;
-use Swoole\Http\Request as SwooleRequest;
 use Swoole\Http\Response as SwooleResponse;
 use Utopia\Http\Adapter\Swoole\Server;
 use Swoole\Process;
@@ -1298,14 +1297,8 @@ run(function () use ($register) {
 
     $server = new Server('0.0.0.0', '80');
 
-    $server->onRequest(function (SwooleRequest $swooleRequest, SwooleResponse $swooleResponse, string $context) use ($server) {
-        $request = new Request($swooleRequest);
-        $response = new Response($swooleResponse);
-
+    $server->onRequest(function (Request $request, Response $response, string $context) use ($server) {
         $app = new Http($server, 'UTC');
-
-        $app->setResource('swooleRequest', fn () => $swooleRequest);
-        $app->setResource('swooleResponse', fn () => $swooleResponse);
 
         try {
             $app->run($request, $response, $context);
@@ -1318,7 +1311,7 @@ run(function () use ($register) {
             $logger = $app->getResource('logger', $context);
             $log = $app->getResource('log', $context);
             logError($log, $th, "serverError", $logger);
-            $swooleResponse->setStatusCode($code);
+            $response->setStatusCode($code);
             $output = [
                 'message' => 'Error: ' . $th->getMessage(),
                 'code' => $code,
@@ -1326,7 +1319,8 @@ run(function () use ($register) {
                 'line' => $th->getLine(),
                 'trace' => $th->getTrace()
             ];
-            $swooleResponse->end(\json_encode($output));
+            $output = \json_encode($output);
+            $response->send($output ? $output : '');
         }
     });
 
