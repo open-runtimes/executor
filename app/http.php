@@ -299,7 +299,8 @@ App::get('/v1/runtimes/:runtimeId/logs')
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->param('timeout', '600', new Text(16), 'Maximum logs timeout.', true)
     ->inject('swooleResponse')
-    ->action(function (string $runtimeId, string $timeoutStr, SwooleResponse $swooleResponse) {
+    ->inject('log')
+    ->action(function (string $runtimeId, string $timeoutStr, SwooleResponse $swooleResponse, Log $log) {
         $timeout = \intval($timeoutStr);
 
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
@@ -316,7 +317,14 @@ App::get('/v1/runtimes/:runtimeId/logs')
             }
 
             if ($i === 9) {
-                throw new Exception('Runtime not ready. Error Msg: ' . $output, 500);
+                $runtimeIdTokens = explode("-", $runtimeId);
+                $executorId = $runtimeIdTokens[0];
+                $functionId = $runtimeIdTokens[1];
+                $deploymentId = $runtimeIdTokens[2];
+                $log->addTag('executorId', $executorId);
+                $log->addTag('functionId', $functionId);
+                $log->addTag('deploymentId', $deploymentId);
+                throw new Exception('Runtime not ready. Container not found.', 500);
             }
 
             \usleep(500000);
