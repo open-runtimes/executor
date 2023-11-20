@@ -164,8 +164,7 @@ function logError(Log $log, Throwable $error, string $action, Logger $logger = n
         $log->addExtra('file', $error->getFile());
         $log->addExtra('line', $error->getLine());
         $log->addExtra('trace', $error->getTraceAsString());
-        // TODO: @Meldiron Uncomment, was warning: Undefined array key "file" in Sentry.php on line 68
-        // $log->addExtra('detailedTrace', $error->getTrace());
+        $log->addExtra('detailedTrace', $error->getTrace());
 
         $log->setAction($action);
 
