@@ -1023,8 +1023,14 @@ App::post('/v1/runtimes/:runtimeId/execution')
                     break;
                 }
 
+                // Unknown protocol error code, but also means parsing issue
+                // As patch, we consider this too big entry for headers (logs&errors)
+                if ($executionResponse['errNo'] === 7102) {
+                    throw new Exception('Invalid response. This usually means too large logs or errors. Please avoid logging files or lengthy strings.', 500);
+                }
+
                 if ($executionResponse['errNo'] !== 111) { // Connection Refused - see https://openswoole.com/docs/swoole-error-code
-                    throw new Exception('An internal curl error has occurred within the executor! Error Msg: ' . $executionResponse['error'], 500);
+                    throw new Exception('An internal curl error has occurred within the executor! Error Number: ' . $executionResponse['errNo'] . '. Error Msg: ' . $executionResponse['error'], 500);
                 }
 
                 if ($i === 9) {
