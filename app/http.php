@@ -78,8 +78,8 @@ $register->set('logger', function () {
  * Create orchestration
  */
 $register->set('orchestration', function () {
-    $dockerUser = (string) App::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
-    $dockerPass = (string) App::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
+    $dockerUser = (string) App::getEnv('OPR_EXECUTOR_DOCKER_USERNAME', '');
+    $dockerPass = (string) App::getEnv('OPR_EXECUTOR_DOCKER_PASSWORD', '');
     $orchestration = new Orchestration(new DockerCLI($dockerUser, $dockerPass));
 
     return $orchestration;
