@@ -27,7 +27,6 @@ use Utopia\Storage\Device\S3;
 use Utopia\Storage\Storage;
 use Utopia\System\System;
 use Utopia\DSN\DSN;
-use Utopia\Http\Adapter\Swoole\Response as SwooleResponse;
 use Utopia\Http\Adapter\Swoole\Server;
 use Utopia\Http\Http;
 use Utopia\Http\Request;
@@ -297,17 +296,15 @@ Http::get('/v1/runtimes/:runtimeId/logs')
     ->desc("Get live stream of logs of a runtime")
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->param('timeout', '600', new Text(16), 'Maximum logs timeout.', true)
-    ->inject('swooleResponse')
+    ->inject('response')
     ->inject('log')
-    ->action(function (string $runtimeId, string $timeoutStr, SwooleResponse $swooleResponse, Log $log) {
+    ->action(function (string $runtimeId, string $timeoutStr, Response $response, Log $log) {
         $timeout = \intval($timeoutStr);
 
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
-        $swooleResponse = $swooleResponse->getSwooleResponse();
-
-        $swooleResponse->header('Content-Type', 'text/event-stream');
-        $swooleResponse->header('Cache-Control', 'no-cache');
+        $response->sendHeader('Content-Type', 'text/event-stream');
+        $response->sendHeader('Cache-Control', 'no-cache');
 
         // Wait for runtime
         for ($i = 0; $i < 10; $i++) {
@@ -342,12 +339,12 @@ Http::get('/v1/runtimes/:runtimeId/logs')
         $logsProcess = null;
 
         $streamInterval = 1000; // 1 second
-        $timerId = Timer::tick($streamInterval, function () use (&$logsProcess, &$logsChunk, $swooleResponse) {
+        $timerId = Timer::tick($streamInterval, function () use (&$logsProcess, &$logsChunk, $response) {
             if (empty($logsChunk)) {
                 return;
             }
 
-            $write = $swooleResponse->write($logsChunk);
+            $write = $response->write($logsChunk);
             $logsChunk = '';
 
             if (!$write) {
@@ -368,7 +365,7 @@ Http::get('/v1/runtimes/:runtimeId/logs')
 
         Timer::clear($timerId);
 
-        $swooleResponse->end();
+        $response->end();
     });
 
 Http::post('/v1/runtimes')
