@@ -6,7 +6,6 @@ use Appwrite\Runtimes\Runtimes;
 use OpenRuntimes\Executor\Usage;
 use Swoole\Process;
 use Swoole\Runtime;
-use Swoole\Table;
 use Swoole\Timer;
 use Utopia\CLI\Console;
 use Utopia\Logger\Log;
@@ -87,39 +86,22 @@ $register->set('orchestration', function () {
  * Create a Swoole table to store runtime information
  */
 $register->set('activeRuntimes', function () {
-    $table = new Table(1024);
+    $state = [];
 
-    $table->column('id', Table::TYPE_STRING, 256);
-    $table->column('created', Table::TYPE_FLOAT);
-    $table->column('updated', Table::TYPE_FLOAT);
-    $table->column('name', Table::TYPE_STRING, 256);
-    $table->column('hostname', Table::TYPE_STRING, 256);
-    $table->column('status', Table::TYPE_STRING, 128);
-    $table->column('key', Table::TYPE_STRING, 256);
-    $table->create();
-
-    return $table;
+    return $state;
 });
 
 /**
  * Create a Swoole table of usage stats (separate for host and containers)
  */
 $register->set('statsContainers', function () {
-    $table = new Table(1024);
-
-    $table->column('usage', Table::TYPE_FLOAT, 8);
-    $table->create();
-
-    return $table;
+    $state = []; // has usage float key
+    return $state;
 });
 
 $register->set('statsHost', function () {
-    $table = new Table(1024);
-
-    $table->column('usage', Table::TYPE_FLOAT, 8);
-    $table->create();
-
-    return $table;
+    $state = []; // has usage float key
+    return $state;
 });
 
 /** Set Resources */
@@ -256,7 +238,10 @@ function getStorageDevice(string $root): Device
     }
 }
 
-function removeAllRuntimes(Table $activeRuntimes, Orchestration $orchestration): void
+/**
+ * @param array<string, mixed> $activeRuntimes
+ */
+function removeAllRuntimes(array $activeRuntimes, Orchestration $orchestration): void
 {
     Console::log('Cleaning up containers...');
 
@@ -275,8 +260,8 @@ function removeAllRuntimes(Table $activeRuntimes, Orchestration $orchestration):
 
                 $activeRuntimeId = $container->getLabels()['openruntimes-runtime-id'];
 
-                if (!$activeRuntimes->exists($activeRuntimeId)) {
-                    $activeRuntimes->del($activeRuntimeId);
+                if (!\array_key_exists($activeRuntimeId, $activeRuntimes)) {
+                    unset($activeRuntimes[$activeRuntimeId]);
                 }
 
                 Console::success('Removed container ' . $container->getName());
@@ -387,7 +372,7 @@ Http::post('/v1/runtimes')
     ->inject('activeRuntimes')
     ->inject('response')
     ->inject('log')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, int $cpus, int $memory, string $version, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, int $cpus, int $memory, string $version, Orchestration $orchestration, array $activeRuntimes, Response $response, Log $log) {
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
@@ -395,8 +380,8 @@ Http::post('/v1/runtimes')
 
         $log->addTag('runtimeId', $activeRuntimeId);
 
-        if ($activeRuntimes->exists($activeRuntimeId)) {
-            if ($activeRuntimes->get($activeRuntimeId)['status'] == 'pending') {
+        if (\array_key_exists($activeRuntimeId, $activeRuntimes)) {
+            if ($activeRuntimes['activeRuntimeId']['status'] == 'pending') {
                 throw new \Exception('A runtime with the same ID is already being created. Attempt a execution soon.', 500);
             }
 
@@ -410,7 +395,7 @@ Http::post('/v1/runtimes')
 
         $secret = \bin2hex(\random_bytes(16));
 
-        $activeRuntimes->set($activeRuntimeId, [
+        $activeRuntimes[$activeRuntimeId] = [
             'id' => $containerId,
             'name' => $activeRuntimeId,
             'hostname' => $runtimeHostname,
@@ -418,7 +403,7 @@ Http::post('/v1/runtimes')
             'updated' => $startTime,
             'status' => 'pending',
             'key' => $secret,
-        ]);
+        ];
 
         /**
          * Temporary file paths in the executor
@@ -563,7 +548,7 @@ Http::post('/v1/runtimes')
                 'duration' => $duration,
             ]);
 
-            $activeRuntimes->set($activeRuntimeId, [
+            $activeRuntimes[$activeRuntimeId] = [
                 'id' => $containerId,
                 'name' => $activeRuntimeId,
                 'hostname' => $runtimeHostname,
@@ -571,7 +556,7 @@ Http::post('/v1/runtimes')
                 'updated' => \microtime(true),
                 'status' => 'Up ' . \round($duration, 2) . 's',
                 'key' => $secret,
-            ]);
+            ];
         } catch (Throwable $th) {
             $error = $th->getMessage() . $output;
 
@@ -604,7 +589,7 @@ Http::post('/v1/runtimes')
             } catch (Throwable $th) {
             }
 
-            $activeRuntimes->del($activeRuntimeId);
+            unset($activeRuntimes[$activeRuntimeId]);
 
             throw new Exception($error, 500);
         }
@@ -621,7 +606,7 @@ Http::post('/v1/runtimes')
             } catch (Throwable $th) {
             }
 
-            $activeRuntimes->del($activeRuntimeId);
+            unset($activeRuntimes[$activeRuntimeId]);
         }
 
         $response
@@ -633,7 +618,7 @@ Http::get('/v1/runtimes')
     ->desc("List currently active runtimes")
     ->inject('activeRuntimes')
     ->inject('response')
-    ->action(function (Table $activeRuntimes, Response $response) {
+    ->action(function (array $activeRuntimes, Response $response) {
         $runtimes = [];
 
         foreach ($activeRuntimes as $runtime) {
@@ -651,16 +636,16 @@ Http::get('/v1/runtimes/:runtimeId')
     ->inject('activeRuntimes')
     ->inject('response')
     ->inject('log')
-    ->action(function (string $runtimeId, Table $activeRuntimes, Response $response, Log $log) {
+    ->action(function (string $runtimeId, array $activeRuntimes, Response $response, Log $log) {
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
 
         $log->addTag('runtimeId', $activeRuntimeId);
 
-        if (!$activeRuntimes->exists($activeRuntimeId)) {
+        if (!\array_key_exists($activeRuntimeId, $activeRuntimes)) {
             throw new Exception('Runtime not found', 404);
         }
 
-        $runtime = $activeRuntimes->get($activeRuntimeId);
+        $runtime = $activeRuntimes[$activeRuntimeId];
 
         $response
             ->setStatusCode(Response::STATUS_CODE_OK)
@@ -674,18 +659,19 @@ Http::delete('/v1/runtimes/:runtimeId')
     ->inject('activeRuntimes')
     ->inject('response')
     ->inject('log')
-    ->action(function (string $runtimeId, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
+    ->action(function (string $runtimeId, Orchestration $orchestration, array $activeRuntimes, Response $response, Log $log) {
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
         $log->addTag('runtimeId', $activeRuntimeId);
 
-        if (!$activeRuntimes->exists($activeRuntimeId)) {
+
+        if (!\array_key_exists($activeRuntimeId, $activeRuntimes)) {
             throw new Exception('Runtime not found', 404);
         }
 
         $orchestration->remove($runtimeId, true);
-        $activeRuntimes->del($activeRuntimeId);
+        unset($activeRuntimes[$activeRuntimeId]);
 
         $response
             ->setStatusCode(Response::STATUS_CODE_OK)
@@ -714,7 +700,7 @@ Http::post('/v1/runtimes/:runtimeId/execution')
     ->inject('response')
     ->inject('log')
     ->action(
-        function (string $runtimeId, ?string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $runtimeEntrypoint, Table $activeRuntimes, Response $response, Log $log) {
+        function (string $runtimeId, ?string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $runtimeEntrypoint, array $activeRuntimes, Response $response, Log $log) {
             if (empty($payload)) {
                 $payload = '';
             }
@@ -731,7 +717,7 @@ Http::post('/v1/runtimes/:runtimeId/execution')
             $coldStartDuration = 0;
 
             // Prepare runtime
-            if (!$activeRuntimes->exists($activeRuntimeId)) {
+            if (!\array_key_exists($activeRuntimeId, $activeRuntimes)) {
                 if (empty($image) || empty($source) || empty($entrypoint)) {
                     throw new Exception('Runtime not found. Please start it first or provide runtime-related parameters.', 401);
                 }
@@ -816,13 +802,13 @@ Http::post('/v1/runtimes/:runtimeId/execution')
             }
 
             // Update swoole table
-            $runtime = $activeRuntimes->get($activeRuntimeId) ?? [];
+            $runtime = $activeRuntimes[$activeRuntimeId] ?? [];
             $runtime['updated'] = \time();
-            $activeRuntimes->set($activeRuntimeId, $runtime);
+            $activeRuntimes[$activeRuntimeId] = $runtime;
 
             // Ensure runtime started
             for ($i = 0; $i < 10; $i++) {
-                if ($activeRuntimes->get($activeRuntimeId)['status'] !== 'pending') {
+                if ($activeRuntimes[$activeRuntimeId]['status'] !== 'pending') {
                     break;
                 }
 
@@ -834,7 +820,7 @@ Http::post('/v1/runtimes/:runtimeId/execution')
             }
 
             // Ensure we have secret
-            $runtime = $activeRuntimes->get($activeRuntimeId);
+            $runtime = $activeRuntimes[$activeRuntimeId];
             $hostname = $runtime['hostname'];
             $secret = $runtime['key'];
             if (empty($secret)) {
@@ -1056,9 +1042,9 @@ Http::post('/v1/runtimes/:runtimeId/execution')
             }
 
             // Update swoole table
-            $runtime = $activeRuntimes->get($activeRuntimeId);
+            $runtime = $activeRuntimes[$activeRuntimeId];
             $runtime['updated'] = \microtime(true);
-            $activeRuntimes->set($activeRuntimeId, $runtime);
+            $activeRuntimes[$activeRuntimeId] = $runtime;
 
             // Finish request
             $response
@@ -1073,13 +1059,13 @@ Http::get('/v1/health')
     ->inject('statsHost')
     ->inject('statsContainers')
     ->inject('response')
-    ->action(function (Table $statsHost, Table $statsContainers, Response $response) {
+    ->action(function (array $statsHost, array $statsContainers, Response $response) {
         $output = [
             'status' => 'pass',
             'runtimes' => []
         ];
 
-        $hostUsage = $statsHost->get('host', 'usage') ?? null;
+        $hostUsage = ($statsHost['host'] ?? [])['usage'] ?? null;
         $output['usage'] = $hostUsage;
 
         foreach ($statsContainers as $hostname => $stat) {
@@ -1213,7 +1199,7 @@ run(function () use ($register) {
                     } catch (\Throwable $th) {
                         Console::error('Inactive Runtime deletion failed: ' . $th->getMessage());
                     } finally {
-                        $activeRuntimes->del($activeRuntimeId);
+                        unset($activeRuntimes[$activeRuntimeId]);
                     }
                 });
             }
@@ -1249,7 +1235,12 @@ run(function () use ($register) {
      * Get usage stats every X seconds to update swoole table
      */
     Console::info('Starting stats interval...');
-    function getStats(Table $statsHost, Table $statsContainers, Orchestration $orchestration, bool $recursive = false): void
+
+    /**
+     * @param array<string, mixed> $statsHost
+     * @param array<string, mixed> $statsContainers
+    */
+    function getStats(array $statsHost, array $statsContainers, Orchestration $orchestration, bool $recursive = false): void
     {
         // Get usage stats
         $usage = new Usage($orchestration);
@@ -1257,7 +1248,7 @@ run(function () use ($register) {
 
         // Update host usage stats
         if ($usage->getHostUsage() !== null) {
-            $oldStat = $statsHost->get('host', 'usage') ?? null;
+            $oldStat = ($statsHost['host'] ?? [])['usage'] ?? null;
 
             if ($oldStat === null) {
                 $stat = $usage->getHostUsage();
@@ -1265,12 +1256,12 @@ run(function () use ($register) {
                 $stat = ($oldStat + $usage->getHostUsage()) / 2;
             }
 
-            $statsHost->set('host', ['usage' => $stat]);
+            $statsHost['host'] = ['usage' => $stat];
         }
 
         // Update runtime usage stats
         foreach ($usage->getRuntimesUsage() as $runtime => $usageStat) {
-            $oldStat = $statsContainers->get($runtime, 'usage') ?? null;
+            $oldStat = ($statsContainers[$runtime] ?? [])['usage'] ?? null;
 
             if ($oldStat === null) {
                 $stat = $usageStat;
@@ -1278,14 +1269,14 @@ run(function () use ($register) {
                 $stat = ($oldStat + $usageStat) / 2;
             }
 
-            $statsContainers->set($runtime, ['usage' => $stat]);
+            $statsContainers[$runtime] = ['usage' => $stat];
         }
 
         // Delete gone runtimes
         $runtimes = \array_keys($usage->getRuntimesUsage());
         foreach ($statsContainers as $hostname => $stat) {
             if (!(\in_array($hostname, $runtimes))) {
-                $statsContainers->delete($hostname);
+                unset($statsContainers[$hostname]);
             }
         }
 
