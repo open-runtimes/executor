@@ -300,6 +300,18 @@ final class ExecutorTest extends TestCase
                     $this->assertEmpty($response['body']['logs']);
                 }
             ],
+            [
+                'image' => 'openruntimes/node:v3-18.0',
+                'entrypoint' => 'index.js',
+                'folder' => 'node-large-logs',
+                'version' => 'v3',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'assertions' => function ($response) {
+                    $this->assertEquals(500, $response['headers']['status-code']);
+                    $this->assertStringContainsString('Invalid response. This usually means too large logs or errors', $response['body']['message']);
+                }
+            ],
         ];
     }
 
