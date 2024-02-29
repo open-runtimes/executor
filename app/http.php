@@ -95,6 +95,7 @@ $register->set('activeRuntimes', function () {
 /**
  * Create a Swoole table of usage stats (separate for host and containers)
  */
+// TODO: Convert to class like ActiveRuntimes
 $register->set('statsContainers', function () {
     $table = new Table(1024);
 
@@ -104,6 +105,7 @@ $register->set('statsContainers', function () {
     return $table;
 });
 
+// TODO: Convert to class like ActiveRuntimes
 $register->set('statsHost', function () {
     $table = new Table(1024);
 

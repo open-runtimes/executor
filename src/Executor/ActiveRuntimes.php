@@ -2,15 +2,18 @@
 
 namespace OpenRuntimes\Executor;
 
+/**
+ * @phpstan-type ActiveRuntime array{id: string, name: string, hostname: string, status: string, key: string, created: float, updated: float}
+*/
 class ActiveRuntimes
 {
     /**
-     * @var array<string, mixed> $runtimes
+     * @var array<string, ActiveRuntime>
      */
     protected array $runtimes = [];
 
     /**
-     * @param array<mixed> $runtime
+     * @param ActiveRuntime $runtime
      */
     public function set(string $id, array $runtime): self
     {
@@ -19,15 +22,15 @@ class ActiveRuntimes
     }
 
     /**
-     * @return array<mixed>
+     * @return ActiveRuntime|null
      */
-    public function get(string $id): array
+    public function get(string $id): ?array
     {
-        return $this->runtimes[$id] ?? [];
+        return $this->runtimes[$id] ?? null;
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array<string, ActiveRuntime>
      */
     public function getAll(): array
     {
