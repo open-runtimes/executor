@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Appwrite\Runtimes\Runtimes;
+use OpenRuntimes\Executor\ActiveRuntimes;
 use OpenRuntimes\Executor\Usage;
 use Swoole\Process;
 use Swoole\Runtime;
@@ -90,23 +91,14 @@ $register->set('orchestration', function () {
  * Create a Swoole table to store runtime information
  */
 $register->set('activeRuntimes', function () {
-    $table = new Table(1024);
-
-    $table->column('id', Table::TYPE_STRING, 256);
-    $table->column('created', Table::TYPE_FLOAT);
-    $table->column('updated', Table::TYPE_FLOAT);
-    $table->column('name', Table::TYPE_STRING, 256);
-    $table->column('hostname', Table::TYPE_STRING, 256);
-    $table->column('status', Table::TYPE_STRING, 128);
-    $table->column('key', Table::TYPE_STRING, 256);
-    $table->create();
-
-    return $table;
+    $state = new ActiveRuntimes();
+    return $state;
 });
 
 /**
  * Create a Swoole table of usage stats (separate for host and containers)
  */
+// TODO: Convert to class like ActiveRuntimes
 $register->set('statsContainers', function () {
     $table = new Table(1024);
 
@@ -116,6 +108,7 @@ $register->set('statsContainers', function () {
     return $table;
 });
 
+// TODO: Convert to class like ActiveRuntimes
 $register->set('statsHost', function () {
     $table = new Table(1024);
 
@@ -259,7 +252,7 @@ function getStorageDevice(string $root): Device
     }
 }
 
-function removeAllRuntimes(Table $activeRuntimes, Orchestration $orchestration): void
+function removeAllRuntimes(ActiveRuntimes $activeRuntimes, Orchestration $orchestration): void
 {
     Console::log('Cleaning up containers...');
 
@@ -390,7 +383,7 @@ Http::post('/v1/runtimes')
     ->inject('activeRuntimes')
     ->inject('response')
     ->inject('log')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, int $cpus, int $memory, string $version, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, int $cpus, int $memory, string $version, Orchestration $orchestration, ActiveRuntimes $activeRuntimes, Response $response, Log $log) {
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
@@ -636,10 +629,10 @@ Http::get('/v1/runtimes')
     ->desc("List currently active runtimes")
     ->inject('activeRuntimes')
     ->inject('response')
-    ->action(function (Table $activeRuntimes, Response $response) {
+    ->action(function (ActiveRuntimes $activeRuntimes, Response $response) {
         $runtimes = [];
 
-        foreach ($activeRuntimes as $runtime) {
+        foreach ($activeRuntimes->getAll() as $runtime) {
             $runtimes[] = $runtime;
         }
 
@@ -654,7 +647,7 @@ Http::get('/v1/runtimes/:runtimeId')
     ->inject('activeRuntimes')
     ->inject('response')
     ->inject('log')
-    ->action(function (string $runtimeId, Table $activeRuntimes, Response $response, Log $log) {
+    ->action(function (string $runtimeId, ActiveRuntimes $activeRuntimes, Response $response, Log $log) {
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
 
         $log->addTag('runtimeId', $activeRuntimeId);
@@ -677,7 +670,7 @@ Http::delete('/v1/runtimes/:runtimeId')
     ->inject('activeRuntimes')
     ->inject('response')
     ->inject('log')
-    ->action(function (string $runtimeId, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
+    ->action(function (string $runtimeId, Orchestration $orchestration, ActiveRuntimes $activeRuntimes, Response $response, Log $log) {
         $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
         $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
 
@@ -717,7 +710,7 @@ Http::post('/v1/runtimes/:runtimeId/execution')
     ->inject('response')
     ->inject('log')
     ->action(
-        function (string $runtimeId, ?string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $runtimeEntrypoint, Table $activeRuntimes, Response $response, Log $log) {
+        function (string $runtimeId, ?string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $runtimeEntrypoint, ActiveRuntimes $activeRuntimes, Response $response, Log $log) {
             if (empty($payload)) {
                 $payload = '';
             }
@@ -819,7 +812,7 @@ Http::post('/v1/runtimes/:runtimeId/execution')
             }
 
             // Update swoole table
-            $runtime = $activeRuntimes->get($activeRuntimeId) ?? [];
+            $runtime = $activeRuntimes->get($activeRuntimeId);
             $runtime['updated'] = \time();
             $activeRuntimes->set($activeRuntimeId, $runtime);
 
