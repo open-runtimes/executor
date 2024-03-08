@@ -90,15 +90,15 @@ $register->set('orchestration', function () {
  * Create a Swoole table to store runtime information
  */
 $register->set('activeRuntimes', function () {
-    $table = new Table(1024);
+    $table = new Table(4096);
 
-    $table->column('id', Table::TYPE_STRING, 256);
+    $table->column('id', Table::TYPE_STRING, 1024);
     $table->column('created', Table::TYPE_FLOAT);
     $table->column('updated', Table::TYPE_FLOAT);
-    $table->column('name', Table::TYPE_STRING, 256);
-    $table->column('hostname', Table::TYPE_STRING, 256);
-    $table->column('status', Table::TYPE_STRING, 128);
-    $table->column('key', Table::TYPE_STRING, 256);
+    $table->column('name', Table::TYPE_STRING, 1024);
+    $table->column('hostname', Table::TYPE_STRING, 1024);
+    $table->column('status', Table::TYPE_STRING, 256);
+    $table->column('key', Table::TYPE_STRING, 1024);
     $table->create();
 
     return $table;
