@@ -92,7 +92,7 @@ $register->set('orchestration', function () {
 $register->set('activeRuntimes', function () {
     $table = new Table(1024);
 
-    $table->column('id', Table::TYPE_STRING, 256);
+    $table->column('id', Table::TYPE_STRING, 512);
     $table->column('created', Table::TYPE_FLOAT);
     $table->column('updated', Table::TYPE_FLOAT);
     $table->column('name', Table::TYPE_STRING, 256);
