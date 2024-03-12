@@ -512,7 +512,7 @@ Http::post('/v1/runtimes')
             if (!empty($command)) {
                 $commands = [
                     'sh', '-c',
-                    'touch /var/tmp/logs.txt && (' . $command . ') >> /var/tmp/logs.txt 2>&1 && cat /var/tmp/logs.txt'
+                    trim(\escapeshellarg('touch /var/tmp/logs.txt && (' . $command . ') >> /var/tmp/logs.txt 2>&1 && cat /var/tmp/logs.txt'), "'") // trim the outside quotes because the orchestration library will add it back
                 ];
 
                 $status = $orchestration->execute(
