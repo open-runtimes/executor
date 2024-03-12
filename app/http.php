@@ -92,7 +92,6 @@ $register->set('orchestration', function () {
 $register->set('activeRuntimes', function () {
     $table = new Table(4096);
 
-    $table->column('id', Table::TYPE_STRING, 1024);
     $table->column('created', Table::TYPE_FLOAT);
     $table->column('updated', Table::TYPE_FLOAT);
     $table->column('name', Table::TYPE_STRING, 1024);
@@ -407,14 +406,12 @@ Http::post('/v1/runtimes')
         }
 
         $container = [];
-        $containerId = '';
         $output = '';
         $startTime = \microtime(true);
 
         $secret = \bin2hex(\random_bytes(16));
 
         $activeRuntimes->set($activeRuntimeId, [
-            'id' => $containerId,
             'name' => $activeRuntimeId,
             'hostname' => $runtimeHostname,
             'created' => $startTime,
@@ -567,7 +564,6 @@ Http::post('/v1/runtimes')
             ]);
 
             $activeRuntimes->set($activeRuntimeId, [
-                'id' => $containerId,
                 'name' => $activeRuntimeId,
                 'hostname' => $runtimeHostname,
                 'created' => $startTime,
@@ -603,7 +599,7 @@ Http::post('/v1/runtimes')
 
             // Silently try to kill container
             try {
-                $orchestration->remove($containerId, true);
+                $orchestration->remove($activeRuntimeId, true);
             } catch (Throwable $th) {
             }
 
@@ -620,7 +616,7 @@ Http::post('/v1/runtimes')
 
             // Silently try to kill container
             try {
-                $orchestration->remove($containerId, true);
+                $orchestration->remove($activeRuntimeId, true);
             } catch (Throwable $th) {
             }
 
@@ -1217,7 +1213,7 @@ run(function () use ($register) {
             if ($runtime['updated'] < $inactiveThreshold) {
                 go(function () use ($activeRuntimeId, $runtime, $orchestration, $activeRuntimes) {
                     try {
-                        $orchestration->remove($runtime['id'], true);
+                        $orchestration->remove($runtime['name'], true);
                         Console::success("Successfully removed {$runtime['name']}");
                     } catch (\Throwable $th) {
                         Console::error('Inactive Runtime deletion failed: ' . $th->getMessage());
