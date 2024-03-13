@@ -152,12 +152,12 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(1, count($response['body']));
-        $this->assertEquals('test-build', $response['body'][0]['name']);
+        $this->assertStringEndsWith('test-build', $response['body'][0]['name']);
 
         /** Get runtime */
         $response = $this->client->call(Client::METHOD_GET, '/runtimes/test-build', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
-        $this->assertEquals('test-build', $response['body']['name']);
+        $this->assertStringEndsWith('test-build', $response['body']['name']);
 
         /** Delete runtime */
         $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-build', [], []);

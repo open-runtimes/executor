@@ -275,7 +275,7 @@ function removeAllRuntimes(Table $activeRuntimes, Orchestration $orchestration):
             try {
                 $orchestration->remove($container->getId(), true);
 
-                $activeRuntimeId = $container->getLabels()['openruntimes-runtime-id'];
+                $activeRuntimeId = $container->getName();
 
                 if (!$activeRuntimes->exists($activeRuntimeId)) {
                     $activeRuntimes->del($activeRuntimeId);
@@ -303,7 +303,7 @@ Http::get('/v1/runtimes/:runtimeId/logs')
     ->action(function (string $runtimeId, string $timeoutStr, Response $response, Log $log) {
         $timeout = \intval($timeoutStr);
 
-        $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
+        $runtimeName = System::getHostname() . '-' . $runtimeId;
 
         $response->sendHeader('Content-Type', 'text/event-stream');
         $response->sendHeader('Cache-Control', 'no-cache');
@@ -311,13 +311,13 @@ Http::get('/v1/runtimes/:runtimeId/logs')
         // Wait for runtime
         for ($i = 0; $i < 10; $i++) {
             $output = '';
-            $code = Console::execute('docker container inspect ' . \escapeshellarg($runtimeId), '', $output);
+            $code = Console::execute('docker container inspect ' . \escapeshellarg($runtimeName), '', $output);
             if ($code === 0) {
                 break;
             }
 
             if ($i === 9) {
-                $runtimeIdTokens = explode("-", $runtimeId);
+                $runtimeIdTokens = explode("-", $runtimeName);
                 $executorId = $runtimeIdTokens[0];
                 $functionId = $runtimeIdTokens[1];
                 $deploymentId = $runtimeIdTokens[2];
@@ -357,7 +357,7 @@ Http::get('/v1/runtimes/:runtimeId/logs')
         });
 
         $output = '';
-        Console::execute('docker exec ' . \escapeshellarg($runtimeId) . ' tail -F /var/tmp/logs.txt', '', $output, $timeout, function (string $outputChunk, mixed $process) use (&$logsChunk, &$logsProcess) {
+        Console::execute('docker exec ' . \escapeshellarg($runtimeName) . ' tail -F /var/tmp/logs.txt', '', $output, $timeout, function (string $outputChunk, mixed $process) use (&$logsChunk, &$logsProcess) {
             $logsProcess = $process;
 
             if (!empty($outputChunk)) {
@@ -390,15 +390,14 @@ Http::post('/v1/runtimes')
     ->inject('response')
     ->inject('log')
     ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, int $cpus, int $memory, string $version, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
-        $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
-        $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
+        $runtimeName = System::getHostname() . '-' . $runtimeId;
 
         $runtimeHostname = \uniqid();
 
-        $log->addTag('runtimeId', $activeRuntimeId);
+        $log->addTag('runtimeId', $runtimeName);
 
-        if ($activeRuntimes->exists($activeRuntimeId)) {
-            if ($activeRuntimes->get($activeRuntimeId)['status'] == 'pending') {
+        if ($activeRuntimes->exists($runtimeName)) {
+            if ($activeRuntimes->get($runtimeName)['status'] == 'pending') {
                 throw new \Exception('A runtime with the same ID is already being created. Attempt a execution soon.', 500);
             }
 
@@ -411,8 +410,8 @@ Http::post('/v1/runtimes')
 
         $secret = \bin2hex(\random_bytes(16));
 
-        $activeRuntimes->set($activeRuntimeId, [
-            'name' => $activeRuntimeId,
+        $activeRuntimes->set($runtimeName, [
+            'name' => $runtimeName,
             'hostname' => $runtimeHostname,
             'created' => $startTime,
             'updated' => $startTime,
@@ -423,7 +422,7 @@ Http::post('/v1/runtimes')
         /**
          * Temporary file paths in the executor
          */
-        $tmpFolder = "tmp/$runtimeId/";
+        $tmpFolder = "tmp/$runtimeName/";
         $tmpSource = "/{$tmpFolder}src/code.tar.gz";
         $tmpBuild = "/{$tmpFolder}builds/code.tar.gz";
 
@@ -486,13 +485,13 @@ Http::post('/v1/runtimes')
             /** Keep the container alive if we have commands to be executed */
             $containerId = $orchestration->run(
                 image: $image,
-                name: $runtimeId,
+                name: $runtimeName,
                 hostname: $runtimeHostname,
                 vars: $variables,
                 command: $runtimeEntrypointCommands,
                 labels: [
                     'openruntimes-executor' => System::getHostname(),
-                    'openruntimes-runtime-id' => $activeRuntimeId
+                    'openruntimes-runtime-id' => $runtimeId
                 ],
                 volumes: [
                     \dirname($tmpSource) . ':/tmp:rw',
@@ -516,7 +515,7 @@ Http::post('/v1/runtimes')
                 ];
 
                 $status = $orchestration->execute(
-                    name: $runtimeId,
+                    name: $runtimeName,
                     command: $commands,
                     output: $output,
                     timeout: $timeout
@@ -563,8 +562,8 @@ Http::post('/v1/runtimes')
                 'duration' => $duration,
             ]);
 
-            $activeRuntimes->set($activeRuntimeId, [
-                'name' => $activeRuntimeId,
+            $activeRuntimes->set($runtimeName, [
+                'name' => $runtimeName,
                 'hostname' => $runtimeHostname,
                 'created' => $startTime,
                 'updated' => \microtime(true),
@@ -578,7 +577,7 @@ Http::post('/v1/runtimes')
             try {
                 $logs = '';
                 $status = $orchestration->execute(
-                    name: $runtimeId,
+                    name: $runtimeName,
                     command: [ 'sh', '-c', 'cat /var/tmp/logs.txt' ],
                     output: $logs,
                     timeout: 15
@@ -599,11 +598,11 @@ Http::post('/v1/runtimes')
 
             // Silently try to kill container
             try {
-                $orchestration->remove($activeRuntimeId, true);
+                $orchestration->remove($runtimeName, true);
             } catch (Throwable $th) {
             }
 
-            $activeRuntimes->del($activeRuntimeId);
+            $activeRuntimes->del($runtimeName);
 
             throw new Exception($error, 500);
         }
@@ -616,11 +615,11 @@ Http::post('/v1/runtimes')
 
             // Silently try to kill container
             try {
-                $orchestration->remove($activeRuntimeId, true);
+                $orchestration->remove($runtimeName, true);
             } catch (Throwable $th) {
             }
 
-            $activeRuntimes->del($activeRuntimeId);
+            $activeRuntimes->del($runtimeName);
         }
 
         $response
@@ -651,15 +650,15 @@ Http::get('/v1/runtimes/:runtimeId')
     ->inject('response')
     ->inject('log')
     ->action(function (string $runtimeId, Table $activeRuntimes, Response $response, Log $log) {
-        $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
+        $runtimeName = System::getHostname() . '-' . $runtimeId;
 
-        $log->addTag('runtimeId', $activeRuntimeId);
+        $log->addTag('runtimeId', $runtimeName);
 
-        if (!$activeRuntimes->exists($activeRuntimeId)) {
+        if (!$activeRuntimes->exists($runtimeName)) {
             throw new Exception('Runtime not found', 404);
         }
 
-        $runtime = $activeRuntimes->get($activeRuntimeId);
+        $runtime = $activeRuntimes->get($runtimeName);
 
         $response
             ->setStatusCode(Response::STATUS_CODE_OK)
@@ -674,17 +673,16 @@ Http::delete('/v1/runtimes/:runtimeId')
     ->inject('response')
     ->inject('log')
     ->action(function (string $runtimeId, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
-        $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
-        $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
+        $runtimeName = System::getHostname() . '-' . $runtimeId;
 
-        $log->addTag('runtimeId', $activeRuntimeId);
+        $log->addTag('runtimeId', $runtimeName);
 
-        if (!$activeRuntimes->exists($activeRuntimeId)) {
+        if (!$activeRuntimes->exists($runtimeName)) {
             throw new Exception('Runtime not found', 404);
         }
 
-        $orchestration->remove($runtimeId, true);
-        $activeRuntimes->del($activeRuntimeId);
+        $orchestration->remove($runtimeName, true);
+        $activeRuntimes->del($runtimeName);
 
         $response
             ->setStatusCode(Response::STATUS_CODE_OK)
@@ -718,10 +716,9 @@ Http::post('/v1/runtimes/:runtimeId/execution')
                 $payload = '';
             }
 
-            $activeRuntimeId = $runtimeId; // Used with Swoole table (key)
-            $runtimeId = System::getHostname() . '-' . $runtimeId; // Used in Docker (name)
+            $runtimeName = System::getHostname() . '-' . $runtimeId;
 
-            $log->addTag('runtimeId', $activeRuntimeId);
+            $log->addTag('runtimeId', $runtimeName);
 
             $variables = \array_merge($variables, [
                 'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
@@ -730,13 +727,13 @@ Http::post('/v1/runtimes/:runtimeId/execution')
             $coldStartDuration = 0;
 
             // Prepare runtime
-            if (!$activeRuntimes->exists($activeRuntimeId)) {
+            if (!$activeRuntimes->exists($runtimeName)) {
                 if (empty($image) || empty($source) || empty($entrypoint)) {
                     throw new Exception('Runtime not found. Please start it first or provide runtime-related parameters.', 401);
                 }
 
                 // Prepare request to executor
-                $sendCreateRuntimeRequest = function () use ($activeRuntimeId, $image, $source, $entrypoint, $variables, $cpus, $memory, $version, $runtimeEntrypoint) {
+                $sendCreateRuntimeRequest = function () use ($runtimeId, $image, $source, $entrypoint, $variables, $cpus, $memory, $version, $runtimeEntrypoint) {
                     $statusCode = 0;
                     $errNo = -1;
                     $executorResponse = '';
@@ -744,7 +741,7 @@ Http::post('/v1/runtimes/:runtimeId/execution')
                     $ch = \curl_init();
 
                     $body = \json_encode([
-                        'runtimeId' => $activeRuntimeId,
+                        'runtimeId' => $runtimeId,
                         'image' => $image,
                         'source' => $source,
                         'entrypoint' => $entrypoint,
@@ -815,13 +812,13 @@ Http::post('/v1/runtimes/:runtimeId/execution')
             }
 
             // Update swoole table
-            $runtime = $activeRuntimes->get($activeRuntimeId) ?? [];
+            $runtime = $activeRuntimes->get($runtimeName) ?? [];
             $runtime['updated'] = \time();
-            $activeRuntimes->set($activeRuntimeId, $runtime);
+            $activeRuntimes->set($runtimeName, $runtime);
 
             // Ensure runtime started
             for ($i = 0; $i < 10; $i++) {
-                if ($activeRuntimes->get($activeRuntimeId)['status'] !== 'pending') {
+                if ($activeRuntimes->get($runtimeName)['status'] !== 'pending') {
                     break;
                 }
 
@@ -833,7 +830,7 @@ Http::post('/v1/runtimes/:runtimeId/execution')
             }
 
             // Ensure we have secret
-            $runtime = $activeRuntimes->get($activeRuntimeId);
+            $runtime = $activeRuntimes->get($runtimeName);
             $hostname = $runtime['hostname'];
             $secret = $runtime['key'];
             if (empty($secret)) {
@@ -1061,9 +1058,9 @@ Http::post('/v1/runtimes/:runtimeId/execution')
             }
 
             // Update swoole table
-            $runtime = $activeRuntimes->get($activeRuntimeId);
+            $runtime = $activeRuntimes->get($runtimeName);
             $runtime['updated'] = \microtime(true);
-            $activeRuntimes->set($activeRuntimeId, $runtime);
+            $activeRuntimes->set($runtimeName, $runtime);
 
             // Finish request
             $response
@@ -1208,17 +1205,17 @@ run(function () use ($register) {
     Timer::tick($interval * 1000, function () use ($orchestration, $activeRuntimes) {
         Console::info("Running maintenance task ...");
         // Stop idling runtimes
-        foreach ($activeRuntimes as $activeRuntimeId => $runtime) {
+        foreach ($activeRuntimes as $runtimeName => $runtime) {
             $inactiveThreshold = \time() - \intval(Http::getEnv('OPR_EXECUTOR_INACTIVE_TRESHOLD', '60'));
             if ($runtime['updated'] < $inactiveThreshold) {
-                go(function () use ($activeRuntimeId, $runtime, $orchestration, $activeRuntimes) {
+                go(function () use ($runtimeName, $runtime, $orchestration, $activeRuntimes) {
                     try {
                         $orchestration->remove($runtime['name'], true);
                         Console::success("Successfully removed {$runtime['name']}");
                     } catch (\Throwable $th) {
                         Console::error('Inactive Runtime deletion failed: ' . $th->getMessage());
                     } finally {
-                        $activeRuntimes->del($activeRuntimeId);
+                        $activeRuntimes->del($runtimeName);
                     }
                 });
             }
@@ -1232,8 +1229,8 @@ run(function () use ($register) {
             if (\str_starts_with($entry, $prefix)) {
                 $isActive = false;
 
-                foreach ($activeRuntimes as $activeRuntimeId => $runtime) {
-                    if (\str_ends_with($entry, $activeRuntimeId)) {
+                foreach ($activeRuntimes as $runtimeName => $runtime) {
+                    if (\str_ends_with($entry, $runtimeName)) {
                         $isActive = true;
                         break;
                     }
