@@ -689,7 +689,7 @@ Http::delete('/v1/runtimes/:runtimeId')
             ->send();
     });
 
-Http::post('/v1/runtimes/:runtimeId/execution')
+Http::post('/v1/runtimes/:runtimeId/executions')
     ->desc('Create an execution')
     // Execution-related
     ->param('runtimeId', '', new Text(64), 'The runtimeID to execute.')

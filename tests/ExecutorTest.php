@@ -200,13 +200,13 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/execution');
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions');
 
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(200, $response['body']['statusCode']);
 
         /** Execute on cold-started runtime */
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/execution', [], [
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions', [], [
             'body' => 'test payload',
             'variables' => [
                 'customVariable' => 'mySecret'
@@ -220,7 +220,7 @@ final class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
 
         /** Execute on new runtime */
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/execution', [], [
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [], [
             'source' => $data['path'],
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v3-8.1',
@@ -351,7 +351,7 @@ final class ExecutorTest extends TestCase
         $path = $response['body']['path'];
 
         /** Execute function */
-        $response = $this->client->call(Client::METHOD_POST, "/runtimes/scenario-execute-{$folder}/execution", [], [
+        $response = $this->client->call(Client::METHOD_POST, "/runtimes/scenario-execute-{$folder}/executions", [], [
             'source' => $path,
             'entrypoint' => $entrypoint,
             'image' => $image,
@@ -420,7 +420,7 @@ final class ExecutorTest extends TestCase
         $path = $response['body']['path'];
 
         // Execute function
-        $response = $this->client->call(Client::METHOD_POST, "/runtimes/custom-execute-{$folder}/execution", [], [
+        $response = $this->client->call(Client::METHOD_POST, "/runtimes/custom-execute-{$folder}/executions", [], [
             'source' => $path,
             'entrypoint' => $entrypoint,
             'image' => $image,
