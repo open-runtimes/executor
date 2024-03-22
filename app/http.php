@@ -498,7 +498,6 @@ Http::post('/v1/runtimes')
                 network: \strval(Http::getEnv('OPR_EXECUTOR_NETWORK', 'executor_runtimes')),
                 workdir: $workdir
             );
-            var_dump("container has started");
 
             if (empty($containerId)) {
                 throw new Exception('Failed to create runtime', 500);
@@ -507,21 +506,21 @@ Http::post('/v1/runtimes')
             $error = $th->getMessage() . $output;
 
             // Extract as much logs as we can
-            // try {
-            //     $logs = '';
-            //     $status = $orchestration->execute(
-            //         name: $runtimeName,
-            //         command: ['sh', '-c', 'cat /var/tmp/logs.txt'],
-            //         output: $logs,
-            //         timeout: 15
-            //     );
+            try {
+                $logs = '';
+                $status = $orchestration->execute(
+                    name: $runtimeName,
+                    command: ['sh', '-c', 'cat /var/tmp/logs.txt'],
+                    output: $logs,
+                    timeout: 15
+                );
 
-            //     if (!empty($logs)) {
-            //         $error = $th->getMessage() . $logs;
-            //     }
-            // } catch (Throwable $err) {
-            //     // Ignore, use fallback error message
-            // }
+                if (!empty($logs)) {
+                    $error = $th->getMessage() . $logs;
+                }
+            } catch (Throwable $err) {
+                // Ignore, use fallback error message
+            }
 
             if ($remove) {
                 \sleep(2); // Allow time to read logs
@@ -545,8 +544,8 @@ Http::post('/v1/runtimes')
             ->json($container);
     });
 
-Http::post('/v1/runtimes/:runtimeId/builds')
-    ->desc("Execute build command on a runtime server")
+Http::post('/v1/runtimes/:runtimeId/commands')
+    ->desc("Execute command on a runtime server")
     ->param('runtimeId', '', new Text(64), 'Unique runtime ID.')
     ->param('destination', '', new Text(0), 'Destination folder to store runtime files into.', true)
     ->param('command', '', new Text(1024), 'Commands to run after container is created. Maximum of 100 commands are allowed, each 1024 characters long.', true)
@@ -558,7 +557,6 @@ Http::post('/v1/runtimes/:runtimeId/builds')
     ->inject('log')
     ->action(function (string $runtimeId, string $destination, string $command, int $timeout, bool $remove, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
         try {
-            var_dump("starting build");
             $runtimeName = System::getHostname() . '-' . $runtimeId;
 
             $log->addTag('runtimeId', $runtimeName);
@@ -568,9 +566,9 @@ Http::post('/v1/runtimes/:runtimeId/builds')
             }
 
             $activeRuntime = $activeRuntimes->get($runtimeName);
-            $startTime = $activeRuntime['created'];
             $secret = $activeRuntime['key'];
             $runtimeHostname = $activeRuntime['hostname'];
+            $startTime = \microtime(true);
 
             $output = '';
 
@@ -590,8 +588,6 @@ Http::post('/v1/runtimes/:runtimeId/builds')
                     timeout: $timeout
                 );
 
-                var_dump("build command has been executed successfully");
-
                 if (!$status) {
                     throw new Exception('Failed to execute build command: ' . $output, 400);
                 }
@@ -601,6 +597,7 @@ Http::post('/v1/runtimes/:runtimeId/builds')
             $tmpBuild = "/{$tmpFolder}builds/code.tar.gz";
 
             $localDevice = new Local();
+            $container = [];
 
             /**
              * Move built code to expected build directory
@@ -625,16 +622,12 @@ Http::post('/v1/runtimes/:runtimeId/builds')
                 $container['path'] = $path;
             }
 
-            var_dump("output");
-            var_dump($output);
-
             if ($output === '') {
-                var_dump("successful");
                 $output = 'Runtime created successfully!';
             }
 
             $endTime = \microtime(true);
-            $duration = $endTime - $startTime;
+            $duration = $endTime - $startTime; // only build time
 
             $container = array_merge($container, [
                 'output' => \mb_strcut($output, 0, 1000000), // Limit to 1MB
@@ -650,8 +643,6 @@ Http::post('/v1/runtimes/:runtimeId/builds')
                 'status' => 'Up ' . \round($duration, 2) . 's',
                 'key' => $secret,
             ]);
-            var_dump("updated active runtimes successfully");
-            var_dump($container);
         } catch (Throwable $th) {
             $error = $th->getMessage() . $output;
 
@@ -852,9 +843,17 @@ Http::post('/v1/runtimes/:runtimeId/execution')
 
                     $statusCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-                    $error = \curl_error($ch);
+                    if ($statusCode == 201) {
+                        curl_setopt($ch, CURLOPT_URL, "http://localhost/v1/runtimes/$runtimeId/commands");
 
-                    $errNo = \curl_errno($ch);
+                        $executorResponse = curl_exec($ch);
+
+                        $statusCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+                        $error = \curl_error($ch);
+
+                        $errNo = \curl_errno($ch);
+                    }
 
                     \curl_close($ch);
 
