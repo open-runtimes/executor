@@ -61,15 +61,19 @@ final class ExecutorTest extends TestCase
                     $params = [
                         'runtimeId' => 'test-log-stream',
                         'source' => '/storage/functions/node/code.tar.gz',
-                        'destination' => '/storage/builds/test-logs',
                         'entrypoint' => 'index.js',
                         'image' => 'openruntimes/node:v3-18.0',
                         'workdir' => '/usr/code',
-                        'remove' => true,
-                        'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm install && npm run build"'
+                        'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm install && npm run build"',
                     ];
 
                     $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+                    $this->assertEquals(201, $response['headers']['status-code']);
+
+                    $params['destination'] = '/storage/builds/test-logs';
+                    $params['remove'] = true;
+
+                    $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-log-stream/commands', [], $params);
                     $this->assertEquals(201, $response['headers']['status-code']);
 
                     $runtimeLogs = $response['body']['output'];
@@ -132,13 +136,18 @@ final class ExecutorTest extends TestCase
         $params = [
             'runtimeId' => 'test-build',
             'source' => '/storage/functions/php/code.tar.gz',
-            'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v3-8.1',
             'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "composer install"'
         ];
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        $params['destination'] = '/storage/builds/test';
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-build/commands', [], $params);
+
         $this->assertEquals(201, $response['headers']['status-code']);
         $this->assertIsString($response['body']['path']);
         $this->assertIsString($response['body']['output']);
@@ -170,9 +179,11 @@ final class ExecutorTest extends TestCase
 
         /** Self-deleting build */
         $params['runtimeId'] = 'test-build-selfdelete';
-        $params['remove'] = true;
-
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        $params['remove'] = true;
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-build-selfdelete/commands', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
 
         $response = $this->client->call(Client::METHOD_GET, '/runtimes/test-build-selfdelete', [], []);
@@ -198,6 +209,9 @@ final class ExecutorTest extends TestCase
         ];
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/commands', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/execution');
@@ -348,6 +362,9 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
 
+        $response = $this->client->call(Client::METHOD_POST, "/runtimes/scenario-build-{$folder}/commands", [], $params);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
         $path = $response['body']['path'];
 
         /** Execute function */
@@ -373,14 +390,14 @@ final class ExecutorTest extends TestCase
     public function provideCustomRuntimes(): array
     {
         return [
-            [ 'folder' => 'php', 'image' => 'openruntimes/php:v3-8.1', 'entrypoint' => 'index.php', 'buildCommand' => 'composer install', 'startCommand' => 'php src/server.php' ],
-            [ 'folder' => 'node', 'image' => 'openruntimes/node:v3-18.0', 'entrypoint' => 'index.js', 'buildCommand' => 'npm i', 'startCommand' => 'pm2 start src/server.js --no-daemon' ],
+            ['folder' => 'php', 'image' => 'openruntimes/php:v3-8.1', 'entrypoint' => 'index.php', 'buildCommand' => 'composer install', 'startCommand' => 'php src/server.php'],
+            ['folder' => 'node', 'image' => 'openruntimes/node:v3-18.0', 'entrypoint' => 'index.js', 'buildCommand' => 'npm i', 'startCommand' => 'pm2 start src/server.js --no-daemon'],
             // [ 'folder' => 'deno', 'image' => 'openruntimes/deno:v3-1.24', 'entrypoint' => 'index.ts', 'buildCommand' => 'deno cache index.ts', 'startCommand' => 'denon start' ],
-            [ 'folder' => 'python', 'image' => 'openruntimes/python:v3-3.10', 'entrypoint' => 'index.py', 'buildCommand' => 'pip install --no-cache-dir -r requirements.txt', 'startCommand' => 'python3 src/server.py' ],
-            [ 'folder' => 'ruby', 'image' => 'openruntimes/ruby:v3-3.1', 'entrypoint' => 'index.rb', 'buildCommand' => '', 'startCommand' => 'bundle exec puma -b tcp://0.0.0.0:3000 -e production' ],
-            [ 'folder' => 'cpp', 'image' => 'openruntimes/cpp:v3-17', 'entrypoint' => 'index.cc', 'buildCommand' => '', 'startCommand' => 'src/function/cpp_runtime' ],
-            [ 'folder' => 'dart', 'image' => 'openruntimes/dart:v3-2.18', 'entrypoint' => 'lib/index.dart', 'buildCommand' => 'dart pub get', 'startCommand' => 'src/function/server' ],
-            [ 'folder' => 'dotnet', 'image' => 'openruntimes/dotnet:v3-6.0', 'entrypoint' => 'Index.cs', 'buildCommand' => '', 'startCommand' => 'dotnet src/function/DotNetRuntime.dll' ],
+            ['folder' => 'python', 'image' => 'openruntimes/python:v3-3.10', 'entrypoint' => 'index.py', 'buildCommand' => 'pip install --no-cache-dir -r requirements.txt', 'startCommand' => 'python3 src/server.py'],
+            ['folder' => 'ruby', 'image' => 'openruntimes/ruby:v3-3.1', 'entrypoint' => 'index.rb', 'buildCommand' => '', 'startCommand' => 'bundle exec puma -b tcp://0.0.0.0:3000 -e production'],
+            ['folder' => 'cpp', 'image' => 'openruntimes/cpp:v3-17', 'entrypoint' => 'index.cc', 'buildCommand' => '', 'startCommand' => 'src/function/cpp_runtime'],
+            ['folder' => 'dart', 'image' => 'openruntimes/dart:v3-2.18', 'entrypoint' => 'lib/index.dart', 'buildCommand' => 'dart pub get', 'startCommand' => 'src/function/server'],
+            ['folder' => 'dotnet', 'image' => 'openruntimes/dotnet:v3-6.0', 'entrypoint' => 'Index.cs', 'buildCommand' => '', 'startCommand' => 'dotnet src/function/DotNetRuntime.dll'],
             // C++, Swift, Kotlin, Java missing on purpose
         ];
     }
@@ -414,6 +431,9 @@ final class ExecutorTest extends TestCase
         if ($response['headers']['status-code'] !== 201) {
             \var_dump($response);
         }
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        $response = $this->client->call(Client::METHOD_POST, "/runtimes/custom-build-{$folder}/commands", [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
         $this->assertIsString($response['body']['path']);
 
