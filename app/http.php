@@ -556,22 +556,27 @@ Http::post('/v1/runtimes/:runtimeId/commands')
     ->inject('response')
     ->inject('log')
     ->action(function (string $runtimeId, string $destination, string $command, int $timeout, bool $remove, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
+        $runtimeName = System::getHostname() . '-' . $runtimeId;
+
+        $log->addTag('runtimeId', $runtimeName);
+
+        if (!$activeRuntimes->exists($runtimeName)) {
+            throw new Exception('Runtime not found', 404);
+        }
+
+        $activeRuntime = $activeRuntimes->get($runtimeName);
+        $secret = $activeRuntime['key'];
+        $runtimeHostname = $activeRuntime['hostname'];
+        $startTime = \microtime(true);
+
+        $output = '';
+        
+        $tmpFolder = "tmp/$runtimeName/";
+        $tmpBuild = "/{$tmpFolder}builds/code.tar.gz";
+
+        $localDevice = new Local();
+
         try {
-            $runtimeName = System::getHostname() . '-' . $runtimeId;
-
-            $log->addTag('runtimeId', $runtimeName);
-
-            if (!$activeRuntimes->exists($runtimeName)) {
-                throw new Exception('Runtime not found', 404);
-            }
-
-            $activeRuntime = $activeRuntimes->get($runtimeName);
-            $secret = $activeRuntime['key'];
-            $runtimeHostname = $activeRuntime['hostname'];
-            $startTime = \microtime(true);
-
-            $output = '';
-
             /**
              * Execute any commands if they were provided
              */
@@ -593,10 +598,6 @@ Http::post('/v1/runtimes/:runtimeId/commands')
                 }
             }
 
-            $tmpFolder = "tmp/$runtimeName/";
-            $tmpBuild = "/{$tmpFolder}builds/code.tar.gz";
-
-            $localDevice = new Local();
             $container = [];
 
             /**
@@ -651,7 +652,7 @@ Http::post('/v1/runtimes/:runtimeId/commands')
                 $logs = '';
                 $status = $orchestration->execute(
                     name: $runtimeName,
-                    command: [ 'sh', '-c', 'cat /var/tmp/logs.txt' ],
+                    command: ['sh', '-c', 'cat /var/tmp/logs.txt'],
                     output: $logs,
                     timeout: 15
                 );
@@ -659,7 +660,7 @@ Http::post('/v1/runtimes/:runtimeId/commands')
                 if (!empty($logs)) {
                     $error = $th->getMessage() . $logs;
                 }
-            } catch(Throwable $err) {
+            } catch (Throwable $err) {
                 // Ignore, use fallback error message
             }
 
@@ -843,6 +844,10 @@ Http::post('/v1/runtimes/:runtimeId/execution')
 
                     $statusCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
+                    $error = \curl_error($ch);
+
+                    $errNo = \curl_errno($ch);
+
                     if ($statusCode == 201) {
                         curl_setopt($ch, CURLOPT_URL, "http://localhost/v1/runtimes/$runtimeId/commands");
 
@@ -874,7 +879,7 @@ Http::post('/v1/runtimes/:runtimeId/execution')
 
                         if ($statusCode >= 500) {
                             $error = $body['message'];
-                        // Continues to retry logic
+                            // Continues to retry logic
                         } elseif ($statusCode >= 400) {
                             $error = $body['message'];
                             throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);

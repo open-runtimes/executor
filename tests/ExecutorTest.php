@@ -190,7 +190,6 @@ final class ExecutorTest extends TestCase
         $this->assertEquals(404, $response['headers']['status-code']);
 
         return ['path' => $buildPath];
-        return [];
     }
 
     /**
