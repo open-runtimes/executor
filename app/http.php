@@ -522,7 +522,7 @@ Http::post('/v1/runtimes')
                 );
 
                 if (!$status) {
-                    throw new Exception('Failed to create runtime: ' . $output, 500);
+                    throw new Exception('Failed to create runtime: ' . $output, 400);
                 }
             }
 
@@ -604,7 +604,7 @@ Http::post('/v1/runtimes')
 
             $activeRuntimes->del($runtimeName);
 
-            throw new Exception($error, 500);
+            throw new Exception($error, $th->getCode() ?: 500);
         }
 
         // Container cleanup
