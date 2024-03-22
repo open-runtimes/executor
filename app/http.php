@@ -589,7 +589,7 @@ Http::post('/v1/runtimes/:runtimeId/commands')
                 );
 
                 if (!$status) {
-                    throw new Exception('Failed to execute build command: ' . $output, 400);
+                    throw new Exception('Failed to execute command: ' . $output, 400);
                 }
             }
 
