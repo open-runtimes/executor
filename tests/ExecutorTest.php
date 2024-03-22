@@ -178,6 +178,34 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_GET, '/runtimes/test-build-selfdelete', [], []);
         $this->assertEquals(404, $response['headers']['status-code']);
 
+        /** User error in build command */
+        $params = [
+            'runtimeId' => 'test-build-fail-400',
+            'source' => '/storage/functions/php/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v3-8.1',
+            'command' => 'cp doesnotexist.js doesnotexist2.js',
+            'remove' => true
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(400, $response['headers']['status-code']);
+
+        /** Test invalid path */
+        $params = [
+            'runtimeId' => 'test-build-fail-500',
+            'source' => '/storage/fake_path/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v3-8.1',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "composer install"',
+            'remove' => true
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(500, $response['headers']['status-code']);
+
         return ['path' => $buildPath];
     }
 

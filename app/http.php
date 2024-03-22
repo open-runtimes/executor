@@ -514,15 +514,19 @@ Http::post('/v1/runtimes')
                     'touch /var/tmp/logs.txt && (' . $command . ') >> /var/tmp/logs.txt 2>&1 && cat /var/tmp/logs.txt'
                 ];
 
-                $status = $orchestration->execute(
-                    name: $runtimeName,
-                    command: $commands,
-                    output: $output,
-                    timeout: $timeout
-                );
+                try {
+                    $status = $orchestration->execute(
+                        name: $runtimeName,
+                        command: $commands,
+                        output: $output,
+                        timeout: $timeout
+                    );
 
-                if (!$status) {
-                    throw new Exception('Failed to create runtime: ' . $output, 500);
+                    if (!$status) {
+                        throw new Exception('Failed to create runtime: ' . $output, 400);
+                    }
+                } catch (Throwable $err) {
+                    throw new Exception($err->getMessage(), 400);
                 }
             }
 
@@ -604,7 +608,7 @@ Http::post('/v1/runtimes')
 
             $activeRuntimes->del($runtimeName);
 
-            throw new Exception($error, 500);
+            throw new Exception($error, $th->getCode() ?: 500);
         }
 
         // Container cleanup
