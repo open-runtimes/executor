@@ -482,6 +482,9 @@ Http::post('/v1/runtimes')
             $codeMountPath = $version === 'v2' ? '/usr/code' : '/mnt/code';
             $workdir = $version === 'v2' ? '/usr/code' : '';
 
+            $openruntimes_networks = explode(',', Http::getEnv('OPR_EXECUTOR_NETWORK', 'executor_runtimes'));
+            $openruntimes_network = $openruntimes_networks[array_rand($openruntimes_networks)];
+
             /** Keep the container alive if we have commands to be executed */
             $containerId = $orchestration->run(
                 image: $image,
@@ -497,7 +500,7 @@ Http::post('/v1/runtimes')
                     \dirname($tmpSource) . ':/tmp:rw',
                     \dirname($tmpBuild) . ':' . $codeMountPath . ':rw'
                 ],
-                network: \strval(Http::getEnv('OPR_EXECUTOR_NETWORK', 'executor_runtimes')),
+                network: \strval($openruntimes_network) ?: 'executor_runtimes',
                 workdir: $workdir
             );
 
