@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Appwrite\Runtimes\Runtimes;
+use OpenRuntimes\Executor\PingTCP;
 use OpenRuntimes\Executor\Usage;
 use Swoole\Process;
 use Swoole\Runtime;
@@ -1014,6 +1015,24 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     'headers' => $outputHeaders
                 ];
             };
+
+            $pingStart = \microtime(true);
+            while (true) {
+                $online = PingTCP::isUp($hostname, 3000);
+                if ($online) {
+                    break;
+                }
+
+                if (\microtime(true) - $pingStart >= $timeout) {
+                    throw new Exception('Function timed out during cold start.', 500);
+                }
+
+                \usleep(500000);
+            }
+
+            // Lower timeout by time it took to cold-start
+            $timeout -= (\microtime(true) - $startTime);
+
 
             // Execute function
             for ($i = 0; $i < 10; $i++) {
