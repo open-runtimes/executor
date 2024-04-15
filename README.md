@@ -122,9 +122,57 @@ curl -H "authorization: Bearer executor-secret-key" -H "Content-Type: applicatio
 docker compose down
 ```
 
-## Endpoints
+## API Endpoints
 
-TODO: Document each endpoint + CURL examples
+| Method | Endpoint | Description | Params | 
+|--------|----------|-------------| ------ |
+| GET |`/v1/runtimes/{runtimeId}/logs`| Get live stream of logs of a runtime | [JSON](#v1runtimesruntimeidlogs) |
+| POST |`/v1/runtimes`| Create a new runtime server | [JSON](#v1runtimes) |
+| GET |`/v1/runtimes`| List currently active runtimes |  |
+| GET |`/v1/runtimes/{runtimeId}`| Get a runtime by its ID |  |
+| DELETE |`/v1/runtimes/{runtimeId}`| Delete a runtime |  |
+| POST |`/v1/runtimes/{runtimeId}/executions`| Create an execution | [JSON](#v1runtimesruntimeidexecutions) |
+| GET |`/v1/health`| Get health status of host machine and runtimes |  |
+
+### /v1/runtimes/{runtimeId}/logs
+| Param | Type | Description | Required |
+|-------|------|-------------|----------|
+| `runtimeId` | `string` | Runtime unique ID | ✅ |
+| `timeout` | `string` | Maximum logs timeout |  |
+
+### /v1/runtimes
+| Param | Type | Description | Required |
+|-------|------|-------------|----------|
+| `runtimeId` | `string` | Runtime unique ID | ✅ |
+| `image` | `string` | Base image name of the runtime | ✅ |
+| `entrypoint` | `string` | Entrypoint of the code file |  |
+| `source` | `string` | Path to source files |  |
+| `destination` | `string` | Destination folder to store runtime files into |  |
+| `variables` | `json` | Environment variables passed into runtime |  |
+| `runtimeEntrypoint` | `string` | Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long. |  |
+| `command` | `string` | Commands to run after container is created. Maximum of 100 commands are allowed, each 1024 characters long. |  |
+| `timeout` | `string` | Commands execution time in seconds |  |
+| `cpus` | `integer` | Container CPU |  |
+| `memory` | `integer` | Container RAM memory |  |
+| `version` | `array` | Runtime Open Runtime version |  |
+
+### /v1/runtimes/{runtimeId}/executions
+| Param | Type | Description | Required |
+|-------|------|-------------|----------|
+| `runtimeId` | `string` | The runtimeID to execute | ✅ |
+| `body` | `string` | Data to be forwarded to the function, this is user specified. |  |
+| `path` | `string` | Path from which execution comes |  |
+| `method` | `array` | Path from which execution comes |  |
+| `headers` | `json` | Headers passed into runtime |  |
+| `timeout` | `integer` | Function maximum execution time in seconds |  |
+| `image` | `string` | Base image name of the runtime |  |
+| `source` | `string` | Path to source files |  |
+| `entrypoint` | `string` | Entrypoint of the code file |  |
+| `variables` | `json` | Environment variables passed into runtime |  |
+| `cpus` | `integer` | Container CPU |  |
+| `memory` | `integer` | Container RAM memory |  |
+| `version` | `array` | Runtime Open Runtime version |  |
+| `runtimeEntrypoint` | `string` | Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long. |  |
 
 ## Environment variables
 
