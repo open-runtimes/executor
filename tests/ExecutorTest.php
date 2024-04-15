@@ -340,6 +340,22 @@ final class ExecutorTest extends TestCase
                     $this->assertStringContainsString('Invalid response. This usually means too large logs or errors', $response['body']['message']);
                 }
             ],
+            [
+                'image' => 'openruntimes/node:v3-18.0',
+                'entrypoint' => 'index.js',
+                'folder' => 'node-long-coldstart',
+                'version' => 'v3',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'assertions' => function ($response) {
+                    $this->assertEquals(200, $response['headers']['status-code']);
+                    $this->assertEquals(200, $response['body']['statusCode']);
+                    $this->assertEquals('1836311903', $response['body']['body']);
+                    $this->assertGreaterThan(10, $response['body']['duration']); // This is unsafe but important. If its flaky, inform @Meldiron
+                    $this->assertEmpty($response['body']['logs']);
+                    $this->assertEmpty($response['body']['errors']);
+                }
+            ],
         ];
     }
 
@@ -384,7 +400,8 @@ final class ExecutorTest extends TestCase
             'entrypoint' => $entrypoint,
             'image' => $image,
             'version' => $version,
-            'runtimeEntrypoint' => $startCommand
+            'runtimeEntrypoint' => $startCommand,
+            'timeout' => 45
         ]);
 
         call_user_func($assertions, $response);
