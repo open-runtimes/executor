@@ -128,11 +128,11 @@ docker compose down
 |--------|----------|-------------| ------ |
 | GET |`/v1/runtimes/{runtimeId}/logs`| Get live stream of logs of a runtime | [JSON](#v1runtimesruntimeidlogs) |
 | POST |`/v1/runtimes`| Create a new runtime server | [JSON](#v1runtimes) |
-| GET |`/v1/runtimes`| List currently active runtimes |  |
-| GET |`/v1/runtimes/{runtimeId}`| Get a runtime by its ID |  |
-| DELETE |`/v1/runtimes/{runtimeId}`| Delete a runtime |  |
+| GET |`/v1/runtimes`| List currently active runtimes | X |
+| GET |`/v1/runtimes/{runtimeId}`| Get a runtime by its ID | [JSON](#v1runtimesruntimeid) |
+| DELETE |`/v1/runtimes/{runtimeId}`| Delete a runtime | [JSON](#v1runtimesruntimeid) |
 | POST |`/v1/runtimes/{runtimeId}/executions`| Create an execution | [JSON](#v1runtimesruntimeidexecutions) |
-| GET |`/v1/health`| Get health status of host machine and runtimes |  |
+| GET |`/v1/health`| Get health status of host machine and runtimes | X |
 
 ### /v1/runtimes/{runtimeId}/logs
 | Param | Type | Description | Required |
@@ -155,6 +155,11 @@ docker compose down
 | `cpus` | `integer` | Container CPU |  |
 | `memory` | `integer` | Container RAM memory |  |
 | `version` | `array` | Runtime Open Runtime version |  |
+
+### /v1/runtimes/{runtimeId}
+| Param | Type | Description | Required |
+|-------|------|-------------|----------|
+| `runtimeId` | `string` | Runtime unique ID | ✅ |
 
 ### /v1/runtimes/{runtimeId}/executions
 | Param | Type | Description | Required |
