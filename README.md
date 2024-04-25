@@ -122,13 +122,80 @@ curl -H "authorization: Bearer executor-secret-key" -H "Content-Type: applicatio
 docker compose down
 ```
 
-## Endpoints
+## API Endpoints
 
-TODO: Document each endpoint + CURL examples
+| Method | Endpoint | Description | Params | 
+|--------|----------|-------------| ------ |
+| GET |`/v1/runtimes/{runtimeId}/logs`| Get live stream of logs of a runtime | [JSON](#v1runtimesruntimeidlogs) |
+| POST |`/v1/runtimes`| Create a new runtime server | [JSON](#v1runtimes) |
+| GET |`/v1/runtimes`| List currently active runtimes | X |
+| GET |`/v1/runtimes/{runtimeId}`| Get a runtime by its ID | [JSON](#v1runtimesruntimeid) |
+| DELETE |`/v1/runtimes/{runtimeId}`| Delete a runtime | [JSON](#v1runtimesruntimeid) |
+| POST |`/v1/runtimes/{runtimeId}/executions`| Create an execution | [JSON](#v1runtimesruntimeidexecutions) |
+| GET |`/v1/health`| Get health status of host machine and runtimes | X |
+
+#### /v1/runtimes/{runtimeId}/logs
+| Param | Type | Description | Required | Default |
+|-------|------|-------------|----------|---------|
+| `runtimeId` | `string` | Runtime unique ID | ✅ |  |
+| `timeout` | `string` | Maximum logs timeout in seconds |  | '600' |
+
+#### /v1/runtimes
+| Param | Type | Description | Required | Default |
+|-------|------|-------------|----------|---------| 
+| `runtimeId` | `string` | Runtime unique ID | ✅ |  |
+| `image` | `string` | Base image name of the runtime | ✅ |  |
+| `entrypoint` | `string` | Entrypoint of the code file |  | ' ' |
+| `source` | `string` | Path to source files |  | ' ' |
+| `destination` | `string` | Destination folder to store runtime files into |  | ' ' |
+| `variables` | `json` | Environment variables passed into runtime |  | [ ] |
+| `runtimeEntrypoint` | `string` | Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long. |  | ' ' |
+| `command` | `string` | Commands to run after container is created. Maximum of 100 commands are allowed, each 1024 characters long. |  | ' ' |
+| `timeout` | `integer` | Commands execution time in seconds |  | 600 |
+| `remove` | `boolean` | Remove a runtime after execution |  | false |
+| `cpus` | `integer` | Maximum CPU cores runtime can utilize |  | 1 |
+| `memory` | `integer` | Container RAM memory in MBs |  | 512 |
+| `version` | `string` | Runtime Open Runtime version (allowed values: 'v2', 'v3') |  | 'v3' |
+
+#### /v1/runtimes/{runtimeId}
+| Param | Type | Description | Required | Default |
+|-------|------|-------------|----------|---------|
+| `runtimeId` | `string` | Runtime unique ID | ✅ |  |
+
+#### /v1/runtimes/{runtimeId}/executions
+| Param | Type | Description | Required | Default |
+|-------|------|-------------|----------|---------|
+| `runtimeId` | `string` | The runtimeID to execute | ✅ |  |
+| `body` | `string` | Data to be forwarded to the function, this is user specified. |  | ' ' |
+| `path` | `string` | Path from which execution comes |  | '/' |
+| `method` | `array` | Path from which execution comes |  | 'GET' |
+| `headers` | `json` | Headers passed into runtime |  | [ ] |
+| `timeout` | `integer` | Function maximum execution time in seconds |  | 15 |
+| `image` | `string` | Base image name of the runtime |  | ' ' |
+| `source` | `string` | Path to source files |  | ' ' |
+| `entrypoint` | `string` | Entrypoint of the code file |  | ' ' |
+| `variables` | `json` | Environment variables passed into runtime |  | [ ] |
+| `cpus` | `integer` | Maximum CPU cores runtime can utilize |  | 1 |
+| `memory` | `integer` | Container RAM memory in MBs |  | 512 |
+| `version` | `string` | Runtime Open Runtime version (allowed values: 'v2', 'v3') |  | 'v3' |
+| `runtimeEntrypoint` | `string` | Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long. |  | ' ' |
 
 ## Environment variables
 
-TODO: Document each variable
+| Variable name                    | Description                                                                                                                                   |
+|------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
+| OPR_EXECUTOR_ENV                 | Environment mode of the executor, ex. `development`                                                                                           |
+| OPR_EXECUTOR_RUNTIMES            | Comma-separated list of supported runtimes `(ex: php-8.1,dart-2.18,deno-1.24,..)`. These runtimes should be available as container images.    |
+| OPR_EXECUTOR_CONNECTION_STORAGE  | DSN string that represents a connection to your storage device, ex: `file://localhost` for local storage                                      |
+| OPR_EXECUTOR_INACTIVE_TRESHOLD   | Threshold time (in seconds) for detecting inactive runtimes, ex: `60`                                                                         |
+| OPR_EXECUTOR_MAINTENANCE_INTERVAL| Interval (in seconds) at which the Executor performs maintenance tasks, ex: `60`                                                              |
+| OPR_EXECUTOR_NETWORK             | Network used by the executor for runtimes, ex: `openruntimes-runtimes`                                                                        |
+| OPR_EXECUTOR_SECRET              | Secret key used by the executor for authentication                                                                                            |
+| OPR_EXECUTOR_LOGGING_PROVIDER    | External logging provider used by the executor, ex: `sentry`                                                                                  |
+| OPR_EXECUTOR_LOGGING_CONFIG      | Configuration for the logging provider                                                                                                        |
+| OPR_EXECUTOR_DOCKER_HUB_USERNAME | Username for Docker Hub authentication (if applicable)                                                                                        |
+| OPR_EXECUTOR_DOCKER_HUB_PASSWORD | Password for Docker Hub authentication (if applicable)                                                                                        |
+| OPR_EXECUTOR_RUNTIME_VERSIONS    | Version tag for runtime environments, ex: `v3`                                                                                                |
 
 ## Contributing
 
