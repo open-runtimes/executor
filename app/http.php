@@ -398,7 +398,7 @@ Http::post('/v1/runtimes')
 
         if ($activeRuntimes->exists($runtimeName)) {
             if ($activeRuntimes->get($runtimeName)['status'] == 'pending') {
-                throw new \Exception('A runtime with the same ID is already being created. Attempt a execution soon.', 500);
+                throw new \Exception('A runtime with the same ID is already being created. Attempt a execution soon.', 409);
             }
 
             throw new Exception('Runtime already exists.', 409);
