@@ -58,6 +58,21 @@ $register = new Registry();
 $register->set('logger', function () {
     $providerName = Http::getEnv('OPR_EXECUTOR_LOGGING_PROVIDER', '');
     $providerConfig = Http::getEnv('OPR_EXECUTOR_LOGGING_CONFIG', '');
+
+    try {
+        $providerConfig = str_replace(';', '@', $providerConfig);
+        $fallbackForLogger = $providerName . '://' . $providerConfig;
+
+        $loggingProvider = new DSN(Http::getEnv('OPR_EXECUTOR_LOGGING', $fallbackForLogger));
+
+        $providerName = $loggingProvider->getScheme();
+        $providerConfig = match ($providerName) {
+            'sentry' => ($loggingProvider->getUser() ?? '') . ';' . $loggingProvider->getHost(),
+            default => $loggingProvider->getHost(),
+        };
+    } catch (Throwable) {
+    }
+
     $logger = null;
 
     if (!empty($providerName) && !empty($providerConfig) && Logger::hasProvider($providerName)) {

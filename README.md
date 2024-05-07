@@ -55,6 +55,7 @@ services:
       - OPR_EXECUTOR_MAINTENANCE_INTERVAL
       - OPR_EXECUTOR_NETWORK
       - OPR_EXECUTOR_SECRET
+      - OPR_EXECUTOR_LOGGING
       - OPR_EXECUTOR_LOGGING_PROVIDER
       - OPR_EXECUTOR_LOGGING_CONFIG
       - OPR_EXECUTOR_DOCKER_HUB_USERNAME
@@ -82,6 +83,7 @@ OPR_EXECUTOR_INACTIVE_TRESHOLD=60
 OPR_EXECUTOR_MAINTENANCE_INTERVAL=60
 OPR_EXECUTOR_NETWORK=openruntimes-runtimes
 OPR_EXECUTOR_SECRET=executor-secret-key
+OPR_EXECUTOR_LOGGING=
 OPR_EXECUTOR_LOGGING_PROVIDER=
 OPR_EXECUTOR_LOGGING_CONFIG=
 OPR_EXECUTOR_DOCKER_HUB_USERNAME=
@@ -182,20 +184,21 @@ docker compose down
 
 ## Environment variables
 
-| Variable name                    | Description                                                                                                                                   |
-|------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
-| OPR_EXECUTOR_ENV                 | Environment mode of the executor, ex. `development`                                                                                           |
-| OPR_EXECUTOR_RUNTIMES            | Comma-separated list of supported runtimes `(ex: php-8.1,dart-2.18,deno-1.24,..)`. These runtimes should be available as container images.    |
-| OPR_EXECUTOR_CONNECTION_STORAGE  | DSN string that represents a connection to your storage device, ex: `file://localhost` for local storage                                      |
-| OPR_EXECUTOR_INACTIVE_TRESHOLD   | Threshold time (in seconds) for detecting inactive runtimes, ex: `60`                                                                         |
-| OPR_EXECUTOR_MAINTENANCE_INTERVAL| Interval (in seconds) at which the Executor performs maintenance tasks, ex: `60`                                                              |
-| OPR_EXECUTOR_NETWORK             | Network used by the executor for runtimes, ex: `openruntimes-runtimes`                                                                        |
-| OPR_EXECUTOR_SECRET              | Secret key used by the executor for authentication                                                                                            |
-| OPR_EXECUTOR_LOGGING_PROVIDER    | External logging provider used by the executor, ex: `sentry`                                                                                  |
-| OPR_EXECUTOR_LOGGING_CONFIG      | Configuration for the logging provider                                                                                                        |
-| OPR_EXECUTOR_DOCKER_HUB_USERNAME | Username for Docker Hub authentication (if applicable)                                                                                        |
-| OPR_EXECUTOR_DOCKER_HUB_PASSWORD | Password for Docker Hub authentication (if applicable)                                                                                        |
-| OPR_EXECUTOR_RUNTIME_VERSIONS    | Version tag for runtime environments, ex: `v3`                                                                                                |
+| Variable name                     | Description                                                                                                                                |
+|-----------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| OPR_EXECUTOR_ENV                  | Environment mode of the executor, ex. `development`                                                                                        |
+| OPR_EXECUTOR_RUNTIMES             | Comma-separated list of supported runtimes `(ex: php-8.1,dart-2.18,deno-1.24,..)`. These runtimes should be available as container images. |
+| OPR_EXECUTOR_CONNECTION_STORAGE   | DSN string that represents a connection to your storage device, ex: `file://localhost` for local storage                                   |
+| OPR_EXECUTOR_INACTIVE_TRESHOLD    | Threshold time (in seconds) for detecting inactive runtimes, ex: `60`                                                                      |
+| OPR_EXECUTOR_MAINTENANCE_INTERVAL | Interval (in seconds) at which the Executor performs maintenance tasks, ex: `60`                                                           |
+| OPR_EXECUTOR_NETWORK              | Network used by the executor for runtimes, ex: `openruntimes-runtimes`                                                                     |
+| OPR_EXECUTOR_SECRET               | Secret key used by the executor for authentication                                                                                         |
+| OPR_EXECUTOR_LOGGING              | External logging provider DSN used by the executor, ex: `sentry://SENTRY_API_KEY@SENTRY_APP_ID/`                                           |
+| OPR_EXECUTOR_LOGGING_PROVIDER     | External logging provider used by the executor, ex: `sentry`                                                                               |
+| OPR_EXECUTOR_LOGGING_CONFIG       | Configuration for the logging provider                                                                                                     |
+| OPR_EXECUTOR_DOCKER_HUB_USERNAME  | Username for Docker Hub authentication (if applicable)                                                                                     |
+| OPR_EXECUTOR_DOCKER_HUB_PASSWORD  | Password for Docker Hub authentication (if applicable)                                                                                     |
+| OPR_EXECUTOR_RUNTIME_VERSIONS     | Version tag for runtime environments, ex: `v3`                                                                                             |
 
 ## Contributing
 
