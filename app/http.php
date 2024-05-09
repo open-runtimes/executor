@@ -61,10 +61,7 @@ $register->set('logger', function () {
     $providerConfig = Http::getEnv('OPR_EXECUTOR_LOGGING_CONFIG', '');
 
     try {
-        $providerConfig = str_replace(';', '@', $providerConfig ?? '');
-        $fallbackForLogger = $providerName . '://' . $providerConfig;
-
-        $loggingProvider = new DSN(Http::getEnv('OPR_EXECUTOR_LOGGING') ?? $fallbackForLogger);
+        $loggingProvider = new DSN($providerConfig ?? '');
 
         $providerName = $loggingProvider->getScheme();
         $providerConfig = match ($providerName) {
