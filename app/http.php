@@ -727,6 +727,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             $runtimeName = System::getHostname() . '-' . $runtimeId;
 
+            $log->addTag('version', $version);
             $log->addTag('runtimeId', $runtimeName);
 
             $variables = \array_merge($variables, [
