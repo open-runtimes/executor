@@ -394,6 +394,7 @@ Http::post('/v1/runtimes')
 
         $runtimeHostname = \uniqid();
 
+        $log->addTag('version', $version);
         $log->addTag('runtimeId', $runtimeName);
 
         if ($activeRuntimes->exists($runtimeName)) {
@@ -726,6 +727,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             $runtimeName = System::getHostname() . '-' . $runtimeId;
 
+            $log->addTag('version', $version);
             $log->addTag('runtimeId', $runtimeName);
 
             $variables = \array_merge($variables, [
