@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Appwrite\Runtimes\Runtimes;
+use OpenRuntimes\Executor\Validator\TCP;
 use OpenRuntimes\Executor\Usage;
 use Swoole\Process;
 use Swoole\Runtime;
@@ -412,6 +413,7 @@ Http::post('/v1/runtimes')
         $secret = \bin2hex(\random_bytes(16));
 
         $activeRuntimes->set($runtimeName, [
+            'listening' => false,
             'name' => $runtimeName,
             'hostname' => $runtimeHostname,
             'created' => $startTime,
@@ -570,14 +572,10 @@ Http::post('/v1/runtimes')
                 'duration' => $duration,
             ]);
 
-            $activeRuntimes->set($runtimeName, [
-                'name' => $runtimeName,
-                'hostname' => $runtimeHostname,
-                'created' => $startTime,
-                'updated' => \microtime(true),
-                'status' => 'Up ' . \round($duration, 2) . 's',
-                'key' => $secret,
-            ]);
+            $activeRuntime = $activeRuntimes->get($runtimeName);
+            $activeRuntime['updated'] = \microtime(true);
+            $activeRuntime['status'] = 'Up ' . \round($duration, 2) . 's';
+            $activeRuntimes->set($runtimeName, $activeRuntime);
         } catch (Throwable $th) {
             $error = $th->getMessage() . $output;
 
@@ -734,7 +732,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
             ]);
 
-            $coldStartDuration = 0;
+            $prepareStart = \microtime(true);
 
             // Prepare runtime
             if (!$activeRuntimes->exists($runtimeName)) {
@@ -793,7 +791,12 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 };
 
                 // Prepare runtime
-                for ($i = 0; $i < 10; $i++) {
+                while (true) {
+                    // If timeout is passed, stop and return error
+                    if (\microtime(true) - $prepareStart >= $timeout) {
+                        throw new Exception('Function timed out during preparation.', 400);
+                    }
+
                     ['errNo' => $errNo, 'error' => $error, 'statusCode' => $statusCode, 'executorResponse' => $executorResponse] = \call_user_func($sendCreateRuntimeRequest);
 
                     if ($errNo === 0) {
@@ -806,20 +809,19 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                             $error = $body['message'];
                             throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
                         } else {
-                            $coldStartDuration = \floatval($body['duration']);
                             break;
                         }
                     } elseif ($errNo !== 111) { // Connection Refused - see https://openswoole.com/docs/swoole-error-code
                         throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
                     }
 
-                    if ($i === 9) {
-                        throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
-                    }
-
+                    // Wait 0.5s and check again
                     \usleep(500000);
                 }
             }
+
+            // Lower timeout by time it took to prepare container
+            $timeout -= (\microtime(true) - $prepareStart);
 
             // Update swoole table
             $runtime = $activeRuntimes->get($runtimeName) ?? [];
@@ -827,17 +829,23 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $activeRuntimes->set($runtimeName, $runtime);
 
             // Ensure runtime started
-            for ($i = 0; $i < 10; $i++) {
+            $launchStart = \microtime(true);
+            while (true) {
+                // If timeout is passed, stop and return error
+                if (\microtime(true) - $launchStart >= $timeout) {
+                    throw new Exception('Function timed out during launch.', 400);
+                }
+
                 if ($activeRuntimes->get($runtimeName)['status'] !== 'pending') {
                     break;
                 }
 
-                if ($i === 9) {
-                    throw new Exception('Runtime failed to launch in allocated time.', 500);
-                }
-
+                // Wait 0.5s and check again
                 \usleep(500000);
             }
+
+            // Lower timeout by time it took to launch container
+            $timeout -= (\microtime(true) - $launchStart);
 
             // Ensure we have secret
             $runtime = $activeRuntimes->get($runtimeName);
@@ -847,12 +855,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 throw new Exception('Runtime secret not found. Please re-create the runtime.', 500);
             }
 
-            $startTime = \microtime(true);
-
-            $executeV2 = function () use ($variables, $payload, $secret, $hostname, &$startTime, $timeout): array {
-                // Restart execution timer to not could failed attempts
-                $startTime = \microtime(true);
-
+            $executeV2 = function () use ($variables, $payload, $secret, $hostname, $timeout): array {
                 $statusCode = 0;
                 $errNo = -1;
                 $executorResponse = '';
@@ -925,10 +928,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 ];
             };
 
-            $executeV3 = function () use ($path, $method, $headers, $payload, $secret, $hostname, &$startTime, $timeout): array {
-                // Restart execution timer to not could failed attempts
-                $startTime = \microtime(true);
-
+            $executeV3 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout): array {
                 $statusCode = 0;
                 $errNo = -1;
                 $executorResponse = '';
@@ -959,11 +959,11 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                     return $len;
                 });
-                \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout + 1); // Gives extra 1s after safe timeout to recieve response
-                \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+                \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout + 5); // Gives extra 5s after safe timeout to recieve response
+                \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
 
                 $headers['x-open-runtimes-secret'] = $secret;
-                $headers['x-open-runtimes-timeout'] = $timeout;
+                $headers['x-open-runtimes-timeout'] = \max(\intval($timeout), 1);
                 $headersArr = [];
                 foreach ($headers as $key => $value) {
                     $headersArr[] = $key . ': ' . $value;
@@ -1017,6 +1017,40 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 ];
             };
 
+            // From here we calculate billable duration of execution
+            $startTime = \microtime(true);
+
+            $listening = $runtime['listening'];
+
+            if (!$listening) {
+                // Wait for cold-start to finish (app listening on port)
+                $pingStart = \microtime(true);
+                $validator = new TCP();
+                while (true) {
+                    // If timeout is passed, stop and return error
+                    if (\microtime(true) - $pingStart >= $timeout) {
+                        throw new Exception('Function timed out during cold start.', 400);
+                    }
+
+                    $online = $validator->isValid($hostname . ':' . 3000);
+                    if ($online) {
+                        break;
+                    }
+
+                    // Wait 0.5s and check again
+                    \usleep(500000);
+                }
+
+                // Update swoole table
+                $runtime = $activeRuntimes->get($runtimeName);
+                $runtime['listening'] = true;
+                $activeRuntimes->set($runtimeName, $runtime);
+
+                // Lower timeout by time it took to cold-start
+                $timeout -= (\microtime(true) - $pingStart);
+            }
+
+
             // Execute function
             for ($i = 0; $i < 10; $i++) {
                 $executionRequest = $version === 'v3' ? $executeV3 : $executeV2;
@@ -1056,7 +1090,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 'body' => $body,
                 'logs' => \mb_strcut($logs, 0, 1000000), // Limit to 1MB
                 'errors' => \mb_strcut($errors, 0, 1000000), // Limit to 1MB
-                'duration' => $duration + $coldStartDuration,
+                'duration' => $duration,
                 'startTime' => $startTime,
             ];
 
