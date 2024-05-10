@@ -571,14 +571,10 @@ Http::post('/v1/runtimes')
                 'duration' => $duration,
             ]);
 
-            $activeRuntimes->set($runtimeName, [
-                'name' => $runtimeName,
-                'hostname' => $runtimeHostname,
-                'created' => $startTime,
-                'updated' => \microtime(true),
-                'status' => 'Up ' . \round($duration, 2) . 's',
-                'key' => $secret,
-            ]);
+            $activeRuntime = $activeRuntimes->get($runtimeName);
+            $activeRuntime['updated'] = \microtime(true);
+            $activeRuntime['status'] = 'Up ' . \round($duration, 2) . 's';
+            $activeRuntimes->set($runtimeName, $activeRuntime);
         } catch (Throwable $th) {
             $error = $th->getMessage() . $output;
 
@@ -857,12 +853,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 throw new Exception('Runtime secret not found. Please re-create the runtime.', 500);
             }
 
-            $startTime = \microtime(true);
-
-            $executeV2 = function () use ($variables, $payload, $secret, $hostname, &$startTime, $timeout): array {
-                // Restart execution timer to not could failed attempts
-                $startTime = \microtime(true);
-
+            $executeV2 = function () use ($variables, $payload, $secret, $hostname, $timeout): array {
                 $statusCode = 0;
                 $errNo = -1;
                 $executorResponse = '';
@@ -935,10 +926,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 ];
             };
 
-            $executeV3 = function () use ($path, $method, $headers, $payload, $secret, $hostname, &$startTime, $timeout): array {
-                // Restart execution timer to not could failed attempts
-                $startTime = \microtime(true);
-
+            $executeV3 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout): array {
                 $statusCode = 0;
                 $errNo = -1;
                 $executorResponse = '';
@@ -973,7 +961,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
 
                 $headers['x-open-runtimes-secret'] = $secret;
-                $headers['x-open-runtimes-timeout'] = $timeout;
+                $headers['x-open-runtimes-timeout'] = \max(\intval($timeout), 1);
                 $headersArr = [];
                 foreach ($headers as $key => $value) {
                     $headersArr[] = $key . ': ' . $value;
@@ -1027,6 +1015,9 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 ];
             };
 
+            // From here we calculate billable duration of execution
+            $startTime = \microtime(true);
+
             $listening = $runtime['listening'];
 
             if (!$listening) {
@@ -1052,10 +1043,11 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 $runtime = $activeRuntimes->get($runtimeName);
                 $runtime['listening'] = true;
                 $activeRuntimes->set($runtimeName, $runtime);
+
+                // Lower timeout by time it took to cold-start
+                $timeout -= (\microtime(true) - $pingStart);
             }
 
-            // Lower timeout by time it took to cold-start
-            $timeout -= (\microtime(true) - $startTime);
 
             // Execute function
             for ($i = 0; $i < 10; $i++) {
