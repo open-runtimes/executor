@@ -970,7 +970,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     return $len;
                 });
                 \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout + 5); // Gives extra 5s after safe timeout to recieve response
-                \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+                \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
 
                 $headers['x-open-runtimes-secret'] = $secret;
                 $headers['x-open-runtimes-timeout'] = $timeout;
