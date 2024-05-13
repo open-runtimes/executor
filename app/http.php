@@ -1067,6 +1067,10 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     throw new Exception('Invalid response. This usually means too large logs or errors. Please avoid logging files or lengthy strings.', 500);
                 }
 
+                if ($executionResponse['errNo'] === 110 && $version === 'v2') { // timeout error for v2 functions
+                    throw new Exception($executionResponse['error'], 400);
+                }
+
                 if ($executionResponse['errNo'] !== 111) { // Connection Refused - see https://openswoole.com/docs/swoole-error-code
                     throw new Exception('An internal curl error has occurred within the executor! Error Number: ' . $executionResponse['errNo'] . '. Error Msg: ' . $executionResponse['error'], 500);
                 }
