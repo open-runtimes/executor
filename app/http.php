@@ -16,7 +16,6 @@ use Utopia\Logger\Adapter\AppSignal;
 use Utopia\Logger\Adapter\LogOwl;
 use Utopia\Logger\Adapter\Raygun;
 use Utopia\Logger\Adapter\Sentry;
-use Utopia\Orchestration\Adapter\DockerCLI;
 use Utopia\Orchestration\Orchestration;
 use Utopia\Storage\Device;
 use Utopia\Storage\Device\Local;
@@ -38,6 +37,7 @@ use Utopia\Http\Validator\Boolean;
 use Utopia\Http\Validator\Integer;
 use Utopia\Http\Validator\Text;
 use Utopia\Http\Validator\WhiteList;
+use Utopia\Orchestration\Adapter\DockerAPI;
 use Utopia\Registry\Registry;
 
 use function Swoole\Coroutine\batch;
@@ -82,7 +82,7 @@ $register->set('logger', function () {
 $register->set('orchestration', function () {
     $dockerUser = (string) Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
     $dockerPass = (string) Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
-    $orchestration = new Orchestration(new DockerCLI($dockerUser, $dockerPass));
+    $orchestration = new Orchestration(new DockerAPI($dockerUser, $dockerPass));
 
     return $orchestration;
 });
