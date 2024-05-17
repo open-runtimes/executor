@@ -99,6 +99,7 @@ $register->set('activeRuntimes', function () {
     $table->column('hostname', Table::TYPE_STRING, 1024);
     $table->column('status', Table::TYPE_STRING, 256);
     $table->column('key', Table::TYPE_STRING, 1024);
+    $table->column('listening', Table::TYPE_INT, 1);
     $table->create();
 
     return $table;
@@ -413,7 +414,7 @@ Http::post('/v1/runtimes')
         $secret = \bin2hex(\random_bytes(16));
 
         $activeRuntimes->set($runtimeName, [
-            'listening' => false,
+            'listening' => 0,
             'name' => $runtimeName,
             'hostname' => $runtimeHostname,
             'created' => $startTime,
@@ -1022,7 +1023,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             $listening = $runtime['listening'];
 
-            if (!$listening) {
+            if (empty($listening)) {
                 // Wait for cold-start to finish (app listening on port)
                 $pingStart = \microtime(true);
                 $validator = new TCP();
@@ -1043,7 +1044,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                 // Update swoole table
                 $runtime = $activeRuntimes->get($runtimeName);
-                $runtime['listening'] = true;
+                $runtime['listening'] = 1;
                 $activeRuntimes->set($runtimeName, $runtime);
 
                 // Lower timeout by time it took to cold-start
