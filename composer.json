@@ -25,7 +25,7 @@
         "ext-json": "*",
         "ext-swoole": "*",
         "utopia-php/framework": "0.34.*",
-        "utopia-php/logger": "0.3.*",
+        "utopia-php/logger": "0.5.*",
         "utopia-php/cli": "0.16.*",
         "utopia-php/storage": "0.18.*",
         "utopia-php/dsn": "0.1.*",
