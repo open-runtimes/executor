@@ -192,7 +192,7 @@ docker compose down
 | OPR_EXECUTOR_NETWORK              | Network used by the executor for runtimes, ex: `openruntimes-runtimes`                                                                     |
 | OPR_EXECUTOR_SECRET               | Secret key used by the executor for authentication                                                                                         |
 | OPR_EXECUTOR_LOGGING_PROVIDER     | Deprecated: use `OPR_EXECUTOR_LOGGING_CONFIG` with DSN instead. External logging provider used by the executor, ex: `sentry`               |
-| OPR_EXECUTOR_LOGGING_CONFIG       | External logging provider DSN used by the executor, ex: `sentry://SENTRY_API_KEY@SENTRY_APP_ID/`                                           |
+| OPR_EXECUTOR_LOGGING_CONFIG       | External logging provider DSN used by the executor, ex: `sentry://PROJECT_ID:SENTRY_API_KEY@SENTRY_HOST/`                                  |
 | OPR_EXECUTOR_DOCKER_HUB_USERNAME  | Username for Docker Hub authentication (if applicable)                                                                                     |
 | OPR_EXECUTOR_DOCKER_HUB_PASSWORD  | Password for Docker Hub authentication (if applicable)                                                                                     |
 | OPR_EXECUTOR_RUNTIME_VERSIONS     | Version tag for runtime environments, ex: `v3`                                                                                             |
