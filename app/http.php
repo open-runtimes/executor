@@ -816,8 +816,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                         throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
                     }
 
-                    // Wait 0.5s and check again
-                    \usleep(500000);
+                    // Wait 0.1s and check again
+                    \usleep(100000);
                 }
             }
 
@@ -841,8 +841,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     break;
                 }
 
-                // Wait 0.5s and check again
-                \usleep(500000);
+                // Wait 0.05s and check again
+                \usleep(50000);
             }
 
             // Lower timeout by time it took to launch container
@@ -1038,7 +1038,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                         break;
                     }
 
-                    // Wait 0.5s and check again
+                    // Wait 0.05s and check again
                     \usleep(500000);
                 }
 
