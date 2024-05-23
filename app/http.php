@@ -761,7 +761,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                         'runtimeEntrypoint' => $runtimeEntrypoint
                     ]);
 
-                    \curl_setopt($ch, CURLOPT_URL, "http://localhost/v1/runtimes");
+                    \curl_setopt($ch, CURLOPT_URL, "http://127.0.01/v1/runtimes");
                     \curl_setopt($ch, CURLOPT_POST, true);
                     \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
                     \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
