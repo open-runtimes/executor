@@ -392,7 +392,7 @@ Http::post('/v1/runtimes')
     ->inject('response')
     ->inject('log')
     ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, int $cpus, int $memory, string $version, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
-        $runtimeName = System::getHostname() . '-' . $runtimeId;
+        $runtimeName = System::getHostname() . '-' . $runtimeId . '-m' . $memory . '-c' . $cpus;
 
         $runtimeHostname = \uniqid();
 
