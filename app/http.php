@@ -48,7 +48,7 @@ ini_set('memory_limit', '-1');
 
 Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
 
-Http::setMode((string) Http::getEnv('OPR_EXECUTOR_ENV', Http::MODE_TYPE_PRODUCTION));
+Http::setMode((string)Http::getEnv('OPR_EXECUTOR_ENV', Http::MODE_TYPE_PRODUCTION));
 
 // Setup Registry
 $register = new Registry();
@@ -70,7 +70,7 @@ $register->set('logger', function () {
             default => ['key' => $loggingProvider->getHost()],
         };
     } catch (Throwable) {
-        $configChunks = \explode(";", $providerConfig);
+        $configChunks = \explode(";", ($providerConfig ?? ''));
 
         $providerConfig = match ($providerName) {
             'sentry' => ['key' => $configChunks[0], 'projectId' => $configChunks[1] ?? '', 'host' => '',],
@@ -81,12 +81,12 @@ $register->set('logger', function () {
 
     $logger = null;
 
-    if (!empty($providerName) && !empty($providerConfig) && Logger::hasProvider($providerName)) {
+    if (!empty($providerName) && is_array($providerConfig) && Logger::hasProvider($providerName)) {
         $adapter = match ($providerName) {
-            'sentry' => new Sentry($providerConfig['projectId'], $providerConfig['key'], $providerConfig['host']),
-            'logowl' => new LogOwl($providerConfig['ticket'], $providerConfig['host']),
-            'raygun' => new Raygun($providerConfig['key']),
-            'appsignal' => new AppSignal($providerConfig['key']),
+            'sentry' => new Sentry($providerConfig['projectId'] ?? '', $providerConfig['key'] ?? '', $providerConfig['host'] ?? ''),
+            'logowl' => new LogOwl($providerConfig['ticket'] ?? '', $providerConfig['host'] ?? ''),
+            'raygun' => new Raygun($providerConfig['key'] ?? ''),
+            'appsignal' => new AppSignal($providerConfig['key'] ?? ''),
             default => throw new Exception('Provider "' . $providerName . '" not supported.')
         };
 
@@ -100,8 +100,8 @@ $register->set('logger', function () {
  * Create orchestration
  */
 $register->set('orchestration', function () {
-    $dockerUser = (string) Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
-    $dockerPass = (string) Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
+    $dockerUser = (string)Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
+    $dockerPass = (string)Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
     $orchestration = new Orchestration(new DockerCLI($dockerUser, $dockerPass));
 
     return $orchestration;
@@ -147,14 +147,14 @@ $register->set('statsHost', function () {
 });
 
 /** Set Resources */
-Http::setResource('register', fn () => $register);
-Http::setResource('orchestration', fn (Registry $register) => $register->get('orchestration'), ['register']);
-Http::setResource('activeRuntimes', fn (Registry $register) => $register->get('activeRuntimes'), ['register']);
-Http::setResource('logger', fn (Registry $register) => $register->get('logger'), ['register']);
-Http::setResource('statsContainers', fn (Registry $register) => $register->get('statsContainers'), ['register']);
-Http::setResource('statsHost', fn (Registry $register) => $register->get('statsHost'), ['register']);
+Http::setResource('register', fn() => $register);
+Http::setResource('orchestration', fn(Registry $register) => $register->get('orchestration'), ['register']);
+Http::setResource('activeRuntimes', fn(Registry $register) => $register->get('activeRuntimes'), ['register']);
+Http::setResource('logger', fn(Registry $register) => $register->get('logger'), ['register']);
+Http::setResource('statsContainers', fn(Registry $register) => $register->get('statsContainers'), ['register']);
+Http::setResource('statsHost', fn(Registry $register) => $register->get('statsHost'), ['register']);
 
-Http::setResource('log', fn () => new Log());
+Http::setResource('log', fn() => new Log());
 
 function logError(Log $log, Throwable $error, string $action, Logger $logger = null, Route $route = null): void
 {
@@ -164,7 +164,7 @@ function logError(Log $log, Throwable $error, string $action, Logger $logger = n
     Console::error('[Error] Line: ' . $error->getLine());
 
     if ($logger && ($error->getCode() === 500 || $error->getCode() === 0)) {
-        $version = (string) Http::getEnv('OPR_EXECUTOR_VERSION', '');
+        $version = (string)Http::getEnv('OPR_EXECUTOR_VERSION', '');
         if (empty($version)) {
             $version = 'UNKNOWN';
         }
@@ -473,20 +473,23 @@ Http::post('/v1/runtimes')
             /**
              * Create container
              */
-            $variables = \array_merge($variables, match ($version) {
-                'v2' => [
-                    'INTERNAL_RUNTIME_KEY' => $secret,
-                    'INTERNAL_RUNTIME_ENTRYPOINT' => $entrypoint,
-                    'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
-                ],
-                'v3' => [
-                    'OPEN_RUNTIMES_SECRET' => $secret,
-                    'OPEN_RUNTIMES_ENTRYPOINT' => $entrypoint,
-                    'OPEN_RUNTIMES_HOSTNAME' => System::getHostname()
-                ]
-            });
+            $variables = \array_merge(
+                $variables,
+                match ($version) {
+                    'v2' => [
+                        'INTERNAL_RUNTIME_KEY' => $secret,
+                        'INTERNAL_RUNTIME_ENTRYPOINT' => $entrypoint,
+                        'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
+                    ],
+                    'v3' => [
+                        'OPEN_RUNTIMES_SECRET' => $secret,
+                        'OPEN_RUNTIMES_ENTRYPOINT' => $entrypoint,
+                        'OPEN_RUNTIMES_HOSTNAME' => System::getHostname()
+                    ]
+                }
+            );
 
-            $variables = array_map(fn ($v) => strval($v), $variables);
+            $variables = array_map(fn($v) => strval($v), $variables);
             $orchestration
                 ->setCpus($cpus)
                 ->setMemory($memory);
@@ -537,7 +540,8 @@ Http::post('/v1/runtimes')
              */
             if (!empty($command)) {
                 $commands = [
-                    'sh', '-c',
+                    'sh',
+                    '-c',
                     'touch /var/tmp/logs.txt && (' . $command . ') >> /var/tmp/logs.txt 2>&1 && cat /var/tmp/logs.txt'
                 ];
 
@@ -605,7 +609,7 @@ Http::post('/v1/runtimes')
                 $logs = '';
                 $status = $orchestration->execute(
                     name: $runtimeName,
-                    command: [ 'sh', '-c', 'cat /var/tmp/logs.txt' ],
+                    command: ['sh', '-c', 'cat /var/tmp/logs.txt'],
                     output: $logs,
                     timeout: 15
                 );
@@ -613,7 +617,7 @@ Http::post('/v1/runtimes')
                 if (!empty($logs)) {
                     $error = $th->getMessage() . $logs;
                 }
-            } catch(Throwable $err) {
+            } catch (Throwable $err) {
                 // Ignore, use fallback error message
             }
 
@@ -825,7 +829,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                         if ($statusCode >= 500) {
                             $error = $body['message'];
-                        // Continues to retry logic
+                            // Continues to retry logic
                         } elseif ($statusCode >= 400) {
                             $error = $body['message'];
                             throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
@@ -1126,7 +1130,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $response
                 ->setStatusCode(Response::STATUS_CODE_OK)
                 ->setContentType(Response::CONTENT_TYPE_JSON, Response::CHARSET_UTF8)
-                ->send((string) $executionString);
+                ->send((string)$executionString);
         }
     );
 
@@ -1261,7 +1265,7 @@ run(function () use ($register) {
      * Run a maintenance worker every X seconds to remove inactive runtimes
      */
     Console::info('Starting maintenance interval...');
-    $interval = (int) Http::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
+    $interval = (int)Http::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
     Timer::tick($interval * 1000, function () use ($orchestration, $activeRuntimes) {
         Console::info("Running maintenance task ...");
         // Stop idling runtimes
@@ -1352,7 +1356,7 @@ run(function () use ($register) {
         }
 
         if ($recursive) {
-            Timer::after(1000, fn () => getStats($statsHost, $statsContainers, $orchestration, $recursive));
+            Timer::after(1000, fn() => getStats($statsHost, $statsContainers, $orchestration, $recursive));
         }
     }
 
@@ -1371,10 +1375,10 @@ run(function () use ($register) {
 
     Console::success('Executor is ready.');
 
-    Process::signal(SIGINT, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
-    Process::signal(SIGQUIT, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
-    Process::signal(SIGKILL, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
-    Process::signal(SIGTERM, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
+    Process::signal(SIGINT, fn() => removeAllRuntimes($activeRuntimes, $orchestration));
+    Process::signal(SIGQUIT, fn() => removeAllRuntimes($activeRuntimes, $orchestration));
+    Process::signal(SIGKILL, fn() => removeAllRuntimes($activeRuntimes, $orchestration));
+    Process::signal(SIGTERM, fn() => removeAllRuntimes($activeRuntimes, $orchestration));
 
     $http->start();
 });
