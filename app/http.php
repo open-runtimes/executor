@@ -147,14 +147,14 @@ $register->set('statsHost', function () {
 });
 
 /** Set Resources */
-Http::setResource('register', fn() => $register);
-Http::setResource('orchestration', fn(Registry $register) => $register->get('orchestration'), ['register']);
-Http::setResource('activeRuntimes', fn(Registry $register) => $register->get('activeRuntimes'), ['register']);
-Http::setResource('logger', fn(Registry $register) => $register->get('logger'), ['register']);
-Http::setResource('statsContainers', fn(Registry $register) => $register->get('statsContainers'), ['register']);
-Http::setResource('statsHost', fn(Registry $register) => $register->get('statsHost'), ['register']);
+Http::setResource('register', fn () => $register);
+Http::setResource('orchestration', fn (Registry $register) => $register->get('orchestration'), ['register']);
+Http::setResource('activeRuntimes', fn (Registry $register) => $register->get('activeRuntimes'), ['register']);
+Http::setResource('logger', fn (Registry $register) => $register->get('logger'), ['register']);
+Http::setResource('statsContainers', fn (Registry $register) => $register->get('statsContainers'), ['register']);
+Http::setResource('statsHost', fn (Registry $register) => $register->get('statsHost'), ['register']);
 
-Http::setResource('log', fn() => new Log());
+Http::setResource('log', fn () => new Log());
 
 function logError(Log $log, Throwable $error, string $action, Logger $logger = null, Route $route = null): void
 {
@@ -489,7 +489,7 @@ Http::post('/v1/runtimes')
                 }
             );
 
-            $variables = array_map(fn($v) => strval($v), $variables);
+            $variables = array_map(fn ($v) => strval($v), $variables);
             $orchestration
                 ->setCpus($cpus)
                 ->setMemory($memory);
@@ -829,7 +829,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                         if ($statusCode >= 500) {
                             $error = $body['message'];
-                            // Continues to retry logic
+                        // Continues to retry logic
                         } elseif ($statusCode >= 400) {
                             $error = $body['message'];
                             throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
@@ -1356,7 +1356,7 @@ run(function () use ($register) {
         }
 
         if ($recursive) {
-            Timer::after(1000, fn() => getStats($statsHost, $statsContainers, $orchestration, $recursive));
+            Timer::after(1000, fn () => getStats($statsHost, $statsContainers, $orchestration, $recursive));
         }
     }
 
@@ -1375,10 +1375,10 @@ run(function () use ($register) {
 
     Console::success('Executor is ready.');
 
-    Process::signal(SIGINT, fn() => removeAllRuntimes($activeRuntimes, $orchestration));
-    Process::signal(SIGQUIT, fn() => removeAllRuntimes($activeRuntimes, $orchestration));
-    Process::signal(SIGKILL, fn() => removeAllRuntimes($activeRuntimes, $orchestration));
-    Process::signal(SIGTERM, fn() => removeAllRuntimes($activeRuntimes, $orchestration));
+    Process::signal(SIGINT, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
+    Process::signal(SIGQUIT, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
+    Process::signal(SIGKILL, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
+    Process::signal(SIGTERM, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
 
     $http->start();
 });
