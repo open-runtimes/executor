@@ -99,6 +99,7 @@ $register->set('activeRuntimes', function () {
     $table->column('hostname', Table::TYPE_STRING, 1024);
     $table->column('status', Table::TYPE_STRING, 256);
     $table->column('key', Table::TYPE_STRING, 1024);
+    $table->column('listening', Table::TYPE_INT, 1);
     $table->create();
 
     return $table;
@@ -413,7 +414,7 @@ Http::post('/v1/runtimes')
         $secret = \bin2hex(\random_bytes(16));
 
         $activeRuntimes->set($runtimeName, [
-            'listening' => false,
+            'listening' => 0,
             'name' => $runtimeName,
             'hostname' => $runtimeHostname,
             'created' => $startTime,
@@ -760,7 +761,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                         'runtimeEntrypoint' => $runtimeEntrypoint
                     ]);
 
-                    \curl_setopt($ch, CURLOPT_URL, "http://localhost/v1/runtimes");
+                    \curl_setopt($ch, CURLOPT_URL, "http://127.0.0.1/v1/runtimes");
                     \curl_setopt($ch, CURLOPT_POST, true);
                     \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
                     \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -1022,7 +1023,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             $listening = $runtime['listening'];
 
-            if (!$listening) {
+            if (empty($listening)) {
                 // Wait for cold-start to finish (app listening on port)
                 $pingStart = \microtime(true);
                 $validator = new TCP();
@@ -1043,44 +1044,35 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                 // Update swoole table
                 $runtime = $activeRuntimes->get($runtimeName);
-                $runtime['listening'] = true;
+                $runtime['listening'] = 1;
                 $activeRuntimes->set($runtimeName, $runtime);
 
                 // Lower timeout by time it took to cold-start
                 $timeout -= (\microtime(true) - $pingStart);
             }
 
-
             // Execute function
-            for ($i = 0; $i < 10; $i++) {
-                $executionRequest = $version === 'v3' ? $executeV3 : $executeV2;
-                $executionResponse = \call_user_func($executionRequest);
+            $executionRequest = $version === 'v3' ? $executeV3 : $executeV2;
+            $executionResponse = \call_user_func($executionRequest);
 
-                // No error
-                if ($executionResponse['errNo'] === 0) {
-                    break;
-                }
-
+            // Error occured
+            if ($executionResponse['errNo'] !== 0) {
                 // Unknown protocol error code, but also means parsing issue
                 // As patch, we consider this too big entry for headers (logs&errors)
                 if ($executionResponse['errNo'] === 7102) {
                     throw new Exception('Invalid response. This usually means too large logs or errors. Please avoid logging files or lengthy strings.', 500);
                 }
 
-                if ($executionResponse['errNo'] === 110 && $version === 'v2') { // timeout error for v2 functions
+                // Intended timeout error for v2 functions
+                if ($executionResponse['errNo'] === 110 && $version === 'v2') {
                     throw new Exception($executionResponse['error'], 400);
                 }
 
-                if ($executionResponse['errNo'] !== 111) { // Connection Refused - see https://openswoole.com/docs/swoole-error-code
-                    throw new Exception('An internal curl error has occurred within the executor! Error Number: ' . $executionResponse['errNo'] . '. Error Msg: ' . $executionResponse['error'], 500);
-                }
-
-                if ($i === 9) {
-                    throw new Exception('Multiple internal curl errors has occurred within the executor! Error Number: ' . $executionResponse['errNo'] . '. Error Msg: ' . $executionResponse['error'], 500);
-                }
-
-                \usleep(500000);
+                // Unknown error
+                throw new Exception('Internal curl errors has occurred within the executor! Error Number: ' . $executionResponse['errNo'] . '. Error Msg: ' . $executionResponse['error'], 500);
             }
+
+            // Successful execution
 
             ['statusCode' => $statusCode, 'body' => $body, 'logs' => $logs, 'errors' => $errors, 'headers' => $headers] = $executionResponse;
 

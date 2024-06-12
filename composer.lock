@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "db84b99175ae327aaa97f7f0877f2ba0",
+    "content-hash": "d3407e94419a76cd7c6d6a98c99dedad",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -206,22 +206,23 @@
         },
         {
             "name": "utopia-php/logger",
-            "version": "0.3.2",
+            "version": "0.5.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/logger.git",
-                "reference": "ba763c10688fe2ed715ad2bed3f13d18dfec6253"
+                "reference": "c6dfdb672e41364c309b0c30dc03bc6d45446dba"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/logger/zipball/ba763c10688fe2ed715ad2bed3f13d18dfec6253",
-                "reference": "ba763c10688fe2ed715ad2bed3f13d18dfec6253",
+                "url": "https://api.github.com/repos/utopia-php/logger/zipball/c6dfdb672e41364c309b0c30dc03bc6d45446dba",
+                "reference": "c6dfdb672e41364c309b0c30dc03bc6d45446dba",
                 "shasum": ""
             },
             "require": {
                 "php": ">=8.0"
             },
             "require-dev": {
+                "laravel/pint": "1.2.*",
                 "phpstan/phpstan": "1.9.x-dev",
                 "phpunit/phpunit": "^9.3",
                 "vimeo/psalm": "4.0.1"
@@ -253,9 +254,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/logger/issues",
-                "source": "https://github.com/utopia-php/logger/tree/0.3.2"
+                "source": "https://github.com/utopia-php/logger/tree/0.5.2"
             },
-            "time": "2023-11-22T14:45:43+00:00"
+            "time": "2024-05-17T09:32:59+00:00"
         },
         {
             "name": "utopia-php/orchestration",
@@ -414,16 +415,16 @@
         },
         {
             "name": "utopia-php/storage",
-            "version": "0.18.3",
+            "version": "0.18.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/storage.git",
-                "reference": "faa0279519ac14f3501e8b138e0865ad9d12bff6"
+                "reference": "94ab8758fabcefee5c5fa723616e45719833f922"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/storage/zipball/faa0279519ac14f3501e8b138e0865ad9d12bff6",
-                "reference": "faa0279519ac14f3501e8b138e0865ad9d12bff6",
+                "url": "https://api.github.com/repos/utopia-php/storage/zipball/94ab8758fabcefee5c5fa723616e45719833f922",
+                "reference": "94ab8758fabcefee5c5fa723616e45719833f922",
                 "shasum": ""
             },
             "require": {
@@ -463,9 +464,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/storage/issues",
-                "source": "https://github.com/utopia-php/storage/tree/0.18.3"
+                "source": "https://github.com/utopia-php/storage/tree/0.18.4"
             },
-            "time": "2023-12-31T11:45:12+00:00"
+            "time": "2024-04-02T08:24:09+00:00"
         },
         {
             "name": "utopia-php/system",
@@ -1276,16 +1277,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "9.6.18",
+            "version": "9.6.19",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "32c2c2d6580b1d8ab3c10b1e9e4dc263cc69bb04"
+                "reference": "a1a54a473501ef4cdeaae4e06891674114d79db8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/32c2c2d6580b1d8ab3c10b1e9e4dc263cc69bb04",
-                "reference": "32c2c2d6580b1d8ab3c10b1e9e4dc263cc69bb04",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/a1a54a473501ef4cdeaae4e06891674114d79db8",
+                "reference": "a1a54a473501ef4cdeaae4e06891674114d79db8",
                 "shasum": ""
             },
             "require": {
@@ -1359,7 +1360,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/9.6.18"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/9.6.19"
             },
             "funding": [
                 {
@@ -1375,7 +1376,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2024-03-21T12:07:32+00:00"
+            "time": "2024-04-05T04:35:58+00:00"
         },
         {
             "name": "sebastian/cli-parser",

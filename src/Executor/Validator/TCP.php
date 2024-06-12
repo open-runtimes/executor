@@ -42,7 +42,7 @@ class TCP extends Validator
         // TCP Ping
         $errorCode = null;
         $errorMessage = "";
-        $socket = \fsockopen($ip, $port, $errorCode, $errorMessage, $this->timeout);
+        $socket = @\fsockopen($ip, $port, $errorCode, $errorMessage, $this->timeout); // @ prevents warnings (Unable to connect)
 
         if (!$socket) {
             return false;
