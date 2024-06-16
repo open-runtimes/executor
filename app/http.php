@@ -1015,6 +1015,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                 // Extract logs and errors from file based on fileId in header
                 $fileId = $responseHeaders['x-open-runtimes-log-id'] ?? '';
+                $stdout = '';
+                $stderr = '';
                 if (!empty($fileId)) {
                     $logs = '';
                     $errors = '';
@@ -1033,8 +1035,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                         $errors = $errorDevice->read($errorFile);
                     }
 
-                    $stdout = $logs ?? '';
-                    $stderr = $errors ?? '';
+                    $stdout = $logs;
+                    $stderr = $errors;
 
                     $logDevice->deletePath($logFile);
                     $errorDevice->deletePath($errorFile); // TODO: benchmark how long it takes
