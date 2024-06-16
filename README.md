@@ -86,7 +86,7 @@ OPR_EXECUTOR_LOGGING_PROVIDER=
 OPR_EXECUTOR_LOGGING_CONFIG=
 OPR_EXECUTOR_DOCKER_HUB_USERNAME=
 OPR_EXECUTOR_DOCKER_HUB_PASSWORD=
-OPR_EXECUTOR_RUNTIME_VERSIONS=v3
+OPR_EXECUTOR_RUNTIME_VERSIONS=v4
 ```
 
 > `OPR_EXECUTOR_CONNECTION_STORAGE` takes a DSN string that represents a connection to your storage device. If you would like to use your local filesystem, you can use `file://localhost`. If using S3 or any other provider for storage, use a DSN of the following format `s3://access_key:access_secret@host:port/bucket_name?region=us-east-1`
@@ -155,7 +155,7 @@ docker compose down
 | `remove` | `boolean` | Remove a runtime after execution |  | false |
 | `cpus` | `integer` | Maximum CPU cores runtime can utilize |  | 1 |
 | `memory` | `integer` | Container RAM memory in MBs |  | 512 |
-| `version` | `string` | Runtime Open Runtime version (allowed values: 'v2', 'v3') |  | 'v3' |
+| `version` | `string` | Runtime Open Runtime version (allowed values: 'v2', 'v3', 'v4') |  | 'v4' |
 
 #### /v1/runtimes/{runtimeId}
 | Param | Type | Description | Required | Default |

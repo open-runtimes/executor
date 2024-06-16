@@ -386,7 +386,7 @@ Http::post('/v1/runtimes')
     ->param('remove', false, new Boolean(), 'Remove a runtime after execution.', true)
     ->param('cpus', 1, new Integer(), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Comtainer RAM memory.', true)
-    ->param('version', 'v3', new WhiteList(['v2', 'v3']), 'Runtime Open Runtime version.', true)
+    ->param('version', 'v4', new WhiteList(['v2', 'v3', 'v4']), 'Runtime Open Runtime version.', true)
     ->inject('orchestration')
     ->inject('activeRuntimes')
     ->inject('response')
@@ -429,6 +429,7 @@ Http::post('/v1/runtimes')
         $tmpFolder = "tmp/$runtimeName/";
         $tmpSource = "/{$tmpFolder}src/code.tar.gz";
         $tmpBuild = "/{$tmpFolder}builds/code.tar.gz";
+        $tmpLogs = "/{$tmpFolder}logs";
 
         $sourceDevice = getStorageDevice("/");
         $localDevice = new Local();
@@ -459,7 +460,7 @@ Http::post('/v1/runtimes')
                     'INTERNAL_RUNTIME_ENTRYPOINT' => $entrypoint,
                     'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
                 ],
-                'v3' => [
+                'v4' => [
                     'OPEN_RUNTIMES_SECRET' => $secret,
                     'OPEN_RUNTIMES_ENTRYPOINT' => $entrypoint,
                     'OPEN_RUNTIMES_HOSTNAME' => System::getHostname()
@@ -489,6 +490,15 @@ Http::post('/v1/runtimes')
             $openruntimes_networks = explode(',', str_replace(' ', '', Http::getEnv('OPR_EXECUTOR_NETWORK') ?: 'executor_runtimes'));
             $openruntimes_network = $openruntimes_networks[array_rand($openruntimes_networks)];
 
+            $volumes = [
+                \dirname($tmpSource) . ':/tmp:rw',
+                \dirname($tmpBuild) . ':' . $codeMountPath . ':rw',
+            ];
+
+            if ($version === 'v4') {
+                $volumes[] = \dirname($tmpLogs . '/logs') . ':/mnt/logs:rw';
+            }
+
             /** Keep the container alive if we have commands to be executed */
             $containerId = $orchestration->run(
                 image: $image,
@@ -500,10 +510,7 @@ Http::post('/v1/runtimes')
                     'openruntimes-executor' => System::getHostname(),
                     'openruntimes-runtime-id' => $runtimeId
                 ],
-                volumes: [
-                    \dirname($tmpSource) . ':/tmp:rw',
-                    \dirname($tmpBuild) . ':' . $codeMountPath . ':rw'
-                ],
+                volumes: $volumes,
                 network: \strval($openruntimes_network) ?: 'executor_runtimes',
                 workdir: $workdir
             );
@@ -713,13 +720,14 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->param('variables', [], new Assoc(), 'Environment variables passed into runtime.', true)
     ->param('cpus', 1, new Integer(), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Container RAM memory.', true)
-    ->param('version', 'v3', new WhiteList(['v2', 'v3']), 'Runtime Open Runtime version.', true)
+    ->param('version', 'v4', new WhiteList(['v2', 'v3', 'v4']), 'Runtime Open Runtime version.', true)
     ->param('runtimeEntrypoint', '', new Text(1024, 0), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
+    ->param('logging', true, new Boolean(), 'Whether executions will be logged.', true)
     ->inject('activeRuntimes')
     ->inject('response')
     ->inject('log')
     ->action(
-        function (string $runtimeId, ?string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $runtimeEntrypoint, Table $activeRuntimes, Response $response, Log $log) {
+        function (string $runtimeId, ?string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $runtimeEntrypoint, bool $logging, Table $activeRuntimes, Response $response, Log $log) {
             if (empty($payload)) {
                 $payload = '';
             }
@@ -742,7 +750,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 }
 
                 // Prepare request to executor
-                $sendCreateRuntimeRequest = function () use ($runtimeId, $image, $source, $entrypoint, $variables, $cpus, $memory, $version, $runtimeEntrypoint) {
+                $sendCreateRuntimeRequest = function () use ($runtimeId, $image, $source, $entrypoint, $variables, $cpus, $memory, $version, $runtimeEntrypoint, $logging) {
                     $statusCode = 0;
                     $errNo = -1;
                     $executorResponse = '';
@@ -772,6 +780,16 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                         'Content-Length: ' . \strlen($body ?: ''),
                         'authorization: Bearer ' . Http::getEnv('OPR_EXECUTOR_SECRET', '')
                     ]);
+
+                    if ($logging == true) {
+                        \curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                            'x-open-runtimes-logging: enabled',
+                        ]);
+                    } else {
+                        \curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                            'x-open-runtimes-logging: disabled',
+                        ]);
+                    }
 
                     $executorResponse = \curl_exec($ch);
 
@@ -929,7 +947,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 ];
             };
 
-            $executeV3 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout): array {
+            $executeV4 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName): array {
                 $statusCode = 0;
                 $errNo = -1;
                 $executorResponse = '';
@@ -954,7 +972,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     $key = strtolower(trim($header[0]));
                     $responseHeaders[$key] = trim($header[1]);
 
-                    if (\in_array($key, ['x-open-runtimes-logs', 'x-open-runtimes-errors'])) {
+                    if (\in_array($key, ['x-open-runtimes-log-id'])) {
                         $responseHeaders[$key] = \urldecode($responseHeaders[$key]);
                     }
 
@@ -995,8 +1013,32 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     ];
                 }
 
-                $stdout = $responseHeaders['x-open-runtimes-logs'] ?? '';
-                $stderr = $responseHeaders['x-open-runtimes-errors'] ?? '';
+                // Extract logs and errors from file based on fileId in header
+                $fileId = $responseHeaders['x-open-runtimes-log-id'] ?? '';
+                if (!empty($fileId)) {
+                    $logs = '';
+                    $errors = '';
+
+                    $logFile = '/tmp/'.$runtimeName .'/logs/' . $fileId . '_logs.log';
+                    $errorFile = '/tmp/'.$runtimeName .'/logs/' . $fileId . '_errors.log';
+
+                    $logDevice = getStorageDevice($logFile);
+                    $errorDevice = getStorageDevice($errorFile);
+
+                    if ($logDevice->exists($logFile)) {
+                        $logs = $logDevice->read($logFile);
+                    }
+
+                    if ($errorDevice->exists($errorFile)) {
+                        $errors = $errorDevice->read($errorFile);
+                    }
+
+                    $stdout = $logs ?? '';
+                    $stderr = $errors ?? '';
+
+                    $logDevice->deletePath($logFile);
+                    $errorDevice->deletePath($errorFile); // TODO: benchmark how long it takes
+                }
 
                 $outputHeaders = [];
                 foreach ($responseHeaders as $key => $value) {
@@ -1052,7 +1094,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             }
 
             // Execute function
-            $executionRequest = $version === 'v3' ? $executeV3 : $executeV2;
+            $executionRequest = $version === 'v4' ? $executeV4 : $executeV2;
             $executionResponse = \call_user_func($executionRequest);
 
             // Error occured
@@ -1214,7 +1256,7 @@ run(function () use ($register) {
      */
     $allowList = empty(Http::getEnv('OPR_EXECUTOR_RUNTIMES')) ? [] : \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIMES'));
 
-    $runtimeVersions = \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v3') ?? 'v3');
+    $runtimeVersions = \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v4') ?? 'v4');
     foreach ($runtimeVersions as $runtimeVersion) {
         Console::success("Pulling $runtimeVersion images...");
         $runtimes = new Runtimes($runtimeVersion); // TODO: @Meldiron Make part of open runtimes
