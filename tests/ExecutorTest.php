@@ -331,32 +331,100 @@ final class ExecutorTest extends TestCase
             [
                 'image' => 'openruntimes/node:v4-18.0',
                 'entrypoint' => 'index.js',
-                'folder' => 'node-large-logs',
+                'folder' => 'node-logs',
                 'version' => 'v4',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
-                    // $this->assertEquals(500, $response['headers']['status-code']);
-                    // $this->assertStringContainsString('Invalid response. This usually means too large logs or errors', $response['body']['message']);
-                }
+                    $this->assertEquals(200, $response['headers']['status-code']);
+                    $this->assertEquals("OK", $response['body']['body']);
+                },
+                'body' => function () {
+                    return 1;
+                },
+            ],
+            [
+                'image' => 'openruntimes/node:v4-18.0',
+                'entrypoint' => 'index.js',
+                'folder' => 'node-logs',
+                'version' => 'v4',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'assertions' => function ($response) {
+                    $this->assertEquals(200, $response['headers']['status-code']);
+                    $this->assertEquals("OK", $response['body']['body']);
+                },
+                'body' => function () {
+                    return 5;
+                },
+            ],
+            [
+                'image' => 'openruntimes/node:v4-18.0',
+                'entrypoint' => 'index.js',
+                'folder' => 'node-logs',
+                'version' => 'v4',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'assertions' => function ($response) {
+                    $this->assertEquals(200, $response['headers']['status-code']);
+                    $this->assertEquals("OK", $response['body']['body']);
+                },
+                'body' => function () {
+                    return 15;
+                },
             ],
             // [
             //     'image' => 'openruntimes/node:v4-18.0',
             //     'entrypoint' => 'index.js',
-            //     'folder' => 'node-long-coldstart',
+            //     'folder' => 'node-logs',
             //     'version' => 'v4',
             //     'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
             //     'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
             //     'assertions' => function ($response) {
-            //         var_dump($response['body']);
-            //         $this->assertEquals(200, $response['headers']['status-code']);
-            //         $this->assertEquals(200, $response['body']['statusCode']);
-            //         $this->assertEquals('1836311903', $response['body']['body']);
-            //         $this->assertGreaterThan(10, $response['body']['duration']); // This is unsafe but important. If its flaky, inform @Meldiron
-            //         $this->assertEmpty($response['body']['logs']);
-            //         $this->assertEmpty($response['body']['errors']);
-            //     }
+            //         $this->assertEquals(500, $response['headers']['status-code']);
+            //     },
+            //     'body' => function () {
+            //         return 25; // TODO: This should fail, as we need to put a limit on log file > 20 MB
+            //     },
             // ],
+            [
+                'image' => 'openruntimes/node:v4-18.0',
+                'entrypoint' => 'index.js',
+                'folder' => 'node-long-coldstart',
+                'version' => 'v4',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'assertions' => function ($response) {
+                    $this->assertEquals(200, $response['headers']['status-code']);
+                    $this->assertEquals(200, $response['body']['statusCode']);
+                    $this->assertEquals('1836311903', $response['body']['body']);
+                    $this->assertGreaterThan(10, $response['body']['duration']); // This is unsafe but important. If its flaky, inform @Meldiron
+                    $this->assertEmpty($response['body']['logs']);
+                    $this->assertEmpty($response['body']['errors']);
+                }
+            ],
+            [
+                'image' => 'openruntimes/node:v4-21.0',
+                'entrypoint' => 'index.js',
+                'folder' => 'node-binary-response',
+                'version' => 'v4',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'assertions' => function ($response) {
+                    $this->assertEquals(200, $response['headers']['status-code']);
+                    $this->assertEquals(200, $response['body']['statusCode']);
+                    $bytes = unpack('C*byte', $response['body']['body']);
+                    if (!is_array($bytes)) {
+                        $bytes = [];
+                    }
+                    self::assertCount(3, $bytes);
+                    self::assertEquals(0, $bytes['byte1'] ?? 0);
+                    self::assertEquals(10, $bytes['byte2'] ?? 0);
+                    self::assertEquals(255, $bytes['byte3'] ?? 0);
+                    $this->assertEmpty($response['body']['logs']);
+                    $this->assertEmpty($response['body']['errors']);
+                }
+            ]
         ];
     }
 
@@ -371,7 +439,7 @@ final class ExecutorTest extends TestCase
      *
      * @dataProvider provideScenarios
      */
-    public function testScenarios(string $image, string $entrypoint, string $folder, string $version, string $startCommand, string $buildCommand, callable $assertions): void
+    public function testScenarios(string $image, string $entrypoint, string $folder, string $version, string $startCommand, string $buildCommand, callable $assertions, callable $bodyCallable = null): void
     {
         /** Prepare deployment */
         $output = '';
@@ -395,15 +463,26 @@ final class ExecutorTest extends TestCase
 
         $path = $response['body']['path'];
 
-        /** Execute function */
-        $response = $this->client->call(Client::METHOD_POST, "/runtimes/scenario-execute-{$folder}/executions", [], [
+        $body = "";
+        if (isset($bodyCallable)) {
+            $body = \strval($bodyCallable());
+        }
+
+        $params = [
             'source' => $path,
             'entrypoint' => $entrypoint,
             'image' => $image,
             'version' => $version,
             'runtimeEntrypoint' => $startCommand,
-            'timeout' => 45
-        ]);
+            'timeout' => 45,
+        ];
+
+        if (!empty($body)) {
+            $params['body'] = $body;
+        }
+
+        /** Execute function */
+        $response = $this->client->call(Client::METHOD_POST, "/runtimes/scenario-execute-{$folder}/executions", [], $params);
 
         call_user_func($assertions, $response);
 

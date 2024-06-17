@@ -1024,22 +1024,21 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     $logFile = '/tmp/'.$runtimeName .'/logs/' . $fileId . '_logs.log';
                     $errorFile = '/tmp/'.$runtimeName .'/logs/' . $fileId . '_errors.log';
 
-                    $logDevice = getStorageDevice($logFile);
-                    $errorDevice = getStorageDevice($errorFile);
+                    $logDevice = getStorageDevice("/");
 
                     if ($logDevice->exists($logFile)) {
                         $logs = $logDevice->read($logFile);
                     }
 
-                    if ($errorDevice->exists($errorFile)) {
-                        $errors = $errorDevice->read($errorFile);
+                    if ($logDevice->exists($errorFile)) {
+                        $errors = $logDevice->read($errorFile);
                     }
 
                     $stdout = $logs;
                     $stderr = $errors;
 
-                    $logDevice->deletePath($logFile);
-                    $errorDevice->deletePath($errorFile); // TODO: benchmark how long it takes
+                    $logDevice->delete($logFile);
+                    $logDevice->delete($errorFile);
                 }
 
                 $outputHeaders = [];

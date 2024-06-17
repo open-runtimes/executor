@@ -165,6 +165,12 @@ class Client
             }
         }
 
+        $oprEncoding = ($responseBody['headers'] ?? [])['x-open-runtimes-encoding'] ?? '';
+
+        if ($oprEncoding === 'base64' && !empty($responseBody['body'])) {
+            $responseBody['body'] = \base64_decode($responseBody['body']);
+        }
+
         if ((curl_errno($ch)/* || 200 != $responseStatus*/)) {
             throw new Exception(curl_error($ch) . ' with status code ' . $responseStatus, $responseStatus);
         }
