@@ -1122,7 +1122,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $endTime = \microtime(true);
             $duration = $endTime - $startTime;
 
-            $header['x-open-runtimes-encoding'] = 'original';
+            $header['x-open-runtimes-body-encoding'] = 'original';
             $execution = [
                 'statusCode' => $statusCode,
                 'headers' => $headers,
@@ -1136,7 +1136,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $executionString = \json_encode($execution, JSON_UNESCAPED_UNICODE);
             if (!$executionString) {
                 $execution['body'] = \base64_encode($body);
-                $execution['headers']['x-open-runtimes-encoding'] = 'base64';
+                $execution['headers']['x-open-runtimes-body-encoding'] = 'base64';
                 $executionString = \json_encode($execution, JSON_UNESCAPED_UNICODE);
             }
 

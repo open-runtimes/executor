@@ -165,7 +165,7 @@ class Client
             }
         }
 
-        $oprEncoding = ($responseBody['headers'] ?? [])['x-open-runtimes-encoding'] ?? '';
+        $oprEncoding = ($responseBody['headers'] ?? [])['x-open-runtimes-body-encoding'] ?? '';
 
         if ($oprEncoding === 'base64' && !empty($responseBody['body'])) {
             $responseBody['body'] = \base64_decode($responseBody['body']);
