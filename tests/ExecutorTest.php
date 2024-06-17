@@ -424,6 +424,34 @@ final class ExecutorTest extends TestCase
                     $this->assertEmpty($response['body']['logs']);
                     $this->assertEmpty($response['body']['errors']);
                 }
+            ],
+            [
+                'image' => 'openruntimes/node:v4-21.0',
+                'entrypoint' => 'index.js',
+                'folder' => 'node-binary-request',
+                'version' => 'v4',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'assertions' => function ($response) {
+                    $this->assertEquals(200, $response['headers']['status-code']);
+                    $this->assertEquals(200, $response['body']['statusCode']);
+                    $bytes = unpack('C*byte', $response['body']['body']);
+                    if (!is_array($bytes)) {
+                        $bytes = [];
+                    }
+                    self::assertCount(3, $bytes);
+                    self::assertEquals(0, $bytes['byte1'] ?? 0);
+                    self::assertEquals(10, $bytes['byte2'] ?? 0);
+                    self::assertEquals(255, $bytes['byte3'] ?? 0);
+                    $this->assertEmpty($response['body']['logs']);
+                    $this->assertEmpty($response['body']['errors']);
+                },
+                'body' => function () {
+                    return base64_encode(pack('C*', 0, 10, 255));
+                },
+                'headers' => [
+                    'x-open-runtimes-body-encoding' => 'base64'
+                ]
             ]
         ];
     }
@@ -439,7 +467,7 @@ final class ExecutorTest extends TestCase
      *
      * @dataProvider provideScenarios
      */
-    public function testScenarios(string $image, string $entrypoint, string $folder, string $version, string $startCommand, string $buildCommand, callable $assertions, callable $bodyCallable = null): void
+    public function testScenarios(string $image, string $entrypoint, string $folder, string $version, string $startCommand, string $buildCommand, callable $assertions, callable $bodyCallable = null, mixed $headers = []): void
     {
         /** Prepare deployment */
         $output = '';
@@ -479,6 +507,10 @@ final class ExecutorTest extends TestCase
 
         if (!empty($body)) {
             $params['body'] = $body;
+        }
+
+        if (!empty($headers)) {
+            $params['headers'] = $headers;
         }
 
         /** Execute function */

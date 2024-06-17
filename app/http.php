@@ -954,6 +954,10 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                 $ch = \curl_init();
 
+                if (isset($headers['x-open-runtimes-body-encoding']) && $headers['x-open-runtimes-body-encoding'] === 'base64') {
+                    $payload = \base64_decode($payload);
+                }
+
                 $body = $payload;
 
                 $responseHeaders = [];
