@@ -1031,11 +1031,23 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     $logDevice = getStorageDevice("/");
 
                     if ($logDevice->exists($logFile)) {
-                        $logs = $logDevice->read($logFile);
+                        if ($logDevice->getFileSize($logFile) > 5 * 1024 * 1024) {
+                            $maxToRead = 5 * 1024 * 1024; // read max 5 MB of data
+                            $logs = $logDevice->read($logFile, 0, $maxToRead);
+                            $logs .= "\n... Log file has been truncated to 5 MB.";
+                        } else {
+                            $logs = $logDevice->read($logFile);
+                        }
                     }
 
                     if ($logDevice->exists($errorFile)) {
-                        $errors = $logDevice->read($errorFile);
+                        if ($logDevice->getFileSize($errorFile) > 5 * 1024 * 1024) {
+                            $maxToRead = 5 * 1024 * 1024; // read max 5 MB of data
+                            $errors = $logDevice->read($errorFile, 0, $maxToRead);
+                            $errors .= "\n... Error file has been truncated to 5 MB.";
+                        } else {
+                            $errors = $logDevice->read($errorFile);
+                        }
                     }
 
                     $stdout = $logs;
@@ -1131,8 +1143,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 'statusCode' => $statusCode,
                 'headers' => $headers,
                 'body' => $body,
-                'logs' => \mb_strcut($logs, 0, 1000000), // Limit to 1MB
-                'errors' => \mb_strcut($errors, 0, 1000000), // Limit to 1MB
+                'logs' => \mb_strcut($logs, 0, 5000000), // Limit to 5MB
+                'errors' => \mb_strcut($errors, 0, 5000000), // Limit to 5MB
                 'duration' => $duration,
                 'startTime' => $startTime,
             ];

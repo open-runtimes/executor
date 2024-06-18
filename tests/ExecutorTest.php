@@ -338,6 +338,8 @@ final class ExecutorTest extends TestCase
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals("OK", $response['body']['body']);
+                    $this->assertLessThanOrEqual(5 * 1024 * 1024, strlen($response['body']['logs']));
+                    $this->assertLessThanOrEqual(5 * 1024 * 1024, strlen($response['body']['errors']));
                 },
                 'body' => function () {
                     return 1;
@@ -353,6 +355,8 @@ final class ExecutorTest extends TestCase
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals("OK", $response['body']['body']);
+                    $this->assertLessThanOrEqual(5 * 1024 * 1024, strlen($response['body']['logs']));
+                    $this->assertLessThanOrEqual(5 * 1024 * 1024, strlen($response['body']['errors']));
                 },
                 'body' => function () {
                     return 5;
@@ -368,25 +372,13 @@ final class ExecutorTest extends TestCase
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals("OK", $response['body']['body']);
+                    $this->assertLessThanOrEqual(5 * 1024 * 1024, strlen($response['body']['logs']));
+                    $this->assertLessThanOrEqual(5 * 1024 * 1024, strlen($response['body']['errors']));
                 },
                 'body' => function () {
                     return 15;
                 },
             ],
-            // [
-            //     'image' => 'openruntimes/node:v4-18.0',
-            //     'entrypoint' => 'index.js',
-            //     'folder' => 'node-logs',
-            //     'version' => 'v4',
-            //     'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
-            //     'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
-            //     'assertions' => function ($response) {
-            //         $this->assertEquals(500, $response['headers']['status-code']);
-            //     },
-            //     'body' => function () {
-            //         return 25; // TODO: This should fail, as we need to put a limit on log file > 20 MB
-            //     },
-            // ],
             [
                 'image' => 'openruntimes/node:v4-18.0',
                 'entrypoint' => 'index.js',
@@ -452,9 +444,24 @@ final class ExecutorTest extends TestCase
                 'headers' => [
                     'x-open-runtimes-body-encoding' => 'base64'
                 ]
-            ]
+            ],
+            // [
+            //     'image' => 'openruntimes/node:v4-21.0',
+            //     'entrypoint' => 'index.js',
+            //     'folder' => 'node-streamed-response',
+            //     'version' => 'v4',
+            //     'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+            //     'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+            //     'assertions' => function ($response) {
+            //         $this->assertEquals(200, $response['headers']['status-code']);
+
+            //     },
+            // ]
         ];
     }
+
+    // test streamed response
+    // logs for failed executions
 
     /**
      * @param string $image
