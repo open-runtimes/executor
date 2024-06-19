@@ -20,7 +20,7 @@
     "test": "./vendor/bin/phpunit --configuration phpunit.xml --debug"
   },
   "require": {
-    "php": ">=8.0.0",
+    "php": ">=8.3.0",
     "ext-curl": "*",
     "ext-json": "*",
     "ext-swoole": "*",
@@ -43,7 +43,7 @@
   },
   "config": {
     "platform": {
-      "php": "8.0"
+      "php": "8.3"
     }
   }
 }

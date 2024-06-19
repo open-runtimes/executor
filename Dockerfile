@@ -10,7 +10,7 @@ RUN composer install --ignore-platform-reqs --optimize-autoloader \
     --no-plugins --no-scripts --prefer-dist
 
 # Prepare generic compiler
-FROM php:8.0.18-cli-alpine3.15 as compile
+FROM php:8.3.8-cli-alpine3.20 as compile
 
 ENV PHP_SWOOLE_VERSION=v4.8.10
 
@@ -38,7 +38,7 @@ RUN \
   cd ..
 
 # Executor
-FROM php:8.0.18-cli-alpine3.15 as final
+FROM php:8.3.8-cli-alpine3.20 as final
 
 ARG OPR_EXECUTOR_VERSION
 ENV OPR_EXECUTOR_VERSION=$OPR_EXECUTOR_VERSION
