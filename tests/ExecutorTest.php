@@ -350,7 +350,7 @@ final class ExecutorTest extends TestCase
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals(200, $response['body']['statusCode']);
-                    $this->assertEquals('1836311903', $response['body']['body']);
+                    $this->assertEquals('OK', $response['body']['body']);
                     $this->assertGreaterThan(10, $response['body']['duration']); // This is unsafe but important. If its flaky, inform @Meldiron
                     $this->assertEmpty($response['body']['logs']);
                     $this->assertEmpty($response['body']['errors']);

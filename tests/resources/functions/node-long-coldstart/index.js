@@ -1,11 +1,5 @@
-function fibo(n) { 
-    if (n < 2)
-        return 1;
-    else   return fibo(n - 2) + fibo(n - 1);
-}
+await new Promise((resolve) => setTimeout(resolve, 10_000));
 
-let cache = fibo(45);
-
-module.exports = async (context) => {
-    return context.res.send(cache);
-}
+export default async (context) => {
+  return context.res.send("OK");
+};
