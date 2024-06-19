@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b79d2f071cf6601af32ae7daa0d8b50b",
+    "content-hash": "ba784156469e21b5da6766e197fa441a",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -264,12 +264,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/orchestration.git",
-                "reference": "e868b9332b88542f65c54438179cd8db1e4409cc"
+                "reference": "d263fae77a947678563b4fa5c546e1be03861633"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/e868b9332b88542f65c54438179cd8db1e4409cc",
-                "reference": "e868b9332b88542f65c54438179cd8db1e4409cc",
+                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/d263fae77a947678563b4fa5c546e1be03861633",
+                "reference": "d263fae77a947678563b4fa5c546e1be03861633",
                 "shasum": ""
             },
             "require": {
@@ -306,7 +306,7 @@
                 "issues": "https://github.com/utopia-php/orchestration/issues",
                 "source": "https://github.com/utopia-php/orchestration/tree/fix-docker-api"
             },
-            "time": "2024-06-19T13:46:06+00:00"
+            "time": "2024-06-19T17:48:16+00:00"
         },
         {
             "name": "utopia-php/preloader",
@@ -2443,14 +2443,14 @@
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
-        "php": ">=8.0.0",
+        "php": ">=8.3.0",
         "ext-curl": "*",
         "ext-json": "*",
         "ext-swoole": "*"
     },
     "platform-dev": [],
     "platform-overrides": {
-        "php": "8.0"
+        "php": "8.3"
     },
     "plugin-api-version": "2.6.0"
 }
