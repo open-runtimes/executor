@@ -70,7 +70,7 @@ final class ExecutorTest extends TestCase
                     ];
 
                     $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
-                    $this->assertEquals(201, $response['headers']['status-code']);
+                    $this->assertEquals(201, $response['headers']['status-code'], 'Failed to create runtime, response: '. \json_encode($response, JSON_PRETTY_PRINT));
 
                     $runtimeLogs = $response['body']['output'];
                 }),
