@@ -336,8 +336,11 @@ final class ExecutorTest extends TestCase
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
-                    $this->assertEquals(500, $response['headers']['status-code']);
-                    $this->assertStringContainsString('Invalid response. This usually means too large logs or errors', $response['body']['message']);
+                    $this->assertEquals(200, $response['headers']['status-code']);
+                    $this->assertEquals(200, $response['body']['statusCode']);
+                    $this->assertEquals('OK', $response['body']['body']);
+                    $this->assertStringStartsWith('AAAAAAAAAA', $response['body']['logs']);
+                    $this->assertEmpty($response['body']['errors']);
                 }
             ],
             [
