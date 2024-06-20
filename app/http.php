@@ -982,11 +982,20 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                     return $len;
                 });
+                // $callback = function ($data){
+                //     var_dump($data); // This will output each chunk of data as it arrives
+                // };
+                // \curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, $data) use ($callback) {
+                //     $callback($data);
+                //     return \strlen($data);
+                // });
+
                 \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout + 5); // Gives extra 5s after safe timeout to recieve response
                 \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
 
                 $headers['x-open-runtimes-secret'] = $secret;
                 $headers['x-open-runtimes-timeout'] = \max(\intval($timeout), 1);
+                // $headers['accept'] = 'text/event-stream';
                 $headersArr = [];
                 foreach ($headers as $key => $value) {
                     $headersArr[] = $key . ': ' . $value;
