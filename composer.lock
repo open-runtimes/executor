@@ -264,12 +264,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/orchestration.git",
-                "reference": "d263fae77a947678563b4fa5c546e1be03861633"
+                "reference": "4024831ce86c7834a81763a198854babd0c492ea"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/d263fae77a947678563b4fa5c546e1be03861633",
-                "reference": "d263fae77a947678563b4fa5c546e1be03861633",
+                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/4024831ce86c7834a81763a198854babd0c492ea",
+                "reference": "4024831ce86c7834a81763a198854babd0c492ea",
                 "shasum": ""
             },
             "require": {
@@ -306,7 +306,7 @@
                 "issues": "https://github.com/utopia-php/orchestration/issues",
                 "source": "https://github.com/utopia-php/orchestration/tree/fix-docker-api"
             },
-            "time": "2024-06-19T17:48:16+00:00"
+            "time": "2024-06-20T10:27:37+00:00"
         },
         {
             "name": "utopia-php/preloader",
