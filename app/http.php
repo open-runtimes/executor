@@ -975,7 +975,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                 $executorResponse = \curl_exec($ch);
 
-                \curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($ch, $data) use (&$executorResponse) {
+                \curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, $data) use (&$executorResponse) {
                     $executorResponse .= $data;
                     return strlen($data);
                 });
