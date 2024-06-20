@@ -975,11 +975,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                 $executorResponse = \curl_exec($ch);
 
-                \curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, $data) use (&$executorResponse) {
-                    $executorResponse .= $data;
-                    return strlen($data);
-                });
-
                 $statusCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
                 $error = \curl_error($ch);
@@ -1062,9 +1057,10 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             // Error occured
             if ($executionResponse['errNo'] !== 0) {
-                // Unknown protocol error code, but also means parsing issue
+                // 7102 is unknown protocol error code, but also means parsing issue.
+                // 27 is out of memory error code.
                 // As patch, we consider this too big entry for headers (logs&errors)
-                if ($executionResponse['errNo'] === 7102) {
+                if ($executionResponse['errNo'] === 7102 || $executionResponse['errNo'] === 27) {
                     throw new Exception('Invalid response. This usually means too large logs or errors. Please avoid logging files or lengthy strings.', 500);
                 }
 
