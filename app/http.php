@@ -5,8 +5,8 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use Appwrite\Runtimes\Runtimes;
 use OpenRuntimes\Executor\Validator\TCP;
 use OpenRuntimes\Executor\Usage;
-use Swoole\Process;
-use Swoole\Runtime;
+use Swoole\Constant;
+use Swoole\Http\Server;
 use Swoole\Table;
 use Swoole\Timer;
 use Utopia\CLI\Console;
@@ -28,27 +28,27 @@ use Utopia\Storage\Device\S3;
 use Utopia\Storage\Storage;
 use Utopia\System\System;
 use Utopia\DSN\DSN;
-use Utopia\Http\Adapter\Swoole\Server;
-use Utopia\Http\Http;
-use Utopia\Http\Request;
-use Utopia\Http\Response;
-use Utopia\Http\Route;
-use Utopia\Http\Validator\Assoc;
-use Utopia\Http\Validator\Boolean;
-use Utopia\Http\Validator\Integer;
-use Utopia\Http\Validator\Text;
-use Utopia\Http\Validator\WhiteList;
+use Utopia\App;
+use Utopia\Validator\Assoc;
+use Utopia\Validator\Boolean;
+use Utopia\Validator\Integer;
+use Utopia\Validator\Text;
+use Utopia\Validator\WhiteList;
 use Utopia\Registry\Registry;
+use Appwrite\Utopia\Request;
+use Appwrite\Utopia\Response;
+use Swoole\Http\Request as SwooleRequest;
+use Swoole\Http\Response as SwooleResponse;
+use Swoole\Runtime;
 
-use function Swoole\Coroutine\batch;
-use function Swoole\Coroutine\run;
+require_once __DIR__ . '/../vendor/appwrite/server-ce/app/init.php';
 
 // Unlimited memory limit to handle as many coroutines/requests as possible
 ini_set('memory_limit', '-1');
 
-Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
+// Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
 
-Http::setMode((string) Http::getEnv('OPR_EXECUTOR_ENV', Http::MODE_TYPE_PRODUCTION));
+App::setMode((string) App::getEnv('OPR_EXECUTOR_ENV', App::MODE_TYPE_PRODUCTION));
 
 // Setup Registry
 $register = new Registry();
@@ -57,8 +57,8 @@ $register = new Registry();
  * Create logger for cloud logging
  */
 $register->set('logger', function () {
-    $providerName = Http::getEnv('OPR_EXECUTOR_LOGGING_PROVIDER', '');
-    $providerConfig = Http::getEnv('OPR_EXECUTOR_LOGGING_CONFIG', '');
+    $providerName = App::getEnv('OPR_EXECUTOR_LOGGING_PROVIDER', '');
+    $providerConfig = App::getEnv('OPR_EXECUTOR_LOGGING_CONFIG', '');
     $logger = null;
 
     if (!empty($providerName) && !empty($providerConfig) && Logger::hasProvider($providerName)) {
@@ -80,8 +80,8 @@ $register->set('logger', function () {
  * Create orchestration
  */
 $register->set('orchestration', function () {
-    $dockerUser = (string) Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
-    $dockerPass = (string) Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
+    $dockerUser = (string) App::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
+    $dockerPass = (string) App::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
     $orchestration = new Orchestration(new DockerCLI($dockerUser, $dockerPass));
 
     return $orchestration;
@@ -127,16 +127,16 @@ $register->set('statsHost', function () {
 });
 
 /** Set Resources */
-Http::setResource('register', fn () => $register);
-Http::setResource('orchestration', fn (Registry $register) => $register->get('orchestration'), ['register']);
-Http::setResource('activeRuntimes', fn (Registry $register) => $register->get('activeRuntimes'), ['register']);
-Http::setResource('logger', fn (Registry $register) => $register->get('logger'), ['register']);
-Http::setResource('statsContainers', fn (Registry $register) => $register->get('statsContainers'), ['register']);
-Http::setResource('statsHost', fn (Registry $register) => $register->get('statsHost'), ['register']);
+App::setResource('register', fn () => $register);
+App::setResource('orchestration', fn (Registry $register) => $register->get('orchestration'), ['register']);
+App::setResource('activeRuntimes', fn (Registry $register) => $register->get('activeRuntimes'), ['register']);
+App::setResource('logger', fn (Registry $register) => $register->get('logger'), ['register']);
+App::setResource('statsContainers', fn (Registry $register) => $register->get('statsContainers'), ['register']);
+App::setResource('statsHost', fn (Registry $register) => $register->get('statsHost'), ['register']);
 
-Http::setResource('log', fn () => new Log());
+App::setResource('log', fn () => new Log());
 
-function logError(Log $log, Throwable $error, string $action, Logger $logger = null, Route $route = null): void
+function logError(Log $log, Throwable $error, string $action, Logger $logger = null): void
 {
     Console::error('[Error] Type: ' . get_class($error));
     Console::error('[Error] Message: ' . $error->getMessage());
@@ -144,7 +144,7 @@ function logError(Log $log, Throwable $error, string $action, Logger $logger = n
     Console::error('[Error] Line: ' . $error->getLine());
 
     if ($logger && ($error->getCode() === 500 || $error->getCode() === 0)) {
-        $version = (string) Http::getEnv('OPR_EXECUTOR_VERSION', '');
+        $version = (string) App::getEnv('OPR_EXECUTOR_VERSION', '');
         if (empty($version)) {
             $version = 'UNKNOWN';
         }
@@ -154,12 +154,6 @@ function logError(Log $log, Throwable $error, string $action, Logger $logger = n
         $log->setVersion($version);
         $log->setType(Log::TYPE_ERROR);
         $log->setMessage($error->getMessage());
-
-        if ($route) {
-            $log->addTag('method', $route->getMethod());
-            $log->addTag('url', $route->getPath());
-        }
-
         $log->addTag('code', \strval($error->getCode()));
         $log->addTag('verboseType', get_class($error));
 
@@ -171,7 +165,7 @@ function logError(Log $log, Throwable $error, string $action, Logger $logger = n
 
         $log->setAction($action);
 
-        $log->setEnvironment(Http::isProduction() ? Log::ENVIRONMENT_PRODUCTION : Log::ENVIRONMENT_STAGING);
+        $log->setEnvironment(App::isProduction() ? Log::ENVIRONMENT_PRODUCTION : Log::ENVIRONMENT_STAGING);
 
         $responseCode = $logger->addLog($log);
         Console::info('Executor log pushed with status code: ' . $responseCode);
@@ -180,7 +174,7 @@ function logError(Log $log, Throwable $error, string $action, Logger $logger = n
 
 function getStorageDevice(string $root): Device
 {
-    $connection = Http::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '');
+    $connection = App::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '');
 
     if (!empty($connection)) {
         $acl = 'private';
@@ -217,43 +211,43 @@ function getStorageDevice(string $root): Device
                 return new Local($root);
         }
     } else {
-        switch (strtolower(Http::getEnv('OPR_EXECUTOR_STORAGE_DEVICE', Storage::DEVICE_LOCAL) ?? '')) {
+        switch (strtolower(App::getEnv('OPR_EXECUTOR_STORAGE_DEVICE', Storage::DEVICE_LOCAL) ?? '')) {
             case Storage::DEVICE_LOCAL:
             default:
                 return new Local($root);
             case Storage::DEVICE_S3:
-                $s3AccessKey = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_ACCESS_KEY', '') ?? '';
-                $s3SecretKey = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_SECRET', '') ?? '';
-                $s3Region = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_REGION', '') ?? '';
-                $s3Bucket = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_BUCKET', '') ?? '';
+                $s3AccessKey = App::getEnv('OPR_EXECUTOR_STORAGE_S3_ACCESS_KEY', '') ?? '';
+                $s3SecretKey = App::getEnv('OPR_EXECUTOR_STORAGE_S3_SECRET', '') ?? '';
+                $s3Region = App::getEnv('OPR_EXECUTOR_STORAGE_S3_REGION', '') ?? '';
+                $s3Bucket = App::getEnv('OPR_EXECUTOR_STORAGE_S3_BUCKET', '') ?? '';
                 $s3Acl = 'private';
                 return new S3($root, $s3AccessKey, $s3SecretKey, $s3Bucket, $s3Region, $s3Acl);
             case Storage::DEVICE_DO_SPACES:
-                $doSpacesAccessKey = Http::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_ACCESS_KEY', '') ?? '';
-                $doSpacesSecretKey = Http::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_SECRET', '') ?? '';
-                $doSpacesRegion = Http::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_REGION', '') ?? '';
-                $doSpacesBucket = Http::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_BUCKET', '') ?? '';
+                $doSpacesAccessKey = App::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_ACCESS_KEY', '') ?? '';
+                $doSpacesSecretKey = App::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_SECRET', '') ?? '';
+                $doSpacesRegion = App::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_REGION', '') ?? '';
+                $doSpacesBucket = App::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_BUCKET', '') ?? '';
                 $doSpacesAcl = 'private';
                 return new DOSpaces($root, $doSpacesAccessKey, $doSpacesSecretKey, $doSpacesBucket, $doSpacesRegion, $doSpacesAcl);
             case Storage::DEVICE_BACKBLAZE:
-                $backblazeAccessKey = Http::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_ACCESS_KEY', '') ?? '';
-                $backblazeSecretKey = Http::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_SECRET', '') ?? '';
-                $backblazeRegion = Http::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_REGION', '') ?? '';
-                $backblazeBucket = Http::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_BUCKET', '') ?? '';
+                $backblazeAccessKey = App::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_ACCESS_KEY', '') ?? '';
+                $backblazeSecretKey = App::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_SECRET', '') ?? '';
+                $backblazeRegion = App::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_REGION', '') ?? '';
+                $backblazeBucket = App::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_BUCKET', '') ?? '';
                 $backblazeAcl = 'private';
                 return new Backblaze($root, $backblazeAccessKey, $backblazeSecretKey, $backblazeBucket, $backblazeRegion, $backblazeAcl);
             case Storage::DEVICE_LINODE:
-                $linodeAccessKey = Http::getEnv('OPR_EXECUTOR_STORAGE_LINODE_ACCESS_KEY', '') ?? '';
-                $linodeSecretKey = Http::getEnv('OPR_EXECUTOR_STORAGE_LINODE_SECRET', '') ?? '';
-                $linodeRegion = Http::getEnv('OPR_EXECUTOR_STORAGE_LINODE_REGION', '') ?? '';
-                $linodeBucket = Http::getEnv('OPR_EXECUTOR_STORAGE_LINODE_BUCKET', '') ?? '';
+                $linodeAccessKey = App::getEnv('OPR_EXECUTOR_STORAGE_LINODE_ACCESS_KEY', '') ?? '';
+                $linodeSecretKey = App::getEnv('OPR_EXECUTOR_STORAGE_LINODE_SECRET', '') ?? '';
+                $linodeRegion = App::getEnv('OPR_EXECUTOR_STORAGE_LINODE_REGION', '') ?? '';
+                $linodeBucket = App::getEnv('OPR_EXECUTOR_STORAGE_LINODE_BUCKET', '') ?? '';
                 $linodeAcl = 'private';
                 return new Linode($root, $linodeAccessKey, $linodeSecretKey, $linodeBucket, $linodeRegion, $linodeAcl);
             case Storage::DEVICE_WASABI:
-                $wasabiAccessKey = Http::getEnv('OPR_EXECUTOR_STORAGE_WASABI_ACCESS_KEY', '') ?? '';
-                $wasabiSecretKey = Http::getEnv('OPR_EXECUTOR_STORAGE_WASABI_SECRET', '') ?? '';
-                $wasabiRegion = Http::getEnv('OPR_EXECUTOR_STORAGE_WASABI_REGION', '') ?? '';
-                $wasabiBucket = Http::getEnv('OPR_EXECUTOR_STORAGE_WASABI_BUCKET', '') ?? '';
+                $wasabiAccessKey = App::getEnv('OPR_EXECUTOR_STORAGE_WASABI_ACCESS_KEY', '') ?? '';
+                $wasabiSecretKey = App::getEnv('OPR_EXECUTOR_STORAGE_WASABI_SECRET', '') ?? '';
+                $wasabiRegion = App::getEnv('OPR_EXECUTOR_STORAGE_WASABI_REGION', '') ?? '';
+                $wasabiBucket = App::getEnv('OPR_EXECUTOR_STORAGE_WASABI_BUCKET', '') ?? '';
                 $wasabiAcl = 'private';
                 return new Wasabi($root, $wasabiAccessKey, $wasabiSecretKey, $wasabiBucket, $wasabiRegion, $wasabiAcl);
         }
@@ -270,33 +264,27 @@ function removeAllRuntimes(Table $activeRuntimes, Orchestration $orchestration):
         Console::info('No containers found to clean up.');
     }
 
-    $callables = [];
-
     foreach ($functionsToRemove as $container) {
-        $callables[] = function () use ($container, $activeRuntimes, $orchestration) {
-            try {
-                $orchestration->remove($container->getId(), true);
+        try {
+            $orchestration->remove($container->getId(), true);
 
-                $activeRuntimeId = $container->getName();
+            $activeRuntimeId = $container->getName();
 
-                if (!$activeRuntimes->exists($activeRuntimeId)) {
-                    $activeRuntimes->del($activeRuntimeId);
-                }
-
-                Console::success('Removed container ' . $container->getName());
-            } catch (\Throwable $th) {
-                Console::error('Failed to remove container: ' . $container->getName());
-                Console::error($th);
+            if (!$activeRuntimes->exists($activeRuntimeId)) {
+                $activeRuntimes->del($activeRuntimeId);
             }
-        };
-    }
 
-    batch($callables);
+            Console::success('Removed container ' . $container->getName());
+        } catch (\Throwable $th) {
+            Console::error('Failed to remove container: ' . $container->getName());
+            Console::error($th);
+        }
+    };
 
     Console::success('Cleanup finished.');
 }
 
-Http::get('/v1/runtimes/:runtimeId/logs')
+App::get('/v1/runtimes/:runtimeId/logs')
     ->desc("Get live stream of logs of a runtime")
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->param('timeout', '600', new Text(16), 'Maximum logs timeout.', true)
@@ -307,13 +295,13 @@ Http::get('/v1/runtimes/:runtimeId/logs')
 
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
-        $response->sendHeader('Content-Type', 'text/event-stream');
-        $response->sendHeader('Cache-Control', 'no-cache');
+        $response->addHeader('Content-Type', 'text/event-stream');
+        $response->addHeader('Cache-Control', 'no-cache');
 
         // Wait for runtime
         for ($i = 0; $i < 10; $i++) {
             $output = '';
-            $code = Console::execute('docker container inspect ' . \escapeshellarg($runtimeName), '', $output);
+            $code = Console::execute('docker container inspect ' . \escapeshellarg($runtimeName), '', $output, -1);
             if ($code === 0) {
                 break;
             }
@@ -348,31 +336,25 @@ Http::get('/v1/runtimes/:runtimeId/logs')
                 return;
             }
 
-            $write = $response->write($logsChunk);
+            // $write = $response->write($logsChunk);
             $logsChunk = '';
 
-            if (!$write) {
-                if (!empty($logsProcess)) {
-                    \proc_terminate($logsProcess, 9);
-                }
-            }
+            // if (!$write) {
+            //     if (!empty($logsProcess)) {
+            //         \proc_terminate($logsProcess, 9);
+            //     }
+            // }
         });
 
         $output = '';
-        Console::execute('docker exec ' . \escapeshellarg($runtimeName) . ' tail -F /var/tmp/logs.txt', '', $output, $timeout, function (string $outputChunk, mixed $process) use (&$logsChunk, &$logsProcess) {
-            $logsProcess = $process;
-
-            if (!empty($outputChunk)) {
-                $logsChunk .= $outputChunk;
-            }
-        });
+        Console::execute('docker exec ' . \escapeshellarg($runtimeName) . ' tail -F /var/tmp/logs.txt', '', $output, $timeout);
 
         Timer::clear($timerId);
 
-        $response->end();
+        // $response->end();
     });
 
-Http::post('/v1/runtimes')
+App::post('/v1/runtimes')
     ->desc("Create a new runtime server")
     ->param('runtimeId', '', new Text(64), 'Unique runtime ID.')
     ->param('image', '', new Text(128), 'Base image name of the runtime.')
@@ -487,7 +469,7 @@ Http::post('/v1/runtimes')
             $codeMountPath = $version === 'v2' ? '/usr/code' : '/mnt/code';
             $workdir = $version === 'v2' ? '/usr/code' : '';
 
-            $openruntimes_networks = explode(',', str_replace(' ', '', Http::getEnv('OPR_EXECUTOR_NETWORK') ?: 'executor_runtimes'));
+            $openruntimes_networks = explode(',', str_replace(' ', '', App::getEnv('OPR_EXECUTOR_NETWORK') ?: 'executor_runtimes'));
             $openruntimes_network = $openruntimes_networks[array_rand($openruntimes_networks)];
 
             $volumes = [
@@ -511,9 +493,10 @@ Http::post('/v1/runtimes')
                     'openruntimes-runtime-id' => $runtimeId
                 ],
                 volumes: $volumes,
-                network: \strval($openruntimes_network) ?: 'executor_runtimes',
                 workdir: $workdir
             );
+
+            $orchestration->networkConnect($containerId, \strval($openruntimes_network) ?: 'executor_runtimes');
 
             if (empty($containerId)) {
                 throw new Exception('Failed to create runtime', 500);
@@ -529,10 +512,12 @@ Http::post('/v1/runtimes')
                 ];
 
                 try {
+                    $stderr = '';
                     $status = $orchestration->execute(
                         name: $runtimeName,
                         command: $commands,
-                        output: $output,
+                        stderr: $stderr,
+                        stdout: $output,
                         timeout: $timeout
                     );
 
@@ -590,10 +575,12 @@ Http::post('/v1/runtimes')
             // Extract as much logs as we can
             try {
                 $logs = '';
+                $stderr = '';
                 $status = $orchestration->execute(
                     name: $runtimeName,
                     command: [ 'sh', '-c', 'cat /var/tmp/logs.txt' ],
-                    output: $logs,
+                    stderr: $stderr,
+                    stdout: $logs,
                     timeout: 15
                 );
 
@@ -641,7 +628,7 @@ Http::post('/v1/runtimes')
             ->json($container);
     });
 
-Http::get('/v1/runtimes')
+App::get('/v1/runtimes')
     ->desc("List currently active runtimes")
     ->inject('activeRuntimes')
     ->inject('response')
@@ -657,7 +644,7 @@ Http::get('/v1/runtimes')
             ->json($runtimes);
     });
 
-Http::get('/v1/runtimes/:runtimeId')
+App::get('/v1/runtimes/:runtimeId')
     ->desc("Get a runtime by its ID")
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->inject('activeRuntimes')
@@ -679,7 +666,7 @@ Http::get('/v1/runtimes/:runtimeId')
             ->json($runtime);
     });
 
-Http::delete('/v1/runtimes/:runtimeId')
+App::delete('/v1/runtimes/:runtimeId')
     ->desc('Delete a runtime')
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.', false)
     ->inject('orchestration')
@@ -703,7 +690,73 @@ Http::delete('/v1/runtimes/:runtimeId')
             ->send();
     });
 
-Http::post('/v1/runtimes/:runtimeId/executions')
+App::post('/v1/khushboo/:runtimeId')
+    ->param('runtimeId', '', new Text(64), 'The runtimeID to execute.')
+    ->param('body', '', new Text(20971520), 'Data to be forwarded to the function, this is user specified.', true)
+    ->param('path', '/', new Text(2048), 'Path from which execution comes.', true)
+    ->param('method', 'GET', new Whitelist(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], true), 'Path from which execution comes.', true)
+    ->param('headers', [], new Assoc(), 'Headers passed into runtime.', true)
+    ->param('timeout', 15, new Integer(), 'Function maximum execution time in seconds.', true)
+    // Runtime-related
+    ->param('image', '', new Text(128), 'Base image name of the runtime.', true)
+    ->param('source', '', new Text(0), 'Path to source files.', true)
+    ->param('entrypoint', '', new Text(256), 'Entrypoint of the code file.', true)
+    ->param('variables', [], new Assoc(), 'Environment variables passed into runtime.', true)
+    ->param('cpus', 1, new Integer(), 'Container CPU.', true)
+    ->param('memory', 512, new Integer(), 'Container RAM memory.', true)
+    ->param('version', 'v4', new WhiteList(['v2', 'v3', 'v4']), 'Runtime Open Runtime version.', true)
+    ->param('runtimeEntrypoint', '', new Text(1024, 0), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
+    ->param('logging', true, new Boolean(), 'Whether executions will be logged.', true)
+    ->inject('activeRuntimes')
+    ->inject('response')
+    ->inject('log')
+    ->action(
+        function (string $runtimeId, ?string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $runtimeEntrypoint, bool $logging, Table $activeRuntimes,  $response, Log $log) {
+        // create output json
+
+            $runtimeName = System::getHostname() . '-' . $runtimeId;
+            $runtime = $activeRuntimes->get($runtimeName);
+            $hostname = $runtime['hostname'];
+            $secret = $runtime['key'];
+
+
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, "App://" . $hostname . ":3000" . $path);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, false);
+            $headers['x-open-runtimes-secret'] = $secret;
+            $headers['x-open-runtimes-timeout'] = \max(\intval($timeout), 1);
+            // $headers['accept'] = 'text/event-stream';
+            $headersArr = [];
+            foreach ($headers as $key => $value) {
+                $headersArr[] = $key . ': ' . $value;
+            }
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headersArr);
+            curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, $chunk) use (&$response) {
+                var_dump("Coffee");
+                // Process each chunk as it arrives
+                // $response->write("Hello");
+                $response->write($chunk);
+                return \strlen($chunk);
+            });
+
+            $executorResponse = \curl_exec($ch);
+            var_dump("latest response");
+            var_dump($executorResponse);
+
+            curl_close($ch);
+
+
+
+            // $output = [];
+            // $output['hello'] = 'world';
+            // $response
+            //     ->setStatusCode(Response::STATUS_CODE_OK)
+            //     ->end('');
+    });
+
+
+App::post('/v1/runtimes/:runtimeId/executions')
     ->alias('/v1/runtimes/:runtimeId/execution')
     ->desc('Create an execution')
     // Execution-related
@@ -769,7 +822,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                         'runtimeEntrypoint' => $runtimeEntrypoint
                     ]);
 
-                    \curl_setopt($ch, CURLOPT_URL, "http://127.0.0.1/v1/runtimes");
+                    \curl_setopt($ch, CURLOPT_URL, "App://127.0.0.1/v1/runtimes");
                     \curl_setopt($ch, CURLOPT_POST, true);
                     \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
                     \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -778,7 +831,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     \curl_setopt($ch, CURLOPT_HTTPHEADER, [
                         'Content-Type: application/json',
                         'Content-Length: ' . \strlen($body ?: ''),
-                        'authorization: Bearer ' . Http::getEnv('OPR_EXECUTOR_SECRET', '')
+                        'authorization: Bearer ' . App::getEnv('OPR_EXECUTOR_SECRET', '')
                     ]);
 
                     if ($logging == true) {
@@ -887,7 +940,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     'headers' => []
                 ], JSON_FORCE_OBJECT);
 
-                \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000/");
+                \curl_setopt($ch, CURLOPT_URL, "App://" . $hostname . ":3000/");
                 \curl_setopt($ch, CURLOPT_POST, true);
                 \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
                 \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -947,7 +1000,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 ];
             };
 
-            $executeV4 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName): array {
+            $executeV4 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName, $response): array {
                 $statusCode = 0;
                 $errNo = -1;
                 $executorResponse = '';
@@ -962,10 +1015,10 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                 $responseHeaders = [];
 
-                \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000" . $path);
+                \curl_setopt($ch, CURLOPT_URL, "App://" . $hostname . ":3000" . $path);
                 \curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
                 \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
-                \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                \curl_setopt($ch, CURLOPT_RETURNTRANSFER, false);
                 \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders) {
                     $len = strlen($header);
                     $header = explode(':', $header, 2);
@@ -982,12 +1035,12 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                     return $len;
                 });
-                // $callback = function ($data){
-                //     var_dump($data); // This will output each chunk of data as it arrives
-                // };
-                // \curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, $data) use ($callback) {
-                //     $callback($data);
-                //     return \strlen($data);
+
+               
+                // curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, $chunk) {
+                //     // Process each chunk as it arrives
+                //     echo "Hello" . $chunk;
+                //     return \strlen($chunk);
                 // });
 
                 \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout + 5); // Gives extra 5s after safe timeout to recieve response
@@ -1010,8 +1063,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                 $error = \curl_error($ch);
 
-                $errNo = \curl_errno($ch);
-
+                $errNo = \curl_errno($ch);         
+                
                 \curl_close($ch);
 
                 if ($errNo !== 0) {
@@ -1171,6 +1224,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $activeRuntimes->set($runtimeName, $runtime);
 
             // Finish request
+            
             $response
                 ->setStatusCode(Response::STATUS_CODE_OK)
                 ->setContentType(Response::CONTENT_TYPE_JSON, Response::CHARSET_UTF8)
@@ -1178,7 +1232,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
         }
     );
 
-Http::get('/v1/health')
+App::get('/v1/health')
     ->desc("Get health status of host machine and runtimes.")
     ->inject('statsHost')
     ->inject('statsContainers')
@@ -1205,14 +1259,13 @@ Http::get('/v1/health')
     });
 
 /** Set callbacks */
-Http::error()
-    ->inject('route')
+App::error()
     ->inject('error')
     ->inject('logger')
     ->inject('response')
     ->inject('log')
-    ->action(function (?Route $route, Throwable $error, ?Logger $logger, Response $response, Log $log) {
-        logError($log, $error, "httpError", $logger, $route);
+    ->action(function (Throwable $error, ?Logger $logger, Response $response, Log $log) {
+        logError($log, $error, "httpError", $logger);
 
         switch ($error->getCode()) {
             case 400: // Error allowed publicly
@@ -1239,7 +1292,7 @@ Http::error()
             'file' => $error->getFile(),
             'line' => $error->getLine(),
             'trace' => $error->getTrace(),
-            'version' => Http::getEnv('OPR_EXECUTOR_VERSION', 'UNKNOWN')
+            'version' => App::getEnv('OPR_EXECUTOR_VERSION', 'UNKNOWN')
         ];
 
         $response
@@ -1251,178 +1304,180 @@ Http::error()
         $response->json($output);
     });
 
-Http::init()
+App::init()
     ->inject('request')
     ->action(function (Request $request) {
         $secretKey = \explode(' ', $request->getHeader('authorization', ''))[1] ?? '';
-        if (empty($secretKey) || $secretKey !== Http::getEnv('OPR_EXECUTOR_SECRET', '')) {
+        if (empty($secretKey) || $secretKey !== App::getEnv('OPR_EXECUTOR_SECRET', '')) {
             throw new Exception('Missing executor key', 401);
         }
     });
 
-run(function () use ($register) {
-    $orchestration = $register->get('orchestration');
-    $statsContainers = $register->get('statsContainers');
-    $activeRuntimes = $register->get('activeRuntimes');
-    $statsHost = $register->get('statsHost');
 
-    /**
-     * Remove residual runtimes
-     */
-    Console::info('Removing orphan runtimes...');
+$orchestration = $register->get('orchestration');
+$statsContainers = $register->get('statsContainers');
+$activeRuntimes = $register->get('activeRuntimes');
+$statsHost = $register->get('statsHost');
 
-    removeAllRuntimes($activeRuntimes, $orchestration);
+/**
+ * Remove residual runtimes
+ */
+Console::info('Removing orphan runtimes...');
 
-    Console::success("Orphan runtimes removal finished.");
+removeAllRuntimes($activeRuntimes, $orchestration);
 
-    // TODO: Remove all /tmp folders starting with System::hostname() -
+Console::success("Orphan runtimes removal finished.");
 
-    /**
-     * Warmup: make sure images are ready to run fast 🚀
-     */
-    $allowList = empty(Http::getEnv('OPR_EXECUTOR_RUNTIMES')) ? [] : \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIMES'));
+// TODO: Remove all /tmp folders starting with System::hostname() -
 
-    $runtimeVersions = \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v4') ?? 'v4');
-    foreach ($runtimeVersions as $runtimeVersion) {
-        Console::success("Pulling $runtimeVersion images...");
-        $runtimes = new Runtimes($runtimeVersion); // TODO: @Meldiron Make part of open runtimes
-        $runtimes = $runtimes->getAll(true, $allowList);
-        $callables = [];
-        foreach ($runtimes as $runtime) {
-            $callables[] = function () use ($runtime, $orchestration) {
-                Console::log('Warming up ' . $runtime['name'] . ' ' . $runtime['version'] . ' environment...');
-                $response = $orchestration->pull($runtime['image']);
-                if ($response) {
-                    Console::info("Successfully Warmed up {$runtime['name']} {$runtime['version']}!");
-                } else {
-                    Console::warning("Failed to Warmup {$runtime['name']} {$runtime['version']}!");
-                }
-            };
-        }
+/**
+ * Warmup: make sure images are ready to run fast 🚀
+ */
+$allowList = empty(App::getEnv('OPR_EXECUTOR_RUNTIMES')) ? [] : \explode(',', App::getEnv('OPR_EXECUTOR_RUNTIMES'));
 
-        batch($callables);
-    }
-
-    Console::success("Image pulling finished.");
-
-    /**
-     * Run a maintenance worker every X seconds to remove inactive runtimes
-     */
-    Console::info('Starting maintenance interval...');
-    $interval = (int) Http::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
-    Timer::tick($interval * 1000, function () use ($orchestration, $activeRuntimes) {
-        Console::info("Running maintenance task ...");
-        // Stop idling runtimes
-        foreach ($activeRuntimes as $runtimeName => $runtime) {
-            $inactiveThreshold = \time() - \intval(Http::getEnv('OPR_EXECUTOR_INACTIVE_TRESHOLD', '60'));
-            if ($runtime['updated'] < $inactiveThreshold) {
-                go(function () use ($runtimeName, $runtime, $orchestration, $activeRuntimes) {
-                    try {
-                        $orchestration->remove($runtime['name'], true);
-                        Console::success("Successfully removed {$runtime['name']}");
-                    } catch (\Throwable $th) {
-                        Console::error('Inactive Runtime deletion failed: ' . $th->getMessage());
-                    } finally {
-                        $activeRuntimes->del($runtimeName);
-                    }
-                });
-            }
-        }
-        // Clear leftover build folders
-        $localDevice = new Local();
-        $tmpPath = DIRECTORY_SEPARATOR . 'tmp' . DIRECTORY_SEPARATOR;
-        $entries = $localDevice->getFiles($tmpPath);
-        $prefix = $tmpPath . System::getHostname() . '-';
-        foreach ($entries as $entry) {
-            if (\str_starts_with($entry, $prefix)) {
-                $isActive = false;
-
-                foreach ($activeRuntimes as $runtimeName => $runtime) {
-                    if (\str_ends_with($entry, $runtimeName)) {
-                        $isActive = true;
-                        break;
-                    }
-                }
-
-                if (!$isActive) {
-                    $localDevice->deletePath($entry);
-                }
-            }
-        }
-
-        Console::success("Maintanance task finished.");
-    });
-
-    Console::success('Maintenance interval started.');
-
-    /**
-     * Get usage stats every X seconds to update swoole table
-     */
-    Console::info('Starting stats interval...');
-    function getStats(Table $statsHost, Table $statsContainers, Orchestration $orchestration, bool $recursive = false): void
-    {
-        // Get usage stats
-        $usage = new Usage($orchestration);
-        $usage->run();
-
-        // Update host usage stats
-        if ($usage->getHostUsage() !== null) {
-            $oldStat = $statsHost->get('host', 'usage') ?? null;
-
-            if ($oldStat === null) {
-                $stat = $usage->getHostUsage();
-            } else {
-                $stat = ($oldStat + $usage->getHostUsage()) / 2;
-            }
-
-            $statsHost->set('host', ['usage' => $stat]);
-        }
-
-        // Update runtime usage stats
-        foreach ($usage->getRuntimesUsage() as $runtime => $usageStat) {
-            $oldStat = $statsContainers->get($runtime, 'usage') ?? null;
-
-            if ($oldStat === null) {
-                $stat = $usageStat;
-            } else {
-                $stat = ($oldStat + $usageStat) / 2;
-            }
-
-            $statsContainers->set($runtime, ['usage' => $stat]);
-        }
-
-        // Delete gone runtimes
-        $runtimes = \array_keys($usage->getRuntimesUsage());
-        foreach ($statsContainers as $hostname => $stat) {
-            if (!(\in_array($hostname, $runtimes))) {
-                $statsContainers->delete($hostname);
-            }
-        }
-
-        if ($recursive) {
-            Timer::after(1000, fn () => getStats($statsHost, $statsContainers, $orchestration, $recursive));
+$runtimeVersions = \explode(',', App::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v4') ?? 'v4');
+foreach ($runtimeVersions as $runtimeVersion) {
+    Console::success("Pulling $runtimeVersion images...");
+    $runtimes = new Runtimes($runtimeVersion); // TODO: @Meldiron Make part of open runtimes
+    $runtimes = $runtimes->getAll(true, $allowList);
+    $callables = [];
+    foreach ($runtimes as $runtime) {
+        Console::log('Warming up ' . $runtime['name'] . ' ' . $runtime['version'] . ' environment...');
+        $response = $orchestration->pull($runtime['image']);
+        if ($response) {
+            Console::info("Successfully Warmed up {$runtime['name']} {$runtime['version']}!");
+        } else {
+            Console::warning("Failed to Warmup {$runtime['name']} {$runtime['version']}!");
         }
     }
+}
+Console::success("Image pulling finished.");
 
-    // Load initial stats in blocking way
-    getStats($statsHost, $statsContainers, $orchestration);
 
-    // Setup infinite recurssion in non-blocking way
-    \go(function () use ($statsHost, $statsContainers, $orchestration) {
-        getStats($statsHost, $statsContainers, $orchestration, true);
-    });
+// // Console::success('Maintenance interval started.');
 
-    Console::success('Stats interval started.');
+// /**
+//  * Get usage stats every X seconds to update swoole table
+//  */
+// Console::info('Starting stats interval...');
+// function getStats(Table $statsHost, Table $statsContainers, Orchestration $orchestration, bool $recursive = false): void
+// {
+//     // Get usage stats
+//     $usage = new Usage($orchestration);
+//     $usage->run();
 
-    $server = new Server('0.0.0.0', '80');
-    $http = new Http($server, 'UTC');
+//     // Update host usage stats
+//     if ($usage->getHostUsage() !== null) {
+//         $oldStat = $statsHost->get('host', 'usage') ?? null;
 
-    Console::success('Executor is ready.');
+//         if ($oldStat === null) {
+//             $stat = $usage->getHostUsage();
+//         } else {
+//             $stat = ($oldStat + $usage->getHostUsage()) / 2;
+//         }
 
-    Process::signal(SIGINT, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
-    Process::signal(SIGQUIT, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
-    Process::signal(SIGKILL, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
-    Process::signal(SIGTERM, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
+//         $statsHost->set('host', ['usage' => $stat]);
+//     }
 
-    $http->start();
+//     // Update runtime usage stats
+//     foreach ($usage->getRuntimesUsage() as $runtime => $usageStat) {
+//         $oldStat = $statsContainers->get($runtime, 'usage') ?? null;
+
+//         if ($oldStat === null) {
+//             $stat = $usageStat;
+//         } else {
+//             $stat = ($oldStat + $usageStat) / 2;
+//         }
+
+//         $statsContainers->set($runtime, ['usage' => $stat]);
+//     }
+
+//     // Delete gone runtimes
+//     $runtimes = \array_keys($usage->getRuntimesUsage());
+//     foreach ($statsContainers as $hostname => $stat) {
+//         if (!(\in_array($hostname, $runtimes))) {
+//             $statsContainers->delete($hostname);
+//         }
+//     }
+
+//     if ($recursive) {
+//         Timer::after(1000, fn () => getStats($statsHost, $statsContainers, $orchestration, $recursive));
+//     }
+// }
+
+// // Load initial stats in blocking way
+// getStats($statsHost, $statsContainers, $orchestration);
+
+// // Setup infinite recurssion in non-blocking way
+// \go(function () use ($statsHost, $statsContainers, $orchestration) {
+//     getStats($statsHost, $statsContainers, $orchestration, true);
+// });
+
+$http = new Server(
+    host: "0.0.0.0",
+    port: App::getEnv('PORT', 80),
+    mode: SWOOLE_PROCESS,
+);
+
+$payloadSize = 12 * (1024 * 1024); // 12MB - adding slight buffer for headers and other data that might be sent with the payload - update later with valid testing
+$workerNumber = swoole_cpu_num() * intval(App::getEnv('_APP_WORKER_PER_CORE', 6));
+
+$http
+    ->set([
+        'worker_num' => $workerNumber,
+        'open_http2_protocol' => true,
+        'http_compression' => true,
+        'http_compression_level' => 6,
+        'package_max_length' => $payloadSize,
+        'buffer_output_size' => $payloadSize,
+    ]);
+
+$http->on(Constant::EVENT_WORKER_START, function ($server, $workerId) {
+    Console::success('Worker ' . ++$workerId . ' started successfully');
 });
+
+$http->on(Constant::EVENT_BEFORE_RELOAD, function ($server, $workerId) {
+    Console::success('Starting reload...');
+});
+
+$http->on(Constant::EVENT_AFTER_RELOAD, function ($server, $workerId) {
+    Console::success('Reload completed...');
+});
+
+$http->on('request', function (SwooleRequest $swooleRequest, SwooleResponse $swooleResponse) use ($register) {
+    App::setResource('swooleRequest', fn () => $swooleRequest);
+    App::setResource('swooleResponse', fn () => $swooleResponse);
+
+    $request = new Request($swooleRequest);
+    $response = new Response($swooleResponse);
+
+    $app = new App('UTC');
+
+    try {
+        $app->run($request, $response);
+    } catch (\Throwable $th) {
+        Console::error('[Error] Type: ' . get_class($th));
+        Console::error('[Error] Message: ' . $th->getMessage());
+        Console::error('[Error] File: ' . $th->getFile());
+        Console::error('[Error] Line: ' . $th->getLine());
+
+        $swooleResponse->setStatusCode(500);
+
+        $output = ((App::isDevelopment())) ? [
+            'message' => 'Error: ' . $th->getMessage(),
+            'code' => 500,
+            'file' => $th->getFile(),
+            'line' => $th->getLine(),
+            'trace' => $th->getTrace(),
+            'version' => 1,
+        ] : [
+            'message' => 'Error: Server Error',
+            'code' => 500,
+            'version' => 1,
+        ];
+
+        $swooleResponse->end(\json_encode($output));
+    }
+});
+
+$http->start();
