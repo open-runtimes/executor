@@ -781,16 +781,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                         'authorization: Bearer ' . Http::getEnv('OPR_EXECUTOR_SECRET', '')
                     ]);
 
-                    if ($logging == true) {
-                        \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                            'x-open-runtimes-logging: enabled',
-                        ]);
-                    } else {
-                        \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                            'x-open-runtimes-logging: disabled',
-                        ]);
-                    }
-
                     $executorResponse = \curl_exec($ch);
 
                     $statusCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -947,7 +937,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 ];
             };
 
-            $executeV4 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName): array {
+            $executeV4 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName, $logging): array {
                 $statusCode = 0;
                 $errNo = -1;
                 $executorResponse = '';
@@ -992,6 +982,11 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                 \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout + 5); // Gives extra 5s after safe timeout to recieve response
                 \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+                if ($logging == true) {
+                    $headers['x-open-runtimes-logging'] = 'enabled';
+                } else {
+                    $headers['x-open-runtimes-logging'] = 'disabled';
+                }
 
                 $headers['x-open-runtimes-secret'] = $secret;
                 $headers['x-open-runtimes-timeout'] = \max(\intval($timeout), 1);

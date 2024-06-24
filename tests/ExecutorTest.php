@@ -372,8 +372,8 @@ final class ExecutorTest extends TestCase
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals("OK", $response['body']['body']);
-                    $this->assertLessThanOrEqual(5 * 1024 * 1024, strlen($response['body']['logs']));
-                    $this->assertLessThanOrEqual(5 * 1024 * 1024, strlen($response['body']['errors']));
+                    $this->assertGreaterThan(1 * 1024 * 1024, strlen($response['body']['logs']));
+                    $this->assertLessThanOrEqual(1 * 1024 * 1024, strlen($response['body']['errors']));
                 },
                 'body' => function () {
                     return 15;
@@ -524,6 +524,7 @@ final class ExecutorTest extends TestCase
             'version' => $version,
             'runtimeEntrypoint' => $startCommand,
             'timeout' => 45,
+            'logging' => true,
         ];
 
         if (!empty($body)) {
