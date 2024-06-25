@@ -48,7 +48,7 @@ ini_set('memory_limit', '-1');
 
 Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
 
-Http::setMode((string) Http::getEnv('OPR_EXECUTOR_ENV', Http::MODE_TYPE_PRODUCTION));
+Http::setMode((string)Http::getEnv('OPR_EXECUTOR_ENV', Http::MODE_TYPE_PRODUCTION));
 
 // Setup Registry
 $register = new Registry();
@@ -59,14 +59,34 @@ $register = new Registry();
 $register->set('logger', function () {
     $providerName = Http::getEnv('OPR_EXECUTOR_LOGGING_PROVIDER', '');
     $providerConfig = Http::getEnv('OPR_EXECUTOR_LOGGING_CONFIG', '');
+
+    try {
+        $loggingProvider = new DSN($providerConfig ?? '');
+
+        $providerName = $loggingProvider->getScheme();
+        $providerConfig = match ($providerName) {
+            'sentry' => ['key' => $loggingProvider->getPassword(), 'projectId' => $loggingProvider->getUser() ?? '', 'host' => $loggingProvider->getHost()],
+            'logowl' => ['ticket' => $loggingProvider->getUser() ?? '', 'host' => $loggingProvider->getHost()],
+            default => ['key' => $loggingProvider->getHost()],
+        };
+    } catch (Throwable) {
+        $configChunks = \explode(";", ($providerConfig ?? ''));
+
+        $providerConfig = match ($providerName) {
+            'sentry' => ['key' => $configChunks[0], 'projectId' => $configChunks[1] ?? '', 'host' => '',],
+            'logowl' => ['ticket' => $configChunks[0] ?? '', 'host' => ''],
+            default => ['key' => $providerConfig],
+        };
+    }
+
     $logger = null;
 
-    if (!empty($providerName) && !empty($providerConfig) && Logger::hasProvider($providerName)) {
+    if (!empty($providerName) && is_array($providerConfig) && Logger::hasProvider($providerName)) {
         $adapter = match ($providerName) {
-            'sentry' => new Sentry($providerConfig),
-            'raygun' => new Raygun($providerConfig),
-            'logowl' => new LogOwl($providerConfig),
-            'appsignal' => new AppSignal($providerConfig),
+            'sentry' => new Sentry($providerConfig['projectId'] ?? '', $providerConfig['key'] ?? '', $providerConfig['host'] ?? ''),
+            'logowl' => new LogOwl($providerConfig['ticket'] ?? '', $providerConfig['host'] ?? ''),
+            'raygun' => new Raygun($providerConfig['key'] ?? ''),
+            'appsignal' => new AppSignal($providerConfig['key'] ?? ''),
             default => throw new Exception('Provider "' . $providerName . '" not supported.')
         };
 
@@ -80,8 +100,8 @@ $register->set('logger', function () {
  * Create orchestration
  */
 $register->set('orchestration', function () {
-    $dockerUser = (string) Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
-    $dockerPass = (string) Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
+    $dockerUser = (string)Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
+    $dockerPass = (string)Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
     $orchestration = new Orchestration(new DockerCLI($dockerUser, $dockerPass));
 
     return $orchestration;
@@ -144,7 +164,7 @@ function logError(Log $log, Throwable $error, string $action, Logger $logger = n
     Console::error('[Error] Line: ' . $error->getLine());
 
     if ($logger && ($error->getCode() === 500 || $error->getCode() === 0)) {
-        $version = (string) Http::getEnv('OPR_EXECUTOR_VERSION', '');
+        $version = (string)Http::getEnv('OPR_EXECUTOR_VERSION', '');
         if (empty($version)) {
             $version = 'UNKNOWN';
         }
@@ -524,7 +544,8 @@ Http::post('/v1/runtimes')
              */
             if (!empty($command)) {
                 $commands = [
-                    'sh', '-c',
+                    'sh',
+                    '-c',
                     'touch /var/tmp/logs.txt && (' . $command . ') >> /var/tmp/logs.txt 2>&1 && cat /var/tmp/logs.txt'
                 ];
 
@@ -592,7 +613,7 @@ Http::post('/v1/runtimes')
                 $logs = '';
                 $status = $orchestration->execute(
                     name: $runtimeName,
-                    command: [ 'sh', '-c', 'cat /var/tmp/logs.txt' ],
+                    command: ['sh', '-c', 'cat /var/tmp/logs.txt'],
                     output: $logs,
                     timeout: 15
                 );
@@ -600,7 +621,7 @@ Http::post('/v1/runtimes')
                 if (!empty($logs)) {
                     $error = $th->getMessage() . $logs;
                 }
-            } catch(Throwable $err) {
+            } catch (Throwable $err) {
                 // Ignore, use fallback error message
             }
 
@@ -1169,7 +1190,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $response
                 ->setStatusCode(Response::STATUS_CODE_OK)
                 ->setContentType(Response::CONTENT_TYPE_JSON, Response::CHARSET_UTF8)
-                ->send((string) $executionString);
+                ->send((string)$executionString);
         }
     );
 
@@ -1304,7 +1325,7 @@ run(function () use ($register) {
      * Run a maintenance worker every X seconds to remove inactive runtimes
      */
     Console::info('Starting maintenance interval...');
-    $interval = (int) Http::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
+    $interval = (int)Http::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
     Timer::tick($interval * 1000, function () use ($orchestration, $activeRuntimes) {
         Console::info("Running maintenance task ...");
         // Stop idling runtimes
