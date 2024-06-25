@@ -5,7 +5,7 @@ module.exports = async (context) => {
         log1kb += "A";
     }
 
-    //1MB log
+    //1MB * bodyText log
     for(let i = 0; i < 1024 * (+context.req.bodyText); i++) {
         context.log(log1kb);
     }

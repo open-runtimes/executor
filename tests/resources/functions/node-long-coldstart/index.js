@@ -7,5 +7,5 @@ function fibo(n) {
 let cache = fibo(45);
 
 module.exports = async (context) => {
-    return context.res.send(`${cache}`);
+    return context.res.send(`cache`);
 }

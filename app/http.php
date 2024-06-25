@@ -50,6 +50,8 @@ Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
 
 Http::setMode((string)Http::getEnv('OPR_EXECUTOR_ENV', Http::MODE_TYPE_PRODUCTION));
 
+const MAX_TO_READ = 5 * 1024 * 1024;
+
 // Setup Registry
 $register = new Registry();
 
@@ -406,7 +408,7 @@ Http::post('/v1/runtimes')
     ->param('remove', false, new Boolean(), 'Remove a runtime after execution.', true)
     ->param('cpus', 1, new Integer(), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Comtainer RAM memory.', true)
-    ->param('version', 'v4', new WhiteList(['v2', 'v3', 'v4']), 'Runtime Open Runtime version.', true)
+    ->param('version', 'v4', new WhiteList(['v2', 'v4']), 'Runtime Open Runtime version.', true)
     ->inject('orchestration')
     ->inject('activeRuntimes')
     ->inject('response')
@@ -741,7 +743,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->param('variables', [], new Assoc(), 'Environment variables passed into runtime.', true)
     ->param('cpus', 1, new Integer(), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Container RAM memory.', true)
-    ->param('version', 'v4', new WhiteList(['v2', 'v3', 'v4']), 'Runtime Open Runtime version.', true)
+    ->param('version', 'v4', new WhiteList(['v2', 'v4']), 'Runtime Open Runtime version.', true)
     ->param('runtimeEntrypoint', '', new Text(1024, 0), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('logging', true, new Boolean(), 'Whether executions will be logged.', true)
     ->inject('activeRuntimes')
@@ -993,13 +995,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                     return $len;
                 });
-                // $callback = function ($data){
-                //     var_dump($data); // This will output each chunk of data as it arrives
-                // };
-                // \curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, $data) use ($callback) {
-                //     $callback($data);
-                //     return \strlen($data);
-                // });
 
                 \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout + 5); // Gives extra 5s after safe timeout to recieve response
                 \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
@@ -1011,7 +1006,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                 $headers['x-open-runtimes-secret'] = $secret;
                 $headers['x-open-runtimes-timeout'] = \max(\intval($timeout), 1);
-                // $headers['accept'] = 'text/event-stream';
                 $headersArr = [];
                 foreach ($headers as $key => $value) {
                     $headersArr[] = $key . ': ' . $value;
@@ -1056,20 +1050,20 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     $logDevice = getStorageDevice("/");
 
                     if ($logDevice->exists($logFile)) {
-                        if ($logDevice->getFileSize($logFile) > 5 * 1024 * 1024) {
-                            $maxToRead = 5 * 1024 * 1024; // read max 5 MB of data
-                            $logs = $logDevice->read($logFile, 0, $maxToRead);
-                            $logs .= "\n... Log file has been truncated to 5 MB.";
+                        if ($logDevice->getFileSize($logFile) > MAX_TO_READ) {
+                            $maxToRead = MAX_TO_READ;
+                            $logs = $logDevice->read($logFile, 0, $maxToRead - 50);
+                            $logs .= "\nLog file has been truncated to 5 MBs.";
                         } else {
                             $logs = $logDevice->read($logFile);
                         }
                     }
 
                     if ($logDevice->exists($errorFile)) {
-                        if ($logDevice->getFileSize($errorFile) > 5 * 1024 * 1024) {
-                            $maxToRead = 5 * 1024 * 1024; // read max 5 MB of data
-                            $errors = $logDevice->read($errorFile, 0, $maxToRead);
-                            $errors .= "\n... Error file has been truncated to 5 MB.";
+                        if ($logDevice->getFileSize($errorFile) > MAX_TO_READ) {
+                            $maxToRead = MAX_TO_READ;
+                            $errors = $logDevice->read($errorFile, 0, $maxToRead - 50);
+                            $errors .= "\nError file has been truncated to 5 MBs.";
                         } else {
                             $errors = $logDevice->read($errorFile);
                         }
@@ -1078,8 +1072,13 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     $stdout = $logs;
                     $stderr = $errors;
 
-                    $logDevice->delete($logFile);
-                    $logDevice->delete($errorFile);
+                    if ($logDevice->exists($logFile)) {
+                        $logDevice->delete($logFile);
+                    }
+
+                    if ($logDevice->exists($errorFile)) {
+                        $logDevice->delete($errorFile);
+                    }
                 }
 
                 $outputHeaders = [];
@@ -1168,8 +1167,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 'statusCode' => $statusCode,
                 'headers' => $headers,
                 'body' => $body,
-                'logs' => \mb_strcut($logs, 0, 5000000), // Limit to 5MB
-                'errors' => \mb_strcut($errors, 0, 5000000), // Limit to 5MB
+                'logs' => \mb_strcut($logs, 0, MAX_TO_READ),
+                'errors' => \mb_strcut($errors, 0, MAX_TO_READ),
                 'duration' => $duration,
                 'startTime' => $startTime,
             ];
