@@ -750,7 +750,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 }
 
                 // Prepare request to executor
-                $sendCreateRuntimeRequest = function () use ($runtimeId, $image, $source, $entrypoint, $variables, $cpus, $memory, $version, $runtimeEntrypoint, $logging) {
+                $sendCreateRuntimeRequest = function () use ($runtimeId, $image, $source, $entrypoint, $variables, $cpus, $memory, $version, $runtimeEntrypoint) {
                     $statusCode = 0;
                     $errNo = -1;
                     $executorResponse = '';
