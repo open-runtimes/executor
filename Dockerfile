@@ -22,7 +22,8 @@ RUN \
   gcc \
   g++ \
   git \
-  openssl-dev
+  openssl-dev \
+  curl-dev
   
 RUN docker-php-ext-install sockets
 
@@ -33,7 +34,7 @@ RUN \
   git clone --depth 1 --branch $PHP_SWOOLE_VERSION https://github.com/swoole/swoole-src.git && \
   cd swoole-src && \
   phpize && \
-  ./configure --enable-sockets --enable-http2 --enable-openssl && \
+  ./configure --enable-sockets --enable-http2 --enable-swoole-curl --enable-openssl && \
   make && make install && \
   cd ..
 
