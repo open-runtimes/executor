@@ -995,7 +995,13 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                     return $len;
                 });
-
+                $callback = function ($data) {
+                    var_dump($data); // This will output each chunk of data as it arrives
+                };
+                \curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, $data) use ($callback) {
+                    $callback($data);
+                    return \strlen($data);
+                });
                 \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout + 5); // Gives extra 5s after safe timeout to recieve response
                 \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
                 if ($logging == true) {
@@ -1004,6 +1010,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     $headers['x-open-runtimes-logging'] = 'disabled';
                 }
 
+                $headers['accept'] = 'text/event-stream';
                 $headers['x-open-runtimes-secret'] = $secret;
                 $headers['x-open-runtimes-timeout'] = \max(\intval($timeout), 1);
                 $headersArr = [];

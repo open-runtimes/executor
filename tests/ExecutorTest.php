@@ -463,6 +463,17 @@ final class ExecutorTest extends TestCase
                     return 1;
                 },
             ],
+            [
+                'image' => 'openruntimes/node:v4-21.0',
+                'entrypoint' => 'index.js',
+                'folder' => 'node-streamed-response',
+                'version' => 'v4',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'assertions' => function ($response) {
+                    $this->assertEquals(200, $response['headers']['status-code']);
+                },
+            ]
         ];
     }
 
