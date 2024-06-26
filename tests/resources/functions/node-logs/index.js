@@ -1,7 +1,7 @@
 module.exports = async (context) => {
     let log1kb = '';
 
-    for(let i = 0; i < 1024; i++) {
+    for(let i = 0; i < 1023; i++) { // context.log adds a new line character
         log1kb += "A";
     }
 

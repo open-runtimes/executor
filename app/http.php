@@ -1052,7 +1052,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     if ($logDevice->exists($logFile)) {
                         if ($logDevice->getFileSize($logFile) > MAX_TO_READ) {
                             $maxToRead = MAX_TO_READ;
-                            $logs = $logDevice->read($logFile, 0, $maxToRead - 50);
+                            $logs = $logDevice->read($logFile, 0, $maxToRead);
                             $logs .= "\nLog file has been truncated to 5 MBs.";
                         } else {
                             $logs = $logDevice->read($logFile);
@@ -1062,7 +1062,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     if ($logDevice->exists($errorFile)) {
                         if ($logDevice->getFileSize($errorFile) > MAX_TO_READ) {
                             $maxToRead = MAX_TO_READ;
-                            $errors = $logDevice->read($errorFile, 0, $maxToRead - 50);
+                            $errors = $logDevice->read($errorFile, 0, $maxToRead);
                             $errors .= "\nError file has been truncated to 5 MBs.";
                         } else {
                             $errors = $logDevice->read($errorFile);
@@ -1163,12 +1163,18 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $duration = $endTime - $startTime;
 
             $header['x-open-runtimes-body-encoding'] = 'original';
+
+            if ($version === 'v2') {
+                $logs = \mb_strcut($logs, 0, MAX_TO_READ);
+                $errors = \mb_strcut($errors, 0, MAX_TO_READ);
+            }
+
             $execution = [
                 'statusCode' => $statusCode,
                 'headers' => $headers,
                 'body' => $body,
-                'logs' => \mb_strcut($logs, 0, MAX_TO_READ),
-                'errors' => \mb_strcut($errors, 0, MAX_TO_READ),
+                'logs' => $logs,
+                'errors' => $errors,
                 'duration' => $duration,
                 'startTime' => $startTime,
             ];

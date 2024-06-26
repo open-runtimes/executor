@@ -338,7 +338,7 @@ final class ExecutorTest extends TestCase
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals("OK", $response['body']['body']);
-                    $this->assertLessThanOrEqual(5 * 1024 * 1024, strlen($response['body']['logs']));
+                    $this->assertEquals(1 * 1024 * 1024, strlen($response['body']['logs']));
                     $this->assertLessThanOrEqual(5 * 1024 * 1024, strlen($response['body']['errors']));
                 },
                 'body' => function () {
@@ -355,7 +355,7 @@ final class ExecutorTest extends TestCase
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals("OK", $response['body']['body']);
-                    $this->assertLessThanOrEqual(5 * 1024 * 1024, strlen($response['body']['logs']));
+                    $this->assertEquals(5 * 1024 * 1024, strlen($response['body']['logs']));
                     $this->assertLessThanOrEqual(5 * 1024 * 1024, strlen($response['body']['errors']));
                 },
                 'body' => function () {
@@ -372,7 +372,8 @@ final class ExecutorTest extends TestCase
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals("OK", $response['body']['body']);
-                    $this->assertLessThanOrEqual(5 * 1024 * 1024, strlen($response['body']['logs']));
+                    $this->assertGreaterThanOrEqual(5 * 1024 * 1024, strlen($response['body']['logs']));
+                    $this->assertLessThan(6 * 1024 * 1024, strlen($response['body']['logs']));
                     $this->assertLessThanOrEqual(5 * 1024 * 1024, strlen($response['body']['errors']));
                     $this->assertStringContainsString('Log file has been truncated to 5 MBs', $response['body']['logs']);
                 },
