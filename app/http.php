@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Appwrite\Runtimes\Runtimes;
+use OpenRuntimes\Executor\BodyMultipart;
 use OpenRuntimes\Executor\Validator\TCP;
 use OpenRuntimes\Executor\Usage;
 use Swoole\Process;
@@ -731,7 +732,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->desc('Create an execution')
     // Execution-related
     ->param('runtimeId', '', new Text(64), 'The runtimeID to execute.')
-    ->param('body', '', new Text(20971520), 'Data to be forwarded to the function, this is user specified.', true)
+    ->param('body', '', new Text(20971520), 'Data to be forwarded to the function, this is user specified.', true, skipValidation: true)
     ->param('path', '/', new Text(2048), 'Path from which execution comes.', true)
     ->param('method', 'GET', new Whitelist(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], true), 'Path from which execution comes.', true)
     ->param('headers', [], new Assoc(), 'Headers passed into runtime.', true)
@@ -753,6 +754,10 @@ Http::post('/v1/runtimes/:runtimeId/executions')
         function (string $runtimeId, ?string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $runtimeEntrypoint, bool $logging, Table $activeRuntimes, Response $response, Log $log) {
             if (empty($payload)) {
                 $payload = '';
+            }
+
+            if (\strlen($payload) > 20971520) {
+                throw new Exception("Parameter body can be only up to 20MB in size.");
             }
 
             $runtimeName = System::getHostname() . '-' . $runtimeId;
@@ -967,17 +972,11 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                 $ch = \curl_init();
 
-                if (isset($headers['x-open-runtimes-body-encoding']) && $headers['x-open-runtimes-body-encoding'] === 'base64') {
-                    $payload = \base64_decode($payload);
-                }
-
-                $body = $payload;
-
                 $responseHeaders = [];
 
                 \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000" . $path);
                 \curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-                \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+                \curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
                 \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                 \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders) {
                     $len = strlen($header);
@@ -1162,8 +1161,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $endTime = \microtime(true);
             $duration = $endTime - $startTime;
 
-            $header['x-open-runtimes-body-encoding'] = 'original';
-
             if ($version === 'v2') {
                 $logs = \mb_strcut($logs, 0, MAX_TO_READ);
                 $errors = \mb_strcut($errors, 0, MAX_TO_READ);
@@ -1179,11 +1176,11 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 'startTime' => $startTime,
             ];
 
-            $executionString = \json_encode($execution, JSON_UNESCAPED_UNICODE);
-            if (!$executionString) {
-                $execution['body'] = \base64_encode($body);
-                $execution['headers']['x-open-runtimes-body-encoding'] = 'base64';
-                $executionString = \json_encode($execution, JSON_UNESCAPED_UNICODE);
+            $execution['body'] = $body;
+
+            $multipart = new BodyMultipart();
+            foreach ($execution as $key => $value) {
+                $multipart->setPart($key, $value);
             }
 
             // Update swoole table
@@ -1191,11 +1188,13 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $runtime['updated'] = \microtime(true);
             $activeRuntimes->set($runtimeName, $runtime);
 
+            // TODO: Add support for "Accept" header. If request wants JSON, let's do JSON. If fails, throw error. If request wants multipart ,send multipart. Default should be multipart
+
             // Finish request
             $response
                 ->setStatusCode(Response::STATUS_CODE_OK)
-                ->setContentType(Response::CONTENT_TYPE_JSON, Response::CHARSET_UTF8)
-                ->send((string)$executionString);
+                ->addHeader('content-type', $multipart->exportHeader())
+                ->send($multipart->exportBody());
         }
     );
 

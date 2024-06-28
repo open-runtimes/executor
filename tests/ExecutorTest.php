@@ -441,10 +441,10 @@ final class ExecutorTest extends TestCase
                     $this->assertEmpty($response['body']['errors']);
                 },
                 'body' => function () {
-                    return base64_encode(pack('C*', 0, 10, 255));
+                    return pack('C*', 0, 10, 255);
                 },
                 'headers' => [
-                    'x-open-runtimes-body-encoding' => 'base64'
+                    'content-type' => 'multipart/form-data'
                 ]
             ],
             [
