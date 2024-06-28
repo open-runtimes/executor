@@ -27,13 +27,14 @@
         "utopia-php/framework": "0.34.*",
         "utopia-php/logger": "0.6.*",
         "utopia-php/cli": "0.16.*",
-        "utopia-php/storage": "0.18.*",
+        "utopia-php/storage": "dev-feat-framework-v2-v2 as 0.18.99",
         "utopia-php/dsn": "0.1.*",
         "utopia-php/registry": "0.5.*",
         "utopia-php/preloader": "0.2.*",
         "utopia-php/system": "0.7.*",
         "utopia-php/orchestration": "0.10.*",
-        "appwrite/php-runtimes": "0.13.*"
+        "appwrite/php-runtimes": "0.13.*",
+        "riverline/multipart-parser": "2.1.*"
     },
     "require-dev": {
         "swoole/ide-helper": "4.8.5",

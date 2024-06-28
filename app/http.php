@@ -39,6 +39,8 @@ use Utopia\Http\Validator\Integer;
 use Utopia\Http\Validator\Text;
 use Utopia\Http\Validator\WhiteList;
 use Utopia\Registry\Registry;
+use Utopia\Storage\Validator\File;
+use Riverline\MultiPartParser\StreamedPart;
 
 use function Swoole\Coroutine\batch;
 use function Swoole\Coroutine\run;
@@ -731,7 +733,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->desc('Create an execution')
     // Execution-related
     ->param('runtimeId', '', new Text(64), 'The runtimeID to execute.')
-    ->param('body', '', new Text(20971520), 'Data to be forwarded to the function, this is user specified.', true)
+    ->param('body', [], new File(), 'Payload to send to the runtime.', skipValidation: true)
     ->param('path', '/', new Text(2048), 'Path from which execution comes.', true)
     ->param('method', 'GET', new Whitelist(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], true), 'Path from which execution comes.', true)
     ->param('headers', [], new Assoc(), 'Headers passed into runtime.', true)
@@ -747,13 +749,92 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->param('runtimeEntrypoint', '', new Text(1024, 0), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('logging', true, new Boolean(), 'Whether executions will be logged.', true)
     ->inject('activeRuntimes')
+    ->inject('request')
     ->inject('response')
     ->inject('log')
     ->action(
-        function (string $runtimeId, ?string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $runtimeEntrypoint, bool $logging, Table $activeRuntimes, Response $response, Log $log) {
+        function (string $runtimeId, mixed $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $runtimeEntrypoint, bool $logging, Table $activeRuntimes, Request $request, Response $response, Log $log) {
             if (empty($payload)) {
                 $payload = '';
             }
+
+            $file = $request->getFiles('file');
+
+            $data = $request->getRawPayload();
+
+            $data1 = "<<<EOL\n";
+            $data1 .= "User-Agent: " . $request->getHeader('user-agent') . "\r\n";
+            $data1 .= "Host: " . $request->getHeader('host') . "\r\n";
+            $data1 .= "Accept: */*\r\n";
+            $data1 .= "Content-Type: multipart/form-data; boundary=" . $data . "\r";
+            $data1 .= "EOL;";
+
+            try{
+                $stream = fopen('php://temp', 'rw');
+                fwrite($stream, $data1);
+                rewind($stream);
+
+                $document = new StreamedPart($stream);
+                var_dump($document);
+                if ($document->isMultiPart()) {
+                    var_dump("entering this condition");
+                    $parts = $document->getParts();
+                    var_dump($parts[0]->getBody());
+                    // It decode encoded content
+                    var_dump($parts[1]->getBody());
+                
+                    // You can extract the headers
+                    $contentDisposition = $parts[0]->getHeader('Content-Disposition');
+                    echo $contentDisposition; // Output Content-Disposition: form-data; name="foo"
+                    // Helpers
+                    // echo StreamedPart::getHeaderValue($contentDisposition); // Output form-data
+                    // echo StreamedPart::getHeaderOption($contentDisposition, 'name'); // Output foo
+                
+                    // File helper
+                    if ($parts[1]->isFile()) {
+                        var_dump("if part 1 is a  file");
+                        echo $parts[2]->getFileName(); // Output text.txt
+                        echo $parts[2]->getMimeType(); // Output text/plain
+                    }
+                }
+            } catch (Exception $e) {
+                var_dump("got an exception");
+                var_dump($e->getMessage());
+                // var_dump($e);
+            }
+
+            
+
+            // if ($document->isMultiPart()) {
+            //     $parts = $document->getParts();
+            //     var_dump($parts);
+                // echo $parts[0]->getBody(); // Output bar
+                // // It decode encoded content
+                // echo $parts[1]->getBody(); // Output base64
+
+                // // You can also filter by part name
+                // $parts = $document->getPartsByName('foo');
+                // echo $parts[0]->getName(); // Output foo
+
+                // // You can extract the headers
+                // $contentDisposition = $parts[0]->getHeader('Content-Disposition');
+                // echo $contentDisposition; // Output Content-Disposition: form-data; name="foo"
+                // // Helpers
+                // echo StreamedPart::getHeaderValue($contentDisposition); // Output form-data
+                // echo StreamedPart::getHeaderOption($contentDisposition, 'name'); // Output foo
+
+                // // File helper
+                // if ($parts[2]->isFile()) {
+                //     echo $parts[2]->getFileName(); // Output text.txt
+                //     echo $parts[2]->getMimeType(); // Output text/plain
+                // }
+            // }
+
+            // GraphQL multipart spec adds files with index keys
+            if (empty($file)) {
+                $file = $request->getFiles(0);
+            }
+            
 
             $runtimeName = System::getHostname() . '-' . $runtimeId;
 
@@ -965,14 +1046,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 $errNo = -1;
                 $executorResponse = '';
 
-                $ch = \curl_init();
-
-                if (isset($headers['x-open-runtimes-body-encoding']) && $headers['x-open-runtimes-body-encoding'] === 'base64') {
-                    $payload = \base64_decode($payload);
-                }
-
-                $body = $payload;
-
                 $responseHeaders = [];
 
                 \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000" . $path);
@@ -1182,7 +1255,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $executionString = \json_encode($execution, JSON_UNESCAPED_UNICODE);
             if (!$executionString) {
                 $execution['body'] = \base64_encode($body);
-                $execution['headers']['x-open-runtimes-body-encoding'] = 'base64';
                 $executionString = \json_encode($execution, JSON_UNESCAPED_UNICODE);
             }
 
