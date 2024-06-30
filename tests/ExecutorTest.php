@@ -430,7 +430,7 @@ final class ExecutorTest extends TestCase
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(400, $response['headers']['status-code']);
-                    \var_dump($response);
+                    $this->assertStringContainsString("JSON response does not allow binaries", $response['body']['message']);
                 },
                 null, // body
                 'mimeType' => 'application/json'
