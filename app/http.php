@@ -51,7 +51,7 @@ Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
 
 Http::setMode((string)Http::getEnv('OPR_EXECUTOR_ENV', Http::MODE_TYPE_PRODUCTION));
 
-const MAX_TO_READ = 5 * 1024 * 1024;
+const MAX_LOG_SIZE = 5 * 1024 * 1024;
 
 // Setup Registry
 $register = new Registry();
@@ -749,9 +749,10 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->param('logging', true, new Boolean(true), 'Whether executions will be logged.', true)
     ->inject('activeRuntimes')
     ->inject('response')
+    ->inject('request')
     ->inject('log')
     ->action(
-        function (string $runtimeId, ?string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $runtimeEntrypoint, bool $logging, Table $activeRuntimes, Response $response, Log $log) {
+        function (string $runtimeId, ?string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $runtimeEntrypoint, bool $logging, Table $activeRuntimes, Response $response, Request $request, Log $log) {
             if (empty($payload)) {
                 $payload = '';
             }
@@ -1058,45 +1059,35 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                 // Extract logs and errors from file based on fileId in header
                 $fileId = $responseHeaders['x-open-runtimes-log-id'] ?? '';
-                $stdout = '';
-                $stderr = '';
+                $logs = '';
+                $errors = '';
                 if (!empty($fileId)) {
-                    $logs = '';
-                    $errors = '';
-
                     $logFile = '/tmp/'.$runtimeName .'/logs/' . $fileId . '_logs.log';
                     $errorFile = '/tmp/'.$runtimeName .'/logs/' . $fileId . '_errors.log';
 
                     $logDevice = getStorageDevice("/");
 
                     if ($logDevice->exists($logFile)) {
-                        if ($logDevice->getFileSize($logFile) > MAX_TO_READ) {
-                            $maxToRead = MAX_TO_READ;
+                        if ($logDevice->getFileSize($logFile) > MAX_LOG_SIZE) {
+                            $maxToRead = MAX_LOG_SIZE;
                             $logs = $logDevice->read($logFile, 0, $maxToRead);
-                            $logs .= "\nLog file has been truncated to 5 MBs.";
+                            $logs .= "\nLog file has been truncated to 5MB.";
                         } else {
                             $logs = $logDevice->read($logFile);
                         }
-                    }
 
-                    if ($logDevice->exists($errorFile)) {
-                        if ($logDevice->getFileSize($errorFile) > MAX_TO_READ) {
-                            $maxToRead = MAX_TO_READ;
-                            $errors = $logDevice->read($errorFile, 0, $maxToRead);
-                            $errors .= "\nError file has been truncated to 5 MBs.";
-                        } else {
-                            $errors = $logDevice->read($errorFile);
-                        }
-                    }
-
-                    $stdout = $logs;
-                    $stderr = $errors;
-
-                    if ($logDevice->exists($logFile)) {
                         $logDevice->delete($logFile);
                     }
 
                     if ($logDevice->exists($errorFile)) {
+                        if ($logDevice->getFileSize($errorFile) > MAX_LOG_SIZE) {
+                            $maxToRead = MAX_LOG_SIZE;
+                            $errors = $logDevice->read($errorFile, 0, $maxToRead);
+                            $errors .= "\nError file has been truncated to 5MB.";
+                        } else {
+                            $errors = $logDevice->read($errorFile);
+                        }
+
                         $logDevice->delete($errorFile);
                     }
                 }
@@ -1115,8 +1106,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     'error' => $error,
                     'statusCode' => $statusCode,
                     'body' => $executorResponse,
-                    'logs' => $stdout,
-                    'errors' => $stderr,
+                    'logs' => $logs,
+                    'errors' => $errors,
                     'headers' => $outputHeaders
                 ];
             };
@@ -1183,8 +1174,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $duration = $endTime - $startTime;
 
             if ($version === 'v2') {
-                $logs = \mb_strcut($logs, 0, MAX_TO_READ);
-                $errors = \mb_strcut($errors, 0, MAX_TO_READ);
+                $logs = \mb_strcut($logs, 0, 1000000);
+                $errors = \mb_strcut($errors, 0, 1000000);
             }
 
             $execution = [
@@ -1199,23 +1190,37 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             $execution['body'] = $body;
 
-            $multipart = new BodyMultipart();
-            foreach ($execution as $key => $value) {
-                $multipart->setPart($key, $value);
-            }
-
             // Update swoole table
             $runtime = $activeRuntimes->get($runtimeName);
             $runtime['updated'] = \microtime(true);
             $activeRuntimes->set($runtimeName, $runtime);
 
-            // TODO: Add support for "Accept" header. If request wants JSON, let's do JSON. If fails, throw error. If request wants multipart ,send multipart. Default should be multipart
+            $acceptType = $request->getHeader('accept', 'multipart/form-data');
+            if (\str_starts_with($acceptType, 'application/json')) {
+                // JSON response
 
-            // Finish request
-            $response
-                ->setStatusCode(Response::STATUS_CODE_OK)
-                ->addHeader('content-type', $multipart->exportHeader())
-                ->send($multipart->exportBody());
+                $executionString = \json_encode($execution, JSON_UNESCAPED_UNICODE);
+                if (!$executionString) {
+                    throw new Exception('Execution resulted in binary response, but JSON response does not allow binaries. Use "Accept: multipart/form-data" header to support binaries.', 400);
+                }
+
+                $response
+                    ->setStatusCode(Response::STATUS_CODE_OK)
+                    ->addHeader('content-type', 'application/json')
+                    ->send($executionString);
+            } else {
+                // Multipart form data response
+
+                $multipart = new BodyMultipart();
+                foreach ($execution as $key => $value) {
+                    $multipart->setPart($key, $value);
+                }
+
+                $response
+                    ->setStatusCode(Response::STATUS_CODE_OK)
+                    ->addHeader('content-type', $multipart->exportHeader())
+                    ->send($multipart->exportBody());
+            }
         }
     );
 
@@ -1316,8 +1321,6 @@ run(function () use ($register) {
 
     Console::success("Orphan runtimes removal finished.");
 
-    // TODO: Remove all /tmp folders starting with System::hostname() -
-
     /**
      * Warmup: make sure images are ready to run fast 🚀
      */
@@ -1369,6 +1372,7 @@ run(function () use ($register) {
                 });
             }
         }
+
         // Clear leftover build folders
         $localDevice = new Local();
         $tmpPath = DIRECTORY_SEPARATOR . 'tmp' . DIRECTORY_SEPARATOR;

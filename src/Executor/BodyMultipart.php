@@ -81,7 +81,6 @@ class BodyMultipart
             }
 
             if (!empty($partName)) {
-                // TODO: Figure out numbers and booleans
                 $this->parts[$partName] = $partBody;
             }
         }
@@ -130,8 +129,6 @@ class BodyMultipart
 
         foreach ($this->parts as $key => $value) {
             $query .= $eol . 'Content-Disposition: form-data; name="' . $key . '"';
-
-            // TODO: Figure out numbers and booleans
 
             if (\is_array($value)) {
                 $query .= $eol . 'Content-Type: application/json';

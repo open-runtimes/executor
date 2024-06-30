@@ -339,7 +339,7 @@ final class ExecutorTest extends TestCase
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals("OK", $response['body']['body']);
                     $this->assertEquals(1 * 1024 * 1024, strlen($response['body']['logs']));
-                    $this->assertLessThanOrEqual(5 * 1024 * 1024, strlen($response['body']['errors']));
+                    $this->assertEmpty($response['body']['errors']);
                 },
                 'body' => function () {
                     return 1;
@@ -356,7 +356,7 @@ final class ExecutorTest extends TestCase
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals("OK", $response['body']['body']);
                     $this->assertEquals(5 * 1024 * 1024, strlen($response['body']['logs']));
-                    $this->assertLessThanOrEqual(5 * 1024 * 1024, strlen($response['body']['errors']));
+                    $this->assertEmpty($response['body']['errors']);
                 },
                 'body' => function () {
                     return 5;
@@ -372,10 +372,10 @@ final class ExecutorTest extends TestCase
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals("OK", $response['body']['body']);
-                    $this->assertGreaterThanOrEqual(5 * 1024 * 1024, strlen($response['body']['logs']));
+                    $this->assertGreaterThan(5 * 1024 * 1024, strlen($response['body']['logs']));
                     $this->assertLessThan(6 * 1024 * 1024, strlen($response['body']['logs']));
-                    $this->assertLessThanOrEqual(5 * 1024 * 1024, strlen($response['body']['errors']));
                     $this->assertStringContainsString('Log file has been truncated to 5 MBs', $response['body']['logs']);
+                    $this->assertEmpty($response['body']['errors']);
                 },
                 'body' => function () {
                     return 15;
@@ -417,7 +417,21 @@ final class ExecutorTest extends TestCase
                     self::assertEquals(255, $bytes['byte3'] ?? 0);
                     $this->assertEmpty($response['body']['logs']);
                     $this->assertEmpty($response['body']['errors']);
-                }
+                },
+                'mimeType' => 'multipart/form-data'
+            ],
+            [
+                'image' => 'openruntimes/node:v4-21.0',
+                'entrypoint' => 'index.js',
+                'folder' => 'node-binary-response',
+                'version' => 'v4',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'assertions' => function ($response) {
+                    $this->assertEquals(400, $response['headers']['status-code']);
+                    \var_dump($response);
+                },
+                'mimeType' => 'application/json'
             ],
             [
                 'image' => 'openruntimes/node:v4-21.0',
@@ -522,8 +536,11 @@ final class ExecutorTest extends TestCase
 
         /** Execute function */
         $response = $this->client->call(Client::METHOD_POST, "/runtimes/scenario-execute-{$folder}/executions", [
-            'content-type' => $mimeType
+            'content-type' => $mimeType,
+            'accept' => $mimeType
         ], $params);
+
+        $this->assertStringContainsString($mimeType, $response['headers']['content-type']);
 
         call_user_func($assertions, $response);
 
