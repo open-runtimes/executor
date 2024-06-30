@@ -153,7 +153,7 @@ class Client
 
         if ($decode) {
             $strpos = strpos($responseType, ';');
-            $strpos = \is_bool($strpos) ? 0 : $strpos;
+            $strpos = \is_bool($strpos) ? \strlen($responseType) : $strpos;
             switch (substr($responseType, 0, $strpos)) {
                 case 'multipart/form-data':
                     $boundary = \explode('boundary=', $responseHeaders['content-type'] ?? '')[1] ?? '';

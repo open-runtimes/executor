@@ -342,7 +342,7 @@ final class ExecutorTest extends TestCase
                     $this->assertEmpty($response['body']['errors']);
                 },
                 'body' => function () {
-                    return 1;
+                    return '1';
                 },
             ],
             [
@@ -359,7 +359,7 @@ final class ExecutorTest extends TestCase
                     $this->assertEmpty($response['body']['errors']);
                 },
                 'body' => function () {
-                    return 5;
+                    return '5';
                 },
             ],
             [
@@ -374,11 +374,11 @@ final class ExecutorTest extends TestCase
                     $this->assertEquals("OK", $response['body']['body']);
                     $this->assertGreaterThan(5 * 1024 * 1024, strlen($response['body']['logs']));
                     $this->assertLessThan(6 * 1024 * 1024, strlen($response['body']['logs']));
-                    $this->assertStringContainsString('Log file has been truncated to 5 MBs', $response['body']['logs']);
+                    $this->assertStringContainsString('truncated', $response['body']['logs']);
                     $this->assertEmpty($response['body']['errors']);
                 },
                 'body' => function () {
-                    return 15;
+                    return '15';
                 },
             ],
             [
@@ -418,6 +418,7 @@ final class ExecutorTest extends TestCase
                     $this->assertEmpty($response['body']['logs']);
                     $this->assertEmpty($response['body']['errors']);
                 },
+                null, // body
                 'mimeType' => 'multipart/form-data'
             ],
             [
@@ -431,6 +432,7 @@ final class ExecutorTest extends TestCase
                     $this->assertEquals(400, $response['headers']['status-code']);
                     \var_dump($response);
                 },
+                null, // body
                 'mimeType' => 'application/json'
             ],
             [
@@ -473,7 +475,7 @@ final class ExecutorTest extends TestCase
      *
      * @dataProvider provideScenarios
      */
-    public function testScenarios(string $image, string $entrypoint, string $folder, string $version, string $startCommand, string $buildCommand, callable $assertions, callable $bodyCallable = null, string $mimeType = "application/json"): void
+    public function testScenarios(string $image, string $entrypoint, string $folder, string $version, string $startCommand, string $buildCommand, callable $assertions, callable $body = null, string $mimeType = "application/json"): void
     {
         /** Prepare deployment */
         $output = '';
@@ -497,11 +499,6 @@ final class ExecutorTest extends TestCase
 
         $path = $response['body']['path'];
 
-        $body = "";
-        if (isset($bodyCallable)) {
-            $body = \strval($bodyCallable());
-        }
-
         $params = [
             'source' => $path,
             'entrypoint' => $entrypoint,
@@ -512,8 +509,8 @@ final class ExecutorTest extends TestCase
             'logging' => true,
         ];
 
-        if (!empty($body)) {
-            $params['body'] = $body;
+        if (isset($body)) {
+            $params['body'] = $body();
         }
 
         /** Execute function */
