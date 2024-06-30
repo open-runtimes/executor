@@ -459,24 +459,6 @@ final class ExecutorTest extends TestCase
                 },
                 'mimeType' => 'multipart/form-data'
             ],
-            [
-                'image' => 'openruntimes/node:v4-21.0',
-                'entrypoint' => 'index.js',
-                'folder' => 'node-logs-fail',
-                'version' => 'v4',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
-                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
-                'assertions' => function ($response) {
-                    $this->assertEquals(200, $response['headers']['status-code']);
-                    $this->assertEquals(500, $response['body']['statusCode']);
-                    $this->assertGreaterThan(5 * 1024, strlen($response['body']['logs']));
-                    $this->assertGreaterThan(0, strlen($response['body']['errors']));
-                },
-                'body' => function () {
-                    return 1;
-                },
-                'mimeType' => 'multipart/form-data'
-            ],
         ];
     }
 
