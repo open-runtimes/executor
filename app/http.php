@@ -736,17 +736,17 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->param('path', '/', new Text(2048), 'Path from which execution comes.', true)
     ->param('method', 'GET', new Whitelist(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], true), 'Path from which execution comes.', true)
     ->param('headers', [], new Assoc(), 'Headers passed into runtime.', true)
-    ->param('timeout', 15, new Integer(), 'Function maximum execution time in seconds.', true)
+    ->param('timeout', 15, new Integer(true), 'Function maximum execution time in seconds.', true)
     // Runtime-related
     ->param('image', '', new Text(128), 'Base image name of the runtime.', true)
     ->param('source', '', new Text(0), 'Path to source files.', true)
     ->param('entrypoint', '', new Text(256), 'Entrypoint of the code file.', true)
     ->param('variables', [], new Assoc(), 'Environment variables passed into runtime.', true)
-    ->param('cpus', 1, new Integer(), 'Container CPU.', true)
-    ->param('memory', 512, new Integer(), 'Container RAM memory.', true)
+    ->param('cpus', 1, new Integer(true), 'Container CPU.', true)
+    ->param('memory', 512, new Integer(true), 'Container RAM memory.', true)
     ->param('version', 'v4', new WhiteList(['v2', 'v4']), 'Runtime Open Runtime version.', true)
     ->param('runtimeEntrypoint', '', new Text(1024, 0), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
-    ->param('logging', true, new Boolean(), 'Whether executions will be logged.', true)
+    ->param('logging', true, new Boolean(true), 'Whether executions will be logged.', true)
     ->inject('activeRuntimes')
     ->inject('response')
     ->inject('log')
@@ -754,6 +754,27 @@ Http::post('/v1/runtimes/:runtimeId/executions')
         function (string $runtimeId, ?string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $runtimeEntrypoint, bool $logging, Table $activeRuntimes, Response $response, Log $log) {
             if (empty($payload)) {
                 $payload = '';
+            }
+
+            $numericParams = ['timeout', 'cpus', 'memory'];
+            foreach ($numericParams as $numericParam) {
+                if (!empty($$numericParam) && !is_numeric($$numericParam)) {
+                    $$numericParam = \intval($$numericParam);
+                }
+            }
+
+            $assocParams = ['headers', 'variables'];
+            foreach ($assocParams as $assocParam) {
+                if (!empty($$assocParam) && !is_array($$assocParam)) {
+                    $$assocParam = \json_decode($$assocParam, true);
+                }
+            }
+
+            $booleamParams = ['logging'];
+            foreach ($booleamParams as $booleamParam) {
+                if (!empty($$booleamParam) && !is_bool($$booleamParam)) {
+                    $$booleamParam = $$booleamParam === "true" ? true : false;
+                }
             }
 
             if (\strlen($payload) > 20971520) {

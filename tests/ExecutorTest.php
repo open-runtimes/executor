@@ -443,9 +443,7 @@ final class ExecutorTest extends TestCase
                 'body' => function () {
                     return pack('C*', 0, 10, 255);
                 },
-                'headers' => [
-                    'content-type' => 'multipart/form-data'
-                ]
+                'mimeType' => 'multipart/form-data'
             ],
             [
                 'image' => 'openruntimes/node:v4-21.0',
@@ -463,6 +461,7 @@ final class ExecutorTest extends TestCase
                 'body' => function () {
                     return 1;
                 },
+                'mimeType' => 'multipart/form-data'
             ],
         ];
     }
@@ -478,7 +477,7 @@ final class ExecutorTest extends TestCase
      *
      * @dataProvider provideScenarios
      */
-    public function testScenarios(string $image, string $entrypoint, string $folder, string $version, string $startCommand, string $buildCommand, callable $assertions, callable $bodyCallable = null, mixed $headers = []): void
+    public function testScenarios(string $image, string $entrypoint, string $folder, string $version, string $startCommand, string $buildCommand, callable $assertions, callable $bodyCallable = null, string $mimeType = "application/json"): void
     {
         /** Prepare deployment */
         $output = '';
@@ -521,12 +520,10 @@ final class ExecutorTest extends TestCase
             $params['body'] = $body;
         }
 
-        if (!empty($headers)) {
-            $params['headers'] = $headers;
-        }
-
         /** Execute function */
-        $response = $this->client->call(Client::METHOD_POST, "/runtimes/scenario-execute-{$folder}/executions", [], $params);
+        $response = $this->client->call(Client::METHOD_POST, "/runtimes/scenario-execute-{$folder}/executions", [
+            'content-type' => $mimeType
+        ], $params);
 
         call_user_func($assertions, $response);
 
