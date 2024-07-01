@@ -735,13 +735,13 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->param('body', '', new Text(20971520), 'Data to be forwarded to the function, this is user specified.', true, skipValidation: true)
     ->param('path', '/', new Text(2048), 'Path from which execution comes.', true)
     ->param('method', 'GET', new Whitelist(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], true), 'Path from which execution comes.', true)
-    ->param('headers', [], new Text(20971520), 'Headers passed into runtime.', true)
+    ->param('headers', '{}', new Text(20971520), 'Headers passed into runtime.', true)
     ->param('timeout', 15, new Integer(true), 'Function maximum execution time in seconds.', true)
     // Runtime-related
     ->param('image', '', new Text(128), 'Base image name of the runtime.', true)
     ->param('source', '', new Text(0), 'Path to source files.', true)
     ->param('entrypoint', '', new Text(256), 'Entrypoint of the code file.', true)
-    ->param('variables', [], new Text(20971520), 'Environment variables passed into runtime.', true)
+    ->param('variables', '{}', new Text(20971520), 'Environment variables passed into runtime.', true)
     ->param('cpus', 1, new Integer(true), 'Container CPU.', true)
     ->param('memory', 512, new Integer(true), 'Container RAM memory.', true)
     ->param('version', 'v4', new WhiteList(['v2', 'v4']), 'Runtime Open Runtime version.', true)
@@ -764,6 +764,10 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 }
             }
 
+            /**
+             * @var array<string, mixed> $headers
+             * @var array<string, mixed> $variables
+             */
             $assocParams = ['headers', 'variables'];
             foreach ($assocParams as $assocParam) {
                 if (!empty($$assocParam) && !is_array($$assocParam)) {
