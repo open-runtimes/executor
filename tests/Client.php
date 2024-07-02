@@ -3,6 +3,7 @@
 namespace Tests;
 
 use Exception;
+use OpenRuntimes\Executor\BodyMultipart;
 
 class Client
 {
@@ -78,7 +79,13 @@ class Client
                 break;
 
             case 'multipart/form-data':
-                $query = $this->flatten($params);
+                $multipart = new BodyMultipart();
+                foreach ($params as $key => $value) {
+                    $multipart->setPart($key, $value);
+                }
+
+                $headers['content-type'] = $multipart->exportHeader();
+                $query = $multipart->exportBody();
                 break;
 
             default:
@@ -146,8 +153,15 @@ class Client
 
         if ($decode) {
             $strpos = strpos($responseType, ';');
-            $strpos = \is_bool($strpos) ? 0 : $strpos;
+            $strpos = \is_bool($strpos) ? \strlen($responseType) : $strpos;
             switch (substr($responseType, 0, $strpos)) {
+                case 'multipart/form-data':
+                    $boundary = \explode('boundary=', $responseHeaders['content-type'] ?? '')[1] ?? '';
+                    $multipartResponse = new BodyMultipart($boundary);
+                    $multipartResponse->load(\is_bool($responseBody) ? '' : $responseBody);
+
+                    $responseBody = $multipartResponse->getParts();
+                    break;
                 case 'application/json':
                     if (\is_bool($responseBody)) {
                         throw new Exception('Response is not a valid JSON.');
