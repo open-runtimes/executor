@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ba784156469e21b5da6766e197fa441a",
+    "content-hash": "906aafb8106065fe59e6d09fec5211d5",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -158,16 +158,16 @@
         },
         {
             "name": "utopia-php/framework",
-            "version": "0.34.2",
+            "version": "0.34.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/http.git",
-                "reference": "fd126c02b78cc80678c9638f7b335dfb4a841b78"
+                "reference": "e3bbca07c1df4e908ea9d3ce4f59367a7696b66b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/http/zipball/fd126c02b78cc80678c9638f7b335dfb4a841b78",
-                "reference": "fd126c02b78cc80678c9638f7b335dfb4a841b78",
+                "url": "https://api.github.com/repos/utopia-php/http/zipball/e3bbca07c1df4e908ea9d3ce4f59367a7696b66b",
+                "reference": "e3bbca07c1df4e908ea9d3ce4f59367a7696b66b",
                 "shasum": ""
             },
             "require": {
@@ -184,7 +184,8 @@
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "Utopia\\Http\\": "src/Http"
+                    "Utopia\\": "src/",
+                    "Tests\\E2E\\": "tests/e2e"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -200,22 +201,22 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/http/issues",
-                "source": "https://github.com/utopia-php/http/tree/0.34.2"
+                "source": "https://github.com/utopia-php/http/tree/0.34.3"
             },
-            "time": "2024-02-20T11:36:56+00:00"
+            "time": "2024-07-02T15:08:46+00:00"
         },
         {
             "name": "utopia-php/logger",
-            "version": "0.5.2",
+            "version": "0.6.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/logger.git",
-                "reference": "c6dfdb672e41364c309b0c30dc03bc6d45446dba"
+                "reference": "a2d1daeeb8f61fdec6d851950d9a021a3d05c9f9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/logger/zipball/c6dfdb672e41364c309b0c30dc03bc6d45446dba",
-                "reference": "c6dfdb672e41364c309b0c30dc03bc6d45446dba",
+                "url": "https://api.github.com/repos/utopia-php/logger/zipball/a2d1daeeb8f61fdec6d851950d9a021a3d05c9f9",
+                "reference": "a2d1daeeb8f61fdec6d851950d9a021a3d05c9f9",
                 "shasum": ""
             },
             "require": {
@@ -254,9 +255,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/logger/issues",
-                "source": "https://github.com/utopia-php/logger/tree/0.5.2"
+                "source": "https://github.com/utopia-php/logger/tree/0.6.0"
             },
-            "time": "2024-05-17T09:32:59+00:00"
+            "time": "2024-05-23T13:37:54+00:00"
         },
         {
             "name": "utopia-php/orchestration",
@@ -724,16 +725,16 @@
         },
         {
             "name": "nikic/php-parser",
-            "version": "v5.0.2",
+            "version": "v5.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nikic/PHP-Parser.git",
-                "reference": "139676794dc1e9231bf7bcd123cfc0c99182cb13"
+                "reference": "683130c2ff8c2739f4822ff7ac5c873ec529abd1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/139676794dc1e9231bf7bcd123cfc0c99182cb13",
-                "reference": "139676794dc1e9231bf7bcd123cfc0c99182cb13",
+                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/683130c2ff8c2739f4822ff7ac5c873ec529abd1",
+                "reference": "683130c2ff8c2739f4822ff7ac5c873ec529abd1",
                 "shasum": ""
             },
             "require": {
@@ -744,7 +745,7 @@
             },
             "require-dev": {
                 "ircmaxell/php-yacc": "^0.0.7",
-                "phpunit/phpunit": "^7.0 || ^8.0 || ^9.0"
+                "phpunit/phpunit": "^9.0"
             },
             "bin": [
                 "bin/php-parse"
@@ -776,9 +777,9 @@
             ],
             "support": {
                 "issues": "https://github.com/nikic/PHP-Parser/issues",
-                "source": "https://github.com/nikic/PHP-Parser/tree/v5.0.2"
+                "source": "https://github.com/nikic/PHP-Parser/tree/v5.1.0"
             },
-            "time": "2024-03-05T20:51:40+00:00"
+            "time": "2024-07-01T20:03:41+00:00"
         },
         {
             "name": "phar-io/manifest",
