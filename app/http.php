@@ -34,6 +34,7 @@ use Utopia\Http\Http;
 use Utopia\Http\Request;
 use Utopia\Http\Response;
 use Utopia\Http\Route;
+use Utopia\Http\Validator\AnyOf;
 use Utopia\Http\Validator\Assoc;
 use Utopia\Http\Validator\Boolean;
 use Utopia\Http\Validator\Integer;
@@ -732,16 +733,16 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->desc('Create an execution')
     // Execution-related
     ->param('runtimeId', '', new Text(64), 'The runtimeID to execute.')
-    ->param('body', '', new Text(20971520), 'Data to be forwarded to the function, this is user specified.', true, skipValidation: true)
+    ->param('body', '', new Text(20971520), 'Data to be forwarded to the function, this is user specified.', true)
     ->param('path', '/', new Text(2048), 'Path from which execution comes.', true)
     ->param('method', 'GET', new Whitelist(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], true), 'Path from which execution comes.', true)
-    ->param('headers', '{}', new Text(20971520), 'Headers passed into runtime.', true, skipValidation: true)
+    ->param('headers', '{}', new AnyOf([new Text(65535), new Assoc()], AnyOf::TYPE_MIXED), 'Headers passed into runtime.', true)
     ->param('timeout', 15, new Integer(true), 'Function maximum execution time in seconds.', true)
     // Runtime-related
     ->param('image', '', new Text(128), 'Base image name of the runtime.', true)
     ->param('source', '', new Text(0), 'Path to source files.', true)
     ->param('entrypoint', '', new Text(256), 'Entrypoint of the code file.', true)
-    ->param('variables', '{}', new Text(20971520), 'Environment variables passed into runtime.', true, skipValidation: true)
+    ->param('variables', '{}', new AnyOf([new Text(65535), new Assoc()], AnyOf::TYPE_MIXED), 'Environment variables passed into runtime.', true)
     ->param('cpus', 1, new Integer(true), 'Container CPU.', true)
     ->param('memory', 512, new Integer(true), 'Container RAM memory.', true)
     ->param('version', 'v4', new WhiteList(['v2', 'v4']), 'Runtime Open Runtime version.', true)
@@ -756,6 +757,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             if (empty($payload)) {
                 $payload = '';
             }
+
+            // Extra parsers and validators to support both JSON and multipart
 
             $numericParams = ['timeout', 'cpus', 'memory'];
             foreach ($numericParams as $numericParam) {
@@ -775,8 +778,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 }
             }
 
-            $booleamParams = ['logging'];
-            foreach ($booleamParams as $booleamParam) {
+            $booleanParams = ['logging'];
+            foreach ($booleanParams as $booleamParam) {
                 if (!empty($$booleamParam) && !is_bool($$booleamParam)) {
                     $$booleamParam = $$booleamParam === "true" ? true : false;
                 }

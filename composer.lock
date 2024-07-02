@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "906aafb8106065fe59e6d09fec5211d5",
+    "content-hash": "485a31d9f3f545ddf7627a585267c0ee",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -158,16 +158,16 @@
         },
         {
             "name": "utopia-php/framework",
-            "version": "0.34.2",
+            "version": "dev-feat-multiple-validator-adapter",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/http.git",
-                "reference": "fd126c02b78cc80678c9638f7b335dfb4a841b78"
+                "reference": "102c44b46add9095ecaf8fd2945289bfbceffe75"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/http/zipball/fd126c02b78cc80678c9638f7b335dfb4a841b78",
-                "reference": "fd126c02b78cc80678c9638f7b335dfb4a841b78",
+                "url": "https://api.github.com/repos/utopia-php/http/zipball/102c44b46add9095ecaf8fd2945289bfbceffe75",
+                "reference": "102c44b46add9095ecaf8fd2945289bfbceffe75",
                 "shasum": ""
             },
             "require": {
@@ -184,7 +184,8 @@
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "Utopia\\Http\\": "src/Http"
+                    "Utopia\\": "src/",
+                    "Tests\\E2E\\": "tests/e2e"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -200,9 +201,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/http/issues",
-                "source": "https://github.com/utopia-php/http/tree/0.34.2"
+                "source": "https://github.com/utopia-php/http/tree/feat-multiple-validator-adapter"
             },
-            "time": "2024-02-20T11:36:56+00:00"
+            "time": "2024-07-02T08:21:17+00:00"
         },
         {
             "name": "utopia-php/logger",
@@ -724,16 +725,16 @@
         },
         {
             "name": "nikic/php-parser",
-            "version": "v5.0.2",
+            "version": "v5.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nikic/PHP-Parser.git",
-                "reference": "139676794dc1e9231bf7bcd123cfc0c99182cb13"
+                "reference": "683130c2ff8c2739f4822ff7ac5c873ec529abd1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/139676794dc1e9231bf7bcd123cfc0c99182cb13",
-                "reference": "139676794dc1e9231bf7bcd123cfc0c99182cb13",
+                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/683130c2ff8c2739f4822ff7ac5c873ec529abd1",
+                "reference": "683130c2ff8c2739f4822ff7ac5c873ec529abd1",
                 "shasum": ""
             },
             "require": {
@@ -744,7 +745,7 @@
             },
             "require-dev": {
                 "ircmaxell/php-yacc": "^0.0.7",
-                "phpunit/phpunit": "^7.0 || ^8.0 || ^9.0"
+                "phpunit/phpunit": "^9.0"
             },
             "bin": [
                 "bin/php-parse"
@@ -776,9 +777,9 @@
             ],
             "support": {
                 "issues": "https://github.com/nikic/PHP-Parser/issues",
-                "source": "https://github.com/nikic/PHP-Parser/tree/v5.0.2"
+                "source": "https://github.com/nikic/PHP-Parser/tree/v5.1.0"
             },
-            "time": "2024-03-05T20:51:40+00:00"
+            "time": "2024-07-01T20:03:41+00:00"
         },
         {
             "name": "phar-io/manifest",
@@ -2435,9 +2436,18 @@
             "time": "2024-03-03T12:36:25+00:00"
         }
     ],
-    "aliases": [],
+    "aliases": [
+        {
+            "package": "utopia-php/framework",
+            "version": "dev-feat-multiple-validator-adapter",
+            "alias": "0.34.99",
+            "alias_normalized": "0.34.99.0"
+        }
+    ],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {
+        "utopia-php/framework": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
@@ -2450,5 +2460,5 @@
     "platform-overrides": {
         "php": "8.0"
     },
-    "plugin-api-version": "2.3.0"
+    "plugin-api-version": "2.6.0"
 }
