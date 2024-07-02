@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "485a31d9f3f545ddf7627a585267c0ee",
+    "content-hash": "906aafb8106065fe59e6d09fec5211d5",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -158,16 +158,16 @@
         },
         {
             "name": "utopia-php/framework",
-            "version": "dev-feat-multiple-validator-adapter",
+            "version": "0.34.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/http.git",
-                "reference": "102c44b46add9095ecaf8fd2945289bfbceffe75"
+                "reference": "e3bbca07c1df4e908ea9d3ce4f59367a7696b66b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/http/zipball/102c44b46add9095ecaf8fd2945289bfbceffe75",
-                "reference": "102c44b46add9095ecaf8fd2945289bfbceffe75",
+                "url": "https://api.github.com/repos/utopia-php/http/zipball/e3bbca07c1df4e908ea9d3ce4f59367a7696b66b",
+                "reference": "e3bbca07c1df4e908ea9d3ce4f59367a7696b66b",
                 "shasum": ""
             },
             "require": {
@@ -201,9 +201,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/http/issues",
-                "source": "https://github.com/utopia-php/http/tree/feat-multiple-validator-adapter"
+                "source": "https://github.com/utopia-php/http/tree/0.34.3"
             },
-            "time": "2024-07-02T08:21:17+00:00"
+            "time": "2024-07-02T15:08:46+00:00"
         },
         {
             "name": "utopia-php/logger",
@@ -2436,18 +2436,9 @@
             "time": "2024-03-03T12:36:25+00:00"
         }
     ],
-    "aliases": [
-        {
-            "package": "utopia-php/framework",
-            "version": "dev-feat-multiple-validator-adapter",
-            "alias": "0.34.99",
-            "alias_normalized": "0.34.99.0"
-        }
-    ],
+    "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "utopia-php/framework": 20
-    },
+    "stability-flags": [],
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
