@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "906aafb8106065fe59e6d09fec5211d5",
+    "content-hash": "e500b3b4904b471581c1036ef47c2f21",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -261,16 +261,16 @@
         },
         {
             "name": "utopia-php/orchestration",
-            "version": "dev-fix-docker-api",
+            "version": "0.11.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/orchestration.git",
-                "reference": "4024831ce86c7834a81763a198854babd0c492ea"
+                "reference": "458f47cada6cfc4d591dfb3c167074431fc316cd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/4024831ce86c7834a81763a198854babd0c492ea",
-                "reference": "4024831ce86c7834a81763a198854babd0c492ea",
+                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/458f47cada6cfc4d591dfb3c167074431fc316cd",
+                "reference": "458f47cada6cfc4d591dfb3c167074431fc316cd",
                 "shasum": ""
             },
             "require": {
@@ -305,9 +305,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/orchestration/issues",
-                "source": "https://github.com/utopia-php/orchestration/tree/fix-docker-api"
+                "source": "https://github.com/utopia-php/orchestration/tree/0.11.0"
             },
-            "time": "2024-06-20T10:27:37+00:00"
+            "time": "2024-07-01T14:20:47+00:00"
         },
         {
             "name": "utopia-php/preloader",
@@ -2438,9 +2438,7 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "utopia-php/orchestration": 20
-    },
+    "stability-flags": [],
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
