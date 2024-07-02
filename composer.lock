@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "906aafb8106065fe59e6d09fec5211d5",
+    "content-hash": "e500b3b4904b471581c1036ef47c2f21",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -261,16 +261,16 @@
         },
         {
             "name": "utopia-php/orchestration",
-            "version": "0.10.0",
+            "version": "0.11.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/orchestration.git",
-                "reference": "e417d32070f723eefa0768983e9bf00006f0a652"
+                "reference": "458f47cada6cfc4d591dfb3c167074431fc316cd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/e417d32070f723eefa0768983e9bf00006f0a652",
-                "reference": "e417d32070f723eefa0768983e9bf00006f0a652",
+                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/458f47cada6cfc4d591dfb3c167074431fc316cd",
+                "reference": "458f47cada6cfc4d591dfb3c167074431fc316cd",
                 "shasum": ""
             },
             "require": {
@@ -279,8 +279,8 @@
             },
             "require-dev": {
                 "laravel/pint": "^1.2",
-                "phpunit/phpunit": "^9.3",
-                "vimeo/psalm": "4.0.1"
+                "phpstan/phpstan": "^1.10",
+                "phpunit/phpunit": "^9.3"
             },
             "type": "library",
             "autoload": {
@@ -305,9 +305,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/orchestration/issues",
-                "source": "https://github.com/utopia-php/orchestration/tree/0.10.0"
+                "source": "https://github.com/utopia-php/orchestration/tree/0.11.0"
             },
-            "time": "2023-08-05T14:03:45+00:00"
+            "time": "2024-07-01T14:20:47+00:00"
         },
         {
             "name": "utopia-php/preloader",
@@ -2442,14 +2442,14 @@
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
-        "php": ">=8.0.0",
+        "php": ">=8.3.0",
         "ext-curl": "*",
         "ext-json": "*",
         "ext-swoole": "*"
     },
     "platform-dev": [],
     "platform-overrides": {
-        "php": "8.0"
+        "php": "8.3"
     },
     "plugin-api-version": "2.6.0"
 }

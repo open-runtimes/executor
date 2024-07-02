@@ -17,7 +17,6 @@ use Utopia\Logger\Adapter\AppSignal;
 use Utopia\Logger\Adapter\LogOwl;
 use Utopia\Logger\Adapter\Raygun;
 use Utopia\Logger\Adapter\Sentry;
-use Utopia\Orchestration\Adapter\DockerCLI;
 use Utopia\Orchestration\Orchestration;
 use Utopia\Storage\Device;
 use Utopia\Storage\Device\Local;
@@ -40,6 +39,7 @@ use Utopia\Http\Validator\Boolean;
 use Utopia\Http\Validator\Integer;
 use Utopia\Http\Validator\Text;
 use Utopia\Http\Validator\WhiteList;
+use Utopia\Orchestration\Adapter\DockerAPI;
 use Utopia\Registry\Registry;
 
 use function Swoole\Coroutine\batch;
@@ -104,9 +104,9 @@ $register->set('logger', function () {
  * Create orchestration
  */
 $register->set('orchestration', function () {
-    $dockerUser = (string)Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
-    $dockerPass = (string)Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
-    $orchestration = new Orchestration(new DockerCLI($dockerUser, $dockerPass));
+    $dockerUser = (string) Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
+    $dockerPass = (string) Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
+    $orchestration = new Orchestration(new DockerAPI($dockerUser, $dockerPass));
 
     return $orchestration;
 });
@@ -1172,9 +1172,10 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             // Error occured
             if ($executionResponse['errNo'] !== 0) {
-                // Unknown protocol error code, but also means parsing issue
+                // 7102 is unknown protocol error code, but also means parsing issue.
+                // 27 is out of memory error code.
                 // As patch, we consider this too big entry for headers (logs&errors)
-                if ($executionResponse['errNo'] === 7102) {
+                if ($executionResponse['errNo'] === 7102 || $executionResponse['errNo'] === 27) {
                     throw new Exception('Invalid response. This usually means too large logs or errors. Please avoid logging files or lengthy strings.', 500);
                 }
 

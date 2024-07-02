@@ -23,7 +23,7 @@
         ]
     },
     "require": {
-        "php": ">=8.0.0",
+        "php": ">=8.3.0",
         "ext-curl": "*",
         "ext-json": "*",
         "ext-swoole": "*",
@@ -35,7 +35,7 @@
         "utopia-php/registry": "0.5.*",
         "utopia-php/preloader": "0.2.*",
         "utopia-php/system": "0.7.*",
-        "utopia-php/orchestration": "0.10.*",
+        "utopia-php/orchestration": "0.11.*",
         "appwrite/php-runtimes": "0.13.*"
     },
     "require-dev": {
@@ -46,7 +46,7 @@
     },
     "config": {
         "platform": {
-            "php": "8.0"
+            "php": "8.3"
         }
     }
 }
