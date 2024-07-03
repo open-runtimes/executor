@@ -1172,13 +1172,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             // Error occured
             if ($executionResponse['errNo'] !== 0) {
-                // 7102 is unknown protocol error code, but also means parsing issue.
-                // 27 is out of memory error code.
-                // As patch, we consider this too big entry for headers (logs&errors)
-                if ($executionResponse['errNo'] === 7102 || $executionResponse['errNo'] === 27) {
-                    throw new Exception('Invalid response. This usually means too large logs or errors. Please avoid logging files or lengthy strings.', 500);
-                }
-
                 // Intended timeout error for v2 functions
                 if ($executionResponse['errNo'] === 110 && $version === 'v2') {
                     throw new Exception($executionResponse['error'], 400);
