@@ -86,7 +86,7 @@ OPR_EXECUTOR_LOGGING_PROVIDER=
 OPR_EXECUTOR_LOGGING_CONFIG=
 OPR_EXECUTOR_DOCKER_HUB_USERNAME=
 OPR_EXECUTOR_DOCKER_HUB_PASSWORD=
-OPR_EXECUTOR_RUNTIME_VERSIONS=v3
+OPR_EXECUTOR_RUNTIME_VERSIONS=v4
 ```
 
 > `OPR_EXECUTOR_CONNECTION_STORAGE` takes a DSN string that represents a connection to your storage device. If you would like to use your local filesystem, you can use `file://localhost`. If using S3 or any other provider for storage, use a DSN of the following format `s3://access_key:access_secret@host:port/bucket_name?region=us-east-1`
@@ -155,7 +155,7 @@ docker compose down
 | `remove` | `boolean` | Remove a runtime after execution |  | false |
 | `cpus` | `integer` | Maximum CPU cores runtime can utilize |  | 1 |
 | `memory` | `integer` | Container RAM memory in MBs |  | 512 |
-| `version` | `string` | Runtime Open Runtime version (allowed values: 'v2', 'v3') |  | 'v3' |
+| `version` | `string` | Runtime Open Runtime version (allowed values: 'v2', 'v4') |  | 'v4' |
 
 #### /v1/runtimes/{runtimeId}
 | Param | Type | Description | Required | Default |
@@ -177,7 +177,7 @@ docker compose down
 | `variables` | `json` | Environment variables passed into runtime |  | [ ] |
 | `cpus` | `integer` | Maximum CPU cores runtime can utilize |  | 1 |
 | `memory` | `integer` | Container RAM memory in MBs |  | 512 |
-| `version` | `string` | Runtime Open Runtime version (allowed values: 'v2', 'v3') |  | 'v3' |
+| `version` | `string` | Runtime Open Runtime version (allowed values: 'v2', 'v4') |  | 'v4' |
 | `runtimeEntrypoint` | `string` | Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long. |  | ' ' |
 
 ## Environment variables
@@ -191,11 +191,11 @@ docker compose down
 | OPR_EXECUTOR_MAINTENANCE_INTERVAL| Interval (in seconds) at which the Executor performs maintenance tasks, ex: `60`                                                              |
 | OPR_EXECUTOR_NETWORK             | Network used by the executor for runtimes, ex: `openruntimes-runtimes`                                                                        |
 | OPR_EXECUTOR_SECRET              | Secret key used by the executor for authentication                                                                                            |
-| OPR_EXECUTOR_LOGGING_PROVIDER    | External logging provider used by the executor, ex: `sentry`                                                                                  |
-| OPR_EXECUTOR_LOGGING_CONFIG      | Configuration for the logging provider                                                                                                        |
+| OPR_EXECUTOR_LOGGING_PROVIDER     | Deprecated: use `OPR_EXECUTOR_LOGGING_CONFIG` with DSN instead. External logging provider used by the executor, ex: `sentry`               |
+| OPR_EXECUTOR_LOGGING_CONFIG       | External logging provider DSN used by the executor, ex: `sentry://PROJECT_ID:SENTRY_API_KEY@SENTRY_HOST/`                                  |
 | OPR_EXECUTOR_DOCKER_HUB_USERNAME | Username for Docker Hub authentication (if applicable)                                                                                        |
 | OPR_EXECUTOR_DOCKER_HUB_PASSWORD | Password for Docker Hub authentication (if applicable)                                                                                        |
-| OPR_EXECUTOR_RUNTIME_VERSIONS    | Version tag for runtime environments, ex: `v3`                                                                                                |
+| OPR_EXECUTOR_RUNTIME_VERSIONS    | Version tag for runtime environments, ex: `v4`                                                                                                |
 
 ## Contributing
 
