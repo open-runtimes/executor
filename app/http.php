@@ -1154,7 +1154,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     }
 
                     // Wait 0.05s and check again
-                    \usleep(500000);
+                    \usleep(50000);
                 }
 
                 // Update swoole table
