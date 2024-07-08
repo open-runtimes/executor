@@ -610,8 +610,6 @@ Http::post('/v1/runtimes')
             $activeRuntime['status'] = 'Up ' . \round($duration, 2) . 's';
             $activeRuntimes->set($runtimeName, $activeRuntime);
         } catch (Throwable $th) {
-            $error = $th->getMessage() . $output;
-
             // Extract as much logs as we can
             try {
                 $logs = '';
@@ -642,6 +640,10 @@ Http::post('/v1/runtimes')
             }
 
             $activeRuntimes->del($runtimeName);
+
+            $error = empty($output) 
+                ? "Failed to execute build command:\n\n" . $output 
+                : 'Failed to execute build.';
 
             throw new Exception($error, $th->getCode() ?: 500);
         }
