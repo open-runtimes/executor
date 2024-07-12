@@ -641,8 +641,8 @@ Http::post('/v1/runtimes')
 
             $activeRuntimes->del($runtimeName);
 
-            $error = empty($output) 
-                ? "Failed to execute build command:\n\n" . $output 
+            $error = empty($output)
+                ? "Failed to execute build command:\n\n" . $output
                 : 'Failed to execute build.';
 
             throw new Exception($error, $th->getCode() ?: 500);
