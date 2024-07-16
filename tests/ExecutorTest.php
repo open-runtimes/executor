@@ -384,6 +384,24 @@ final class ExecutorTest extends TestCase
             [
                 'image' => 'openruntimes/node:v4-18.0',
                 'entrypoint' => 'index.js',
+                'folder' => 'node-logs',
+                'version' => 'v4',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'assertions' => function ($response) {
+                    $this->assertEquals(200, $response['headers']['status-code']);
+                    $this->assertEquals("OK", $response['body']['body']);
+                    $this->assertEmpty($response['body']['logs']);
+                    $this->assertEmpty($response['body']['errors']);
+                },
+                'body' => function () {
+                    return '1';
+                },
+                'logging' => false,
+            ],
+            [
+                'image' => 'openruntimes/node:v4-18.0',
+                'entrypoint' => 'index.js',
                 'folder' => 'node-long-coldstart',
                 'version' => 'v4',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
@@ -418,7 +436,8 @@ final class ExecutorTest extends TestCase
                     $this->assertEmpty($response['body']['logs']);
                     $this->assertEmpty($response['body']['errors']);
                 },
-                null, // body
+                null, // body,
+                'logging' => true,
                 'mimeType' => 'multipart/form-data'
             ],
             [
@@ -432,7 +451,8 @@ final class ExecutorTest extends TestCase
                     $this->assertEquals(400, $response['headers']['status-code']);
                     $this->assertStringContainsString("JSON response does not allow binaries", $response['body']['message']);
                 },
-                null, // body
+                null, // body,
+                'logging' => true,
                 'mimeType' => 'application/json'
             ],
             [
@@ -459,6 +479,7 @@ final class ExecutorTest extends TestCase
                 'body' => function () {
                     return pack('C*', 0, 10, 255);
                 },
+                'logging' => true,
                 'mimeType' => 'multipart/form-data'
             ],
         ];
@@ -472,10 +493,11 @@ final class ExecutorTest extends TestCase
      * @param string $startCommand
      * @param string $buildCommand
      * @param callable $assertions
+     * @param bool $logging
      *
      * @dataProvider provideScenarios
      */
-    public function testScenarios(string $image, string $entrypoint, string $folder, string $version, string $startCommand, string $buildCommand, callable $assertions, callable $body = null, string $mimeType = "application/json"): void
+    public function testScenarios(string $image, string $entrypoint, string $folder, string $version, string $startCommand, string $buildCommand, callable $assertions, callable $body = null, bool $logging = true, string $mimeType = "application/json"): void
     {
         /** Prepare deployment */
         $output = '';
@@ -506,7 +528,7 @@ final class ExecutorTest extends TestCase
             'version' => $version,
             'runtimeEntrypoint' => $startCommand,
             'timeout' => 45,
-            'logging' => true,
+            'logging' => $logging,
         ];
 
         if (isset($body)) {
