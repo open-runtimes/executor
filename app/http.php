@@ -610,6 +610,10 @@ Http::post('/v1/runtimes')
             $activeRuntime['status'] = 'Up ' . \round($duration, 2) . 's';
             $activeRuntimes->set($runtimeName, $activeRuntime);
         } catch (Throwable $th) {
+            $message = !empty($output) 
+                ? "Failed to execute build command:\n" . $output 
+                : "Failed to create runtime: " . $th->getMessage();
+
             // Extract as much logs as we can
             try {
                 $logs = '';
@@ -621,7 +625,7 @@ Http::post('/v1/runtimes')
                 );
 
                 if (!empty($logs)) {
-                    $error = $th->getMessage() . $logs;
+                    $message = "Failed to execute build command:\n\n" . $logs;
                 }
             } catch (Throwable $err) {
                 // Ignore, use fallback error message
@@ -641,11 +645,7 @@ Http::post('/v1/runtimes')
 
             $activeRuntimes->del($runtimeName);
 
-            $error = empty($output)
-                ? 'Failed to execute build.'
-                : "Failed to execute build command:\n\n" . $output;
-
-            throw new Exception($error, $th->getCode() ?: 500);
+            throw new Exception($message, $th->getCode() ?: 500);
         }
 
         // Container cleanup
