@@ -610,8 +610,8 @@ Http::post('/v1/runtimes')
             $activeRuntime['status'] = 'Up ' . \round($duration, 2) . 's';
             $activeRuntimes->set($runtimeName, $activeRuntime);
         } catch (Throwable $th) {
-            $message = !empty($output) 
-                ? "Failed to execute build command:\n" . $output 
+            $message = !empty($output)
+                ? "Failed to execute build command:\n" . $output
                 : "Failed to create runtime: " . $th->getMessage();
 
             // Extract as much logs as we can
