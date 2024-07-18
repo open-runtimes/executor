@@ -625,7 +625,7 @@ Http::post('/v1/runtimes')
                 );
 
                 if (!empty($logs)) {
-                    $message = "Failed to execute build command:\n\n" . $logs;
+                    $message = "Failed to execute command:\n" . $logs;
                 }
             } catch (Throwable $err) {
                 // Ignore, use fallback error message
