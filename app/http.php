@@ -610,9 +610,7 @@ Http::post('/v1/runtimes')
             $activeRuntime['status'] = 'Up ' . \round($duration, 2) . 's';
             $activeRuntimes->set($runtimeName, $activeRuntime);
         } catch (Throwable $th) {
-            $message = !empty($output)
-                ? "Failed to execute command:\n" . $output
-                : "Failed to create runtime:\n" . $th->getMessage();
+            $message = !empty($output) ? $output : $th->getMessage();
 
             // Extract as much logs as we can
             try {
@@ -625,7 +623,7 @@ Http::post('/v1/runtimes')
                 );
 
                 if (!empty($logs)) {
-                    $message = "Failed to execute command:\n" . $logs;
+                    $message = $logs;
                 }
             } catch (Throwable $err) {
                 // Ignore, use fallback error message
