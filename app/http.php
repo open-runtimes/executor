@@ -1017,6 +1017,10 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                 $responseHeaders = [];
 
+                if (!(\str_starts_with($path, '/'))) {
+                    $path = '/' . $path;
+                }
+
                 \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000" . $path);
                 \curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
                 \curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);

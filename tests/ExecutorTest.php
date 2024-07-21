@@ -257,6 +257,30 @@ final class ExecutorTest extends TestCase
 
         $this->assertEquals(200, $response['headers']['status-code']);
 
+        /** Execution without / at beginning of path */
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [], [
+            'source' => $data['path'],
+            'entrypoint' => 'index.php',
+            'path' => 'v1/users',
+            'image' => 'openruntimes/php:v4-8.1',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals("200", $response['body']['statusCode']);
+
+        /** Execution with / at beginning of path */
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [], [
+           'source' => $data['path'],
+           'entrypoint' => 'index.php',
+           'path' => '/v1/users',
+           'image' => 'openruntimes/php:v4-8.1',
+           'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals("200", $response['body']['statusCode']);
+
         /** Delete runtime */
         $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-coldstart', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
