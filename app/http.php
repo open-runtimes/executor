@@ -610,7 +610,7 @@ Http::post('/v1/runtimes')
             $activeRuntime['status'] = 'Up ' . \round($duration, 2) . 's';
             $activeRuntimes->set($runtimeName, $activeRuntime);
         } catch (Throwable $th) {
-            $error = $th->getMessage() . $output;
+            $message = !empty($output) ? $output : $th->getMessage();
 
             // Extract as much logs as we can
             try {
@@ -623,7 +623,7 @@ Http::post('/v1/runtimes')
                 );
 
                 if (!empty($logs)) {
-                    $error = $th->getMessage() . $logs;
+                    $message = $logs;
                 }
             } catch (Throwable $err) {
                 // Ignore, use fallback error message
@@ -643,7 +643,7 @@ Http::post('/v1/runtimes')
 
             $activeRuntimes->del($runtimeName);
 
-            throw new Exception($error, $th->getCode() ?: 500);
+            throw new Exception($message, $th->getCode() ?: 500);
         }
 
         // Container cleanup
