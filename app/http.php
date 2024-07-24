@@ -1214,7 +1214,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $runtime['updated'] = \microtime(true);
             $activeRuntimes->set($runtimeName, $runtime);
 
-            $acceptTypes = \explode(',', $request->getHeader('accept', 'multipart/form-data'));
+            $acceptTypes = \explode(', ', $request->getHeader('accept', 'multipart/form-data'));
             $isJson = false;
 
             foreach ($acceptTypes as $acceptType) {
