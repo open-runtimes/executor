@@ -1214,10 +1214,17 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $runtime['updated'] = \microtime(true);
             $activeRuntimes->set($runtimeName, $runtime);
 
-            $acceptType = $request->getHeader('accept', 'multipart/form-data');
-            if (\str_starts_with($acceptType, 'application/json')) {
-                // JSON response
+            $acceptTypes = \explode(', ', $request->getHeader('accept', 'multipart/form-data'));
+            $isJson = false;
 
+            foreach ($acceptTypes as $acceptType) {
+                if (\str_starts_with($acceptType, 'application/json') || \str_starts_with($acceptType, 'application/*')) {
+                    $isJson = true;
+                    break;
+                }
+            }
+
+            if ($isJson) {
                 $executionString = \json_encode($execution, JSON_UNESCAPED_UNICODE);
                 if (!$executionString) {
                     throw new Exception('Execution resulted in binary response, but JSON response does not allow binaries. Use "Accept: multipart/form-data" header to support binaries.', 400);
