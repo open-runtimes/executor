@@ -1218,7 +1218,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $isJson = false;
 
             foreach ($acceptTypes as $acceptType) {
-                if (\str_starts_with($acceptType, 'application/')) {
+                if (\str_starts_with($acceptType, 'application/json') || \str_starts_with($acceptType, 'application/*')) {
                     $isJson = true;
                     break;
                 }
