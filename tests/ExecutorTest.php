@@ -271,15 +271,94 @@ final class ExecutorTest extends TestCase
 
         /** Execution with / at beginning of path */
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [], [
-           'source' => $data['path'],
-           'entrypoint' => 'index.php',
-           'path' => '/v1/users',
-           'image' => 'openruntimes/php:v4-8.1',
-           'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
+            'source' => $data['path'],
+            'entrypoint' => 'index.php',
+            'path' => '/v1/users',
+            'image' => 'openruntimes/php:v4-8.1',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
         ]);
 
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals("200", $response['body']['statusCode']);
+
+        /** Execution with different accept headers */
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
+            'accept' => 'application/json'
+        ], [
+            'source' => $data['path'],
+            'entrypoint' => 'index.php',
+            'path' => '/v1/users',
+            'image' => 'openruntimes/php:v4-8.1',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals('application/json', $response['headers']['content-type']);
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
+            'accept' => 'application/*'
+        ], [
+            'source' => $data['path'],
+            'entrypoint' => 'index.php',
+            'path' => '/v1/users',
+            'image' => 'openruntimes/php:v4-8.1',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals('application/json', $response['headers']['content-type']);
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
+            'accept' => 'text/plain, application/json'
+        ], [
+            'source' => $data['path'],
+            'entrypoint' => 'index.php',
+            'path' => '/v1/users',
+            'image' => 'openruntimes/php:v4-8.1',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals('application/json', $response['headers']['content-type']);
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
+            'accept' => 'application/xml'
+        ], [
+            'source' => $data['path'],
+            'entrypoint' => 'index.php',
+            'path' => '/v1/users',
+            'image' => 'openruntimes/php:v4-8.1',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertStringStartsWith('multipart/form-data', $response['headers']['content-type']);
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
+            'accept' => 'text/plain'
+        ], [
+            'source' => $data['path'],
+            'entrypoint' => 'index.php',
+            'path' => '/v1/users',
+            'image' => 'openruntimes/php:v4-8.1',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertStringStartsWith('multipart/form-data', $response['headers']['content-type']);
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
+            'accept' => '*/*'
+        ], [
+            'source' => $data['path'],
+            'entrypoint' => 'index.php',
+            'path' => '/v1/users',
+            'image' => 'openruntimes/php:v4-8.1',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertStringStartsWith('multipart/form-data', $response['headers']['content-type']);
 
         /** Delete runtime */
         $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-coldstart', [], []);
