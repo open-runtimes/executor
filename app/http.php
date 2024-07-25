@@ -785,11 +785,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 }
             }
 
-            // 'body' validator
-            if (\strlen($payload) > 20971520) {
-                throw new Exception("Parameter body can be only up to 20MB in size.");
-            }
-
             // 'headers' validator
             $validator = new Assoc();
             if (!$validator->isValid($headers)) {
