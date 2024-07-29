@@ -412,7 +412,7 @@ final class ExecutorTest extends TestCase
         /** Ensure autoRestart */
 
         $output = [];
-        \exec('docker logs test-exec-autorestart', $output);
+        \exec('docker logs executor-test-exec-autorestart', $output);
         $output = \implode("\n", $output);
         $occurances = \substr_count($output, 'HTTP server successfully started!');
         $this->assertEquals(3, $occurances);
