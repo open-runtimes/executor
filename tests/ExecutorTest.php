@@ -397,6 +397,7 @@ final class ExecutorTest extends TestCase
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"',
             'autoRestart' => true
         ]);
+        $this->assertEquals(500, $response['headers']['status-code']);
 
         \sleep(5);
 
@@ -406,6 +407,7 @@ final class ExecutorTest extends TestCase
             'image' => 'openruntimes/php:v4-8.1',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
         ]);
+        $this->assertEquals(500, $response['headers']['status-code']);
 
         \sleep(5);
 
