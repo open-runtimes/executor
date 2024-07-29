@@ -29,5 +29,5 @@ jobs:
 
     - name: Run Tests
       run: |
-        docker run --rm -v $PWD:/app --network openruntimes-runtimes -w /app phpswoole/swoole:5.1.2-php8.3-alpine sh -c \
+        docker run --rm -v $PWD:/app -v  /var/run/docker.sock:/var/run/docker.sock --network openruntimes-runtimes -w /app phpswoole/swoole:5.1.2-php8.3-alpine sh -c \
         "composer install --profile --ignore-platform-reqs && composer test"

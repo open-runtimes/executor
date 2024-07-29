@@ -365,6 +365,63 @@ final class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
+    public function testAutoRestart(): void
+    {
+        $output = '';
+        Console::execute('cd /app/tests/resources/functions/php-exit && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+
+        $command = 'php src/server.php';
+
+        /** Build runtime */
+
+        $params = [
+            'runtimeId' => 'test-build-autorestart',
+            'source' => '/storage/functions/php-exit/code.tar.gz',
+            'destination' => '/storage/builds/test-autorestart',
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v4-8.1',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh ""'
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        $buildPath = $response['body']['path'];
+
+        /** Execute function */
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-autorestart/executions', [], [
+            'source' => $buildPath,
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v4-8.1',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"',
+            'autoRestart' => true
+        ]);
+
+        \sleep(5);
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-autorestart/executions', [], [
+            'source' => $buildPath,
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v4-8.1',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
+        ]);
+
+        \sleep(5);
+
+        /** Ensure autoRestart */
+
+        $output = [];
+        \exec('docker logs test-exec-autorestart', $output);
+        $output = \implode("\n", $output);
+        $occurances = \substr_count($output, 'HTTP server successfully started!');
+        $this->assertEquals(3, $occurances);
+
+        /** Delete runtime */
+        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-autorestart', [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
+    }
+
     /**
      *
      * @return array<mixed>

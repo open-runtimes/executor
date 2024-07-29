@@ -411,11 +411,12 @@ Http::post('/v1/runtimes')
     ->param('cpus', 1, new Integer(), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Comtainer RAM memory.', true)
     ->param('version', 'v4', new WhiteList(['v2', 'v4']), 'Runtime Open Runtime version.', true)
+    ->param('autoRestart', false, new Boolean(), 'Runtime Open Runtime version.', true)
     ->inject('orchestration')
     ->inject('activeRuntimes')
     ->inject('response')
     ->inject('log')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, int $cpus, int $memory, string $version, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, int $cpus, int $memory, string $version, bool $autoRestart, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
         $runtimeHostname = \uniqid();
@@ -536,7 +537,8 @@ Http::post('/v1/runtimes')
                 ],
                 volumes: $volumes,
                 network: \strval($openruntimes_network) ?: 'executor_runtimes',
-                workdir: $workdir
+                workdir: $workdir,
+                restart: $autoRestart ? DockerAPI::RESTART_ALWAYS : DockerAPI::RESTART_NO
             );
 
             if (empty($containerId)) {
@@ -748,12 +750,13 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->param('version', 'v4', new WhiteList(['v2', 'v4']), 'Runtime Open Runtime version.', true)
     ->param('runtimeEntrypoint', '', new Text(1024, 0), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('logging', true, new Boolean(true), 'Whether executions will be logged.', true)
+    ->param('autoRestart', false, new Boolean(), 'Runtime Open Runtime version.', true)
     ->inject('activeRuntimes')
     ->inject('response')
     ->inject('request')
     ->inject('log')
     ->action(
-        function (string $runtimeId, ?string $payload, string $path, string $method, mixed $headers, int $timeout, string $image, string $source, string $entrypoint, mixed $variables, int $cpus, int $memory, string $version, string $runtimeEntrypoint, bool $logging, Table $activeRuntimes, Response $response, Request $request, Log $log) {
+        function (string $runtimeId, ?string $payload, string $path, string $method, mixed $headers, int $timeout, string $image, string $source, string $entrypoint, mixed $variables, int $cpus, int $memory, string $version, string $runtimeEntrypoint, bool $logging, bool $autoRestart, Table $activeRuntimes, Response $response, Request $request, Log $log) {
             if (empty($payload)) {
                 $payload = '';
             }
@@ -821,7 +824,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 }
 
                 // Prepare request to executor
-                $sendCreateRuntimeRequest = function () use ($runtimeId, $image, $source, $entrypoint, $variables, $cpus, $memory, $version, $runtimeEntrypoint) {
+                $sendCreateRuntimeRequest = function () use ($runtimeId, $image, $source, $entrypoint, $variables, $cpus, $memory, $version, $autoRestart, $runtimeEntrypoint) {
                     $statusCode = 0;
                     $errNo = -1;
                     $executorResponse = '';
@@ -837,6 +840,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                         'cpus' => $cpus,
                         'memory' => $memory,
                         'version' => $version,
+                        'autoRestart' => $autoRestart,
                         'runtimeEntrypoint' => $runtimeEntrypoint
                     ]);
 
