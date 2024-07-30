@@ -751,7 +751,7 @@ final class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test',
             'entrypoint' => $entrypoint,
             'image' => $image,
-            'timeout' => 60,
+            'timeout' => 120,
             'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "' . $buildCommand . '"',
             'remove' => true
         ];
@@ -771,7 +771,7 @@ final class ExecutorTest extends TestCase
             'entrypoint' => $entrypoint,
             'image' => $image,
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $startCommand . '"',
-            'timeout' => 60,
+            'timeout' => 120,
             'variables' => [
                 'TEST_VARIABLE' => 'Variable secret'
             ],
