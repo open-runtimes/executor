@@ -365,7 +365,7 @@ final class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
-    public function testAutoRestart(): void
+    public function testRestartPolicy(): void
     {
         $output = '';
         Console::execute('cd /app/tests/resources/functions/php-exit && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
@@ -375,9 +375,9 @@ final class ExecutorTest extends TestCase
         /** Build runtime */
 
         $params = [
-            'runtimeId' => 'test-build-autorestart',
+            'runtimeId' => 'test-build-restart-policy',
             'source' => '/storage/functions/php-exit/code.tar.gz',
-            'destination' => '/storage/builds/test-autorestart',
+            'destination' => '/storage/builds/test-restart-policy',
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v4-8.1',
             'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh ""'
@@ -390,18 +390,18 @@ final class ExecutorTest extends TestCase
 
         /** Execute function */
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-autorestart/executions', [], [
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-restart-policy/executions', [], [
             'source' => $buildPath,
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v4-8.1',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"',
-            'autoRestart' => true
+            'restartPolicy' => 'always'
         ]);
         $this->assertEquals(500, $response['headers']['status-code']);
 
         \sleep(5);
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-autorestart/executions', [], [
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-restart-policy/executions', [], [
             'source' => $buildPath,
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v4-8.1',
@@ -411,16 +411,16 @@ final class ExecutorTest extends TestCase
 
         \sleep(5);
 
-        /** Ensure autoRestart */
+        /** Ensure restart policy */
 
         $output = [];
-        \exec('docker logs executor-test-exec-autorestart', $output);
+        \exec('docker logs executor-test-exec-restart-policy', $output);
         $output = \implode("\n", $output);
         $occurances = \substr_count($output, 'HTTP server successfully started!');
         $this->assertEquals(3, $occurances);
 
         /** Delete runtime */
-        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-autorestart', [], []);
+        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-restart-policy', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
