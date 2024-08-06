@@ -35,6 +35,7 @@ use Utopia\Http\Response;
 use Utopia\Http\Route;
 use Utopia\Http\Validator\Assoc;
 use Utopia\Http\Validator\Boolean;
+use Utopia\Http\Validator\FloatValidator;
 use Utopia\Http\Validator\Integer;
 use Utopia\Http\Validator\Text;
 use Utopia\Http\Validator\WhiteList;
@@ -384,14 +385,14 @@ Http::post('/v1/runtimes')
     ->param('command', '', new Text(1024), 'Commands to run after container is created. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('timeout', 600, new Integer(), 'Commands execution time in seconds.', true)
     ->param('remove', false, new Boolean(), 'Remove a runtime after execution.', true)
-    ->param('cpus', 1, new Integer(), 'Container CPU.', true)
+    ->param('cpus', 1.0, new FloatValidator(), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Comtainer RAM memory.', true)
     ->param('version', 'v3', new WhiteList(['v2', 'v3']), 'Runtime Open Runtime version.', true)
     ->inject('orchestration')
     ->inject('activeRuntimes')
     ->inject('response')
     ->inject('log')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, int $cpus, int $memory, string $version, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
         $runtimeHostname = \uniqid();
@@ -711,7 +712,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->param('source', '', new Text(0), 'Path to source files.', true)
     ->param('entrypoint', '', new Text(256), 'Entrypoint of the code file.', true)
     ->param('variables', [], new Assoc(), 'Environment variables passed into runtime.', true)
-    ->param('cpus', 1, new Integer(), 'Container CPU.', true)
+    ->param('cpus', 1.0, new FloatValidator(), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Container RAM memory.', true)
     ->param('version', 'v3', new WhiteList(['v2', 'v3']), 'Runtime Open Runtime version.', true)
     ->param('runtimeEntrypoint', '', new Text(1024, 0), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
@@ -719,7 +720,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->inject('response')
     ->inject('log')
     ->action(
-        function (string $runtimeId, ?string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $runtimeEntrypoint, Table $activeRuntimes, Response $response, Log $log) {
+        function (string $runtimeId, ?string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, float $cpus, int $memory, string $version, string $runtimeEntrypoint, Table $activeRuntimes, Response $response, Log $log) {
             if (empty($payload)) {
                 $payload = '';
             }
