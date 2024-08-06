@@ -763,11 +763,17 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             }
 
             // Extra parsers and validators to support both JSON and multipart
+            $intParams = ['timeout', 'memory'];
+            foreach ($intParams as $intParam) {
+                if (!empty($$intParam) && !is_numeric($$intParam)) {
+                    $$intParam = \intval($$intParam);
+                }
+            }
 
-            $numericParams = ['timeout', 'cpus', 'memory'];
-            foreach ($numericParams as $numericParam) {
-                if (!empty($$numericParam) && !is_numeric($$numericParam)) {
-                    $$numericParam = \floatval($$numericParam);
+            $floatParams = ['cpus'];
+            foreach ($floatParams as $floatPram) {
+                if (!empty($$floatPram) && !is_numeric($$floatPram)) {
+                    $$floatPram = \floatval($$floatPram);
                 }
             }
 
