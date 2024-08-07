@@ -602,7 +602,7 @@ Http::post('/v1/runtimes')
             $duration = $endTime - $startTime;
 
             $container = array_merge($container, [
-                'output' => $output,
+                'output' => \mb_strcut($output, 0, 20000000), // 20MB safety limit
                 'startTime' => $startTime,
                 'duration' => $duration,
             ]);
@@ -645,6 +645,7 @@ Http::post('/v1/runtimes')
 
             $activeRuntimes->del($runtimeName);
 
+            $message = \mb_substr($message, 0, null, 'UTF-8'); // Get only valid UTF8 part - removes leftover half-multibytes causing SQL errors
             throw new Exception($message, $th->getCode() ?: 500);
         }
 
