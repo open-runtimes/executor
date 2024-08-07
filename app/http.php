@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Appwrite\Runtimes\Runtimes;
+use OpenRuntimes\Executor\BodyMultipart;
 use OpenRuntimes\Executor\Validator\TCP;
 use OpenRuntimes\Executor\Usage;
 use Swoole\Process;
@@ -16,7 +17,6 @@ use Utopia\Logger\Adapter\AppSignal;
 use Utopia\Logger\Adapter\LogOwl;
 use Utopia\Logger\Adapter\Raygun;
 use Utopia\Logger\Adapter\Sentry;
-use Utopia\Orchestration\Adapter\DockerCLI;
 use Utopia\Orchestration\Orchestration;
 use Utopia\Storage\Device;
 use Utopia\Storage\Device\Local;
@@ -33,11 +33,13 @@ use Utopia\Http\Http;
 use Utopia\Http\Request;
 use Utopia\Http\Response;
 use Utopia\Http\Route;
+use Utopia\Http\Validator\AnyOf;
 use Utopia\Http\Validator\Assoc;
 use Utopia\Http\Validator\Boolean;
 use Utopia\Http\Validator\Integer;
 use Utopia\Http\Validator\Text;
 use Utopia\Http\Validator\WhiteList;
+use Utopia\Orchestration\Adapter\DockerAPI;
 use Utopia\Registry\Registry;
 
 use function Swoole\Coroutine\batch;
@@ -50,7 +52,7 @@ Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
 
 Http::setMode((string)Http::getEnv('OPR_EXECUTOR_ENV', Http::MODE_TYPE_PRODUCTION));
 
-const MAX_TO_READ = 5 * 1024 * 1024;
+const MAX_LOG_SIZE = 5 * 1024 * 1024;
 
 // Setup Registry
 $register = new Registry();
@@ -102,9 +104,9 @@ $register->set('logger', function () {
  * Create orchestration
  */
 $register->set('orchestration', function () {
-    $dockerUser = (string)Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
-    $dockerPass = (string)Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
-    $orchestration = new Orchestration(new DockerCLI($dockerUser, $dockerPass));
+    $dockerUser = (string) Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
+    $dockerPass = (string) Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
+    $orchestration = new Orchestration(new DockerAPI($dockerUser, $dockerPass));
 
     return $orchestration;
 });
@@ -409,11 +411,12 @@ Http::post('/v1/runtimes')
     ->param('cpus', 1, new Integer(), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Comtainer RAM memory.', true)
     ->param('version', 'v4', new WhiteList(['v2', 'v4']), 'Runtime Open Runtime version.', true)
+    ->param('restartPolicy', DockerAPI::RESTART_NO, new WhiteList([DockerAPI::RESTART_NO, DockerAPI::RESTART_ALWAYS, DockerAPI::RESTART_ON_FAILURE, DockerAPI::RESTART_UNLESS_STOPPED], true), 'Define restart policy for the runtime once an exit code is returned. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)
     ->inject('orchestration')
     ->inject('activeRuntimes')
     ->inject('response')
     ->inject('log')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, int $cpus, int $memory, string $version, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, int $cpus, int $memory, string $version, string $restartPolicy, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
         $runtimeHostname = \uniqid();
@@ -534,7 +537,8 @@ Http::post('/v1/runtimes')
                 ],
                 volumes: $volumes,
                 network: \strval($openruntimes_network) ?: 'executor_runtimes',
-                workdir: $workdir
+                workdir: $workdir,
+                restart: $restartPolicy
             );
 
             if (empty($containerId)) {
@@ -608,7 +612,7 @@ Http::post('/v1/runtimes')
             $activeRuntime['status'] = 'Up ' . \round($duration, 2) . 's';
             $activeRuntimes->set($runtimeName, $activeRuntime);
         } catch (Throwable $th) {
-            $error = $th->getMessage() . $output;
+            $message = !empty($output) ? $output : $th->getMessage();
 
             // Extract as much logs as we can
             try {
@@ -621,7 +625,7 @@ Http::post('/v1/runtimes')
                 );
 
                 if (!empty($logs)) {
-                    $error = $th->getMessage() . $logs;
+                    $message = $logs;
                 }
             } catch (Throwable $err) {
                 // Ignore, use fallback error message
@@ -641,7 +645,7 @@ Http::post('/v1/runtimes')
 
             $activeRuntimes->del($runtimeName);
 
-            throw new Exception($error, $th->getCode() ?: 500);
+            throw new Exception($message, $th->getCode() ?: 500);
         }
 
         // Container cleanup
@@ -734,25 +738,66 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->param('body', '', new Text(20971520), 'Data to be forwarded to the function, this is user specified.', true)
     ->param('path', '/', new Text(2048), 'Path from which execution comes.', true)
     ->param('method', 'GET', new Whitelist(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], true), 'Path from which execution comes.', true)
-    ->param('headers', [], new Assoc(), 'Headers passed into runtime.', true)
-    ->param('timeout', 15, new Integer(), 'Function maximum execution time in seconds.', true)
+    ->param('headers', [], new AnyOf([new Text(65535), new Assoc()], AnyOf::TYPE_MIXED), 'Headers passed into runtime.', true)
+    ->param('timeout', 15, new Integer(true), 'Function maximum execution time in seconds.', true)
     // Runtime-related
     ->param('image', '', new Text(128), 'Base image name of the runtime.', true)
     ->param('source', '', new Text(0), 'Path to source files.', true)
     ->param('entrypoint', '', new Text(256), 'Entrypoint of the code file.', true)
-    ->param('variables', [], new Assoc(), 'Environment variables passed into runtime.', true)
-    ->param('cpus', 1, new Integer(), 'Container CPU.', true)
-    ->param('memory', 512, new Integer(), 'Container RAM memory.', true)
+    ->param('variables', [], new AnyOf([new Text(65535), new Assoc()], AnyOf::TYPE_MIXED), 'Environment variables passed into runtime.', true)
+    ->param('cpus', 1, new Integer(true), 'Container CPU.', true)
+    ->param('memory', 512, new Integer(true), 'Container RAM memory.', true)
     ->param('version', 'v4', new WhiteList(['v2', 'v4']), 'Runtime Open Runtime version.', true)
     ->param('runtimeEntrypoint', '', new Text(1024, 0), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
-    ->param('logging', true, new Boolean(), 'Whether executions will be logged.', true)
+    ->param('logging', true, new Boolean(true), 'Whether executions will be logged.', true)
+    ->param('restartPolicy', DockerAPI::RESTART_NO, new WhiteList([DockerAPI::RESTART_NO, DockerAPI::RESTART_ALWAYS, DockerAPI::RESTART_ON_FAILURE, DockerAPI::RESTART_UNLESS_STOPPED], true), 'Define restart policy once exit code is returned by command. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)
     ->inject('activeRuntimes')
     ->inject('response')
+    ->inject('request')
     ->inject('log')
     ->action(
-        function (string $runtimeId, ?string $payload, string $path, string $method, array $headers, int $timeout, string $image, string $source, string $entrypoint, array $variables, int $cpus, int $memory, string $version, string $runtimeEntrypoint, bool $logging, Table $activeRuntimes, Response $response, Log $log) {
+        function (string $runtimeId, ?string $payload, string $path, string $method, mixed $headers, int $timeout, string $image, string $source, string $entrypoint, mixed $variables, int $cpus, int $memory, string $version, string $runtimeEntrypoint, bool $logging, string $restartPolicy, Table $activeRuntimes, Response $response, Request $request, Log $log) {
             if (empty($payload)) {
                 $payload = '';
+            }
+
+            // Extra parsers and validators to support both JSON and multipart
+
+            $numericParams = ['timeout', 'cpus', 'memory'];
+            foreach ($numericParams as $numericParam) {
+                if (!empty($$numericParam) && !is_numeric($$numericParam)) {
+                    $$numericParam = \intval($$numericParam);
+                }
+            }
+
+            /**
+             * @var array<string, mixed> $headers
+             * @var array<string, mixed> $variables
+             */
+            $assocParams = ['headers', 'variables'];
+            foreach ($assocParams as $assocParam) {
+                if (!empty($$assocParam) && !is_array($$assocParam)) {
+                    $$assocParam = \json_decode($$assocParam, true);
+                }
+            }
+
+            $booleanParams = ['logging'];
+            foreach ($booleanParams as $booleamParam) {
+                if (!empty($$booleamParam) && !is_bool($$booleamParam)) {
+                    $$booleamParam = $$booleamParam === "true" ? true : false;
+                }
+            }
+
+            // 'headers' validator
+            $validator = new Assoc();
+            if (!$validator->isValid($headers)) {
+                throw new Exception($validator->getDescription(), 400);
+            }
+
+            // 'variables' validator
+            $validator = new Assoc();
+            if (!$validator->isValid($variables)) {
+                throw new Exception($validator->getDescription(), 400);
             }
 
             $runtimeName = System::getHostname() . '-' . $runtimeId;
@@ -766,6 +811,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             $prepareStart = \microtime(true);
 
+
             // Prepare runtime
             if (!$activeRuntimes->exists($runtimeName)) {
                 if (empty($image) || empty($source) || empty($entrypoint)) {
@@ -773,7 +819,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 }
 
                 // Prepare request to executor
-                $sendCreateRuntimeRequest = function () use ($runtimeId, $image, $source, $entrypoint, $variables, $cpus, $memory, $version, $runtimeEntrypoint) {
+                $sendCreateRuntimeRequest = function () use ($runtimeId, $image, $source, $entrypoint, $variables, $cpus, $memory, $version, $restartPolicy, $runtimeEntrypoint) {
                     $statusCode = 0;
                     $errNo = -1;
                     $executorResponse = '';
@@ -789,6 +835,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                         'cpus' => $cpus,
                         'memory' => $memory,
                         'version' => $version,
+                        'restartPolicy' => $restartPolicy,
                         'runtimeEntrypoint' => $runtimeEntrypoint
                     ]);
 
@@ -967,17 +1014,15 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                 $ch = \curl_init();
 
-                if (isset($headers['x-open-runtimes-body-encoding']) && $headers['x-open-runtimes-body-encoding'] === 'base64') {
-                    $payload = \base64_decode($payload);
-                }
-
-                $body = $payload;
-
                 $responseHeaders = [];
+
+                if (!(\str_starts_with($path, '/'))) {
+                    $path = '/' . $path;
+                }
 
                 \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000" . $path);
                 \curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-                \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+                \curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
                 \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                 \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders) {
                     $len = strlen($header);
@@ -1045,45 +1090,35 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                 // Extract logs and errors from file based on fileId in header
                 $fileId = $responseHeaders['x-open-runtimes-log-id'] ?? '';
-                $stdout = '';
-                $stderr = '';
+                $logs = '';
+                $errors = '';
                 if (!empty($fileId)) {
-                    $logs = '';
-                    $errors = '';
-
                     $logFile = '/tmp/'.$runtimeName .'/logs/' . $fileId . '_logs.log';
                     $errorFile = '/tmp/'.$runtimeName .'/logs/' . $fileId . '_errors.log';
 
                     $logDevice = getStorageDevice("/");
 
                     if ($logDevice->exists($logFile)) {
-                        if ($logDevice->getFileSize($logFile) > MAX_TO_READ) {
-                            $maxToRead = MAX_TO_READ;
-                            $logs = $logDevice->read($logFile, 0, $maxToRead - 50);
-                            $logs .= "\nLog file has been truncated to 5 MBs.";
+                        if ($logDevice->getFileSize($logFile) > MAX_LOG_SIZE) {
+                            $maxToRead = MAX_LOG_SIZE;
+                            $logs = $logDevice->read($logFile, 0, $maxToRead);
+                            $logs .= "\nLog file has been truncated to 5MB.";
                         } else {
                             $logs = $logDevice->read($logFile);
                         }
-                    }
 
-                    if ($logDevice->exists($errorFile)) {
-                        if ($logDevice->getFileSize($errorFile) > MAX_TO_READ) {
-                            $maxToRead = MAX_TO_READ;
-                            $errors = $logDevice->read($errorFile, 0, $maxToRead - 50);
-                            $errors .= "\nError file has been truncated to 5 MBs.";
-                        } else {
-                            $errors = $logDevice->read($errorFile);
-                        }
-                    }
-
-                    $stdout = $logs;
-                    $stderr = $errors;
-
-                    if ($logDevice->exists($logFile)) {
                         $logDevice->delete($logFile);
                     }
 
                     if ($logDevice->exists($errorFile)) {
+                        if ($logDevice->getFileSize($errorFile) > MAX_LOG_SIZE) {
+                            $maxToRead = MAX_LOG_SIZE;
+                            $errors = $logDevice->read($errorFile, 0, $maxToRead);
+                            $errors .= "\nError file has been truncated to 5MB.";
+                        } else {
+                            $errors = $logDevice->read($errorFile);
+                        }
+
                         $logDevice->delete($errorFile);
                     }
                 }
@@ -1102,8 +1137,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     'error' => $error,
                     'statusCode' => $statusCode,
                     'body' => $executorResponse,
-                    'logs' => $stdout,
-                    'errors' => $stderr,
+                    'logs' => $logs,
+                    'errors' => $errors,
                     'headers' => $outputHeaders
                 ];
             };
@@ -1147,12 +1182,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             // Error occured
             if ($executionResponse['errNo'] !== 0) {
-                // Unknown protocol error code, but also means parsing issue
-                // As patch, we consider this too big entry for headers (logs&errors)
-                if ($executionResponse['errNo'] === 7102) {
-                    throw new Exception('Invalid response. This usually means too large logs or errors. Please avoid logging files or lengthy strings.', 500);
-                }
-
                 // Intended timeout error for v2 functions
                 if ($executionResponse['errNo'] === 110 && $version === 'v2') {
                     throw new Exception($executionResponse['error'], 400);
@@ -1169,34 +1198,61 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $endTime = \microtime(true);
             $duration = $endTime - $startTime;
 
-            $header['x-open-runtimes-body-encoding'] = 'original';
+            if ($version === 'v2') {
+                $logs = \mb_strcut($logs, 0, 1000000);
+                $errors = \mb_strcut($errors, 0, 1000000);
+            }
+
             $execution = [
                 'statusCode' => $statusCode,
                 'headers' => $headers,
                 'body' => $body,
-                'logs' => \mb_strcut($logs, 0, MAX_TO_READ),
-                'errors' => \mb_strcut($errors, 0, MAX_TO_READ),
+                'logs' => $logs,
+                'errors' => $errors,
                 'duration' => $duration,
                 'startTime' => $startTime,
             ];
 
-            $executionString = \json_encode($execution, JSON_UNESCAPED_UNICODE);
-            if (!$executionString) {
-                $execution['body'] = \base64_encode($body);
-                $execution['headers']['x-open-runtimes-body-encoding'] = 'base64';
-                $executionString = \json_encode($execution, JSON_UNESCAPED_UNICODE);
-            }
+            $execution['body'] = $body;
 
             // Update swoole table
             $runtime = $activeRuntimes->get($runtimeName);
             $runtime['updated'] = \microtime(true);
             $activeRuntimes->set($runtimeName, $runtime);
 
-            // Finish request
-            $response
-                ->setStatusCode(Response::STATUS_CODE_OK)
-                ->setContentType(Response::CONTENT_TYPE_JSON, Response::CHARSET_UTF8)
-                ->send((string)$executionString);
+            $acceptTypes = \explode(', ', $request->getHeader('accept', 'multipart/form-data'));
+            $isJson = false;
+
+            foreach ($acceptTypes as $acceptType) {
+                if (\str_starts_with($acceptType, 'application/json') || \str_starts_with($acceptType, 'application/*')) {
+                    $isJson = true;
+                    break;
+                }
+            }
+
+            if ($isJson) {
+                $executionString = \json_encode($execution, JSON_UNESCAPED_UNICODE);
+                if (!$executionString) {
+                    throw new Exception('Execution resulted in binary response, but JSON response does not allow binaries. Use "Accept: multipart/form-data" header to support binaries.', 400);
+                }
+
+                $response
+                    ->setStatusCode(Response::STATUS_CODE_OK)
+                    ->addHeader('content-type', 'application/json')
+                    ->send($executionString);
+            } else {
+                // Multipart form data response
+
+                $multipart = new BodyMultipart();
+                foreach ($execution as $key => $value) {
+                    $multipart->setPart($key, $value);
+                }
+
+                $response
+                    ->setStatusCode(Response::STATUS_CODE_OK)
+                    ->addHeader('content-type', $multipart->exportHeader())
+                    ->send($multipart->exportBody());
+            }
         }
     );
 
@@ -1297,8 +1353,6 @@ run(function () use ($register) {
 
     Console::success("Orphan runtimes removal finished.");
 
-    // TODO: Remove all /tmp folders starting with System::hostname() -
-
     /**
      * Warmup: make sure images are ready to run fast 🚀
      */
@@ -1350,6 +1404,7 @@ run(function () use ($register) {
                 });
             }
         }
+
         // Clear leftover build folders
         $localDevice = new Local();
         $tmpPath = DIRECTORY_SEPARATOR . 'tmp' . DIRECTORY_SEPARATOR;

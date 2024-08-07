@@ -17,10 +17,13 @@
         "lint": "./vendor/bin/pint --test --config pint.json",
         "format": "./vendor/bin/pint --config pint.json",
         "check": "./vendor/bin/phpstan analyse --level 8 -c phpstan.neon app src tests",
-        "test": "./vendor/bin/phpunit --configuration phpunit.xml --debug"
+        "test": [
+            "Composer\\Config::disableProcessTimeout",
+            "./vendor/bin/phpunit --configuration phpunit.xml --debug"
+        ]
     },
     "require": {
-        "php": ">=8.0.0",
+        "php": ">=8.3.0",
         "ext-curl": "*",
         "ext-json": "*",
         "ext-swoole": "*",
@@ -31,9 +34,9 @@
         "utopia-php/dsn": "0.1.*",
         "utopia-php/registry": "0.5.*",
         "utopia-php/preloader": "0.2.*",
-        "utopia-php/system": "0.7.*",
-        "utopia-php/orchestration": "0.10.*",
-        "appwrite/php-runtimes": "0.13.*"
+        "utopia-php/system": "0.8.*",
+        "utopia-php/orchestration": "0.13.*",
+        "appwrite/php-runtimes": "0.14.*"
     },
     "require-dev": {
         "swoole/ide-helper": "4.8.5",
@@ -43,7 +46,7 @@
     },
     "config": {
         "platform": {
-            "php": "8.0"
+            "php": "8.3"
         }
     }
 }
