@@ -22,7 +22,6 @@ RUN \
   gcc \
   g++ \
   git \
-  linux-headers \
   openssl-dev \
   curl-dev
   
