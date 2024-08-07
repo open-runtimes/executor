@@ -436,15 +436,31 @@ final class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v4-8.1',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "sh logs.sh"'
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "sh logs_failure.sh"'
         ];
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
 
-        \var_dump($response['body']['message']);
-        
         $this->assertEquals(400, $response['headers']['status-code']);
         $this->assertGreaterThanOrEqual(1028*10, \strlen($response['body']['message']));
+
+        $output = '';
+        Console::execute('cd /app/tests/resources/functions/php-build-logs && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+
+        /** Build runtime */
+        $params = [
+            'runtimeId' => 'test-build',
+            'source' => '/storage/functions/php-build-logs/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v4-8.1',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "sh logs_success.sh"'
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+
+        $this->assertEquals(201, $response['headers']['status-code']);
+        $this->assertGreaterThanOrEqual(1028*10, \strlen($response['body']['output']));
     }
 
     /**

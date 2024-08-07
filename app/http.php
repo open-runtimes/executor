@@ -602,7 +602,7 @@ Http::post('/v1/runtimes')
             $duration = $endTime - $startTime;
 
             $container = array_merge($container, [
-                'output' => \mb_strcut($output, 0, 1000000), // Limit to 1MB
+                'output' => $output,
                 'startTime' => $startTime,
                 'duration' => $duration,
             ]);
