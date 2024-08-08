@@ -645,7 +645,7 @@ Http::post('/v1/runtimes')
 
             $activeRuntimes->del($runtimeName);
 
-            $message =  \mb_strcut($output, 0, 1000000, 'UTF-8'); // Limit to 1MB; Get only valid UTF8 part - DockerAPI sometimes returns invalid chars (<0.02%)
+            $message = \mb_strcut($message, 0, 1000000, 'UTF-8'); // Limit to 1MB; Get only valid UTF8 part - DockerAPI sometimes returns invalid chars (<0.02%)
             throw new Exception($message, $th->getCode() ?: 500);
         }
 
