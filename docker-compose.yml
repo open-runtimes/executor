@@ -25,6 +25,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./app:/usr/local/app:rw
+      - ./vendor/utopia-php/orchestration:/usr/local/vendor/utopia-php/orchestration:rw
       - ./src:/usr/local/src:rw
       - openruntimes-builds:/storage/builds:rw
       - openruntimes-functions:/storage/functions:rw

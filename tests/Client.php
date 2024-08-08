@@ -141,7 +141,7 @@ class Client
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         }
 
-        $responseBody   = curl_exec($ch);
+        $responseBody = curl_exec($ch);
 
         if (isset($callback)) {
             curl_close($ch);
