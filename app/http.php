@@ -601,6 +601,8 @@ Http::post('/v1/runtimes')
             $endTime = \microtime(true);
             $duration = $endTime - $startTime;
 
+            $output = \mb_substr($output, 0, null, 'UTF-8'); // Get only valid UTF8 part - DockerAPI sometimes returns invalid chars (<0.02%)
+
             $container = array_merge($container, [
                 'output' => \mb_strcut($output, 0, 20000000), // 20MB safety limit
                 'startTime' => $startTime,
@@ -645,7 +647,7 @@ Http::post('/v1/runtimes')
 
             $activeRuntimes->del($runtimeName);
 
-            $message = \mb_substr($message, 0, null, 'UTF-8'); // Get only valid UTF8 part - removes leftover half-multibytes causing SQL errors
+            $message = \mb_substr($message, 0, null, 'UTF-8'); // Get only valid UTF8 part - DockerAPI sometimes returns invalid chars (<0.02%)
             throw new Exception($message, $th->getCode() ?: 500);
         }
 
