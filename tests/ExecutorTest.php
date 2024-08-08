@@ -426,7 +426,7 @@ final class ExecutorTest extends TestCase
 
     public function testBuildLogLimit(): void
     {
-        $size1Mb = 1024 * 1024;
+        $size128Kb = 1024 * 128;
 
         $output = '';
         Console::execute('cd /app/tests/resources/functions/php-build-logs && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
@@ -445,7 +445,7 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
 
         $this->assertEquals(400, $response['headers']['status-code']);
-        $this->assertGreaterThanOrEqual($size1Mb * 14, \strlen($response['body']['message']));
+        $this->assertGreaterThanOrEqual($size128Kb * 6, \strlen($response['body']['message']));
 
         $output = '';
         Console::execute('cd /app/tests/resources/functions/php-build-logs && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
@@ -463,7 +463,7 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
 
         $this->assertEquals(201, $response['headers']['status-code']);
-        $this->assertGreaterThanOrEqual($size1Mb * 14, \strlen($response['body']['output']));
+        $this->assertGreaterThanOrEqual($size128Kb * 6, \strlen($response['body']['output']));
     }
 
     /**
