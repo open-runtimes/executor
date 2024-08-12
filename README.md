@@ -153,7 +153,7 @@ docker compose down
 | `command` | `string` | Commands to run after container is created. Maximum of 100 commands are allowed, each 1024 characters long. |  | ' ' |
 | `timeout` | `integer` | Commands execution time in seconds |  | 600 |
 | `remove` | `boolean` | Remove a runtime after execution |  | false |
-| `cpus` | `integer` | Maximum CPU cores runtime can utilize |  | 1 |
+| `cpus` | `float` | Maximum CPU cores runtime can utilize |  | 1 |
 | `memory` | `integer` | Container RAM memory in MBs |  | 512 |
 | `version` | `string` | Runtime Open Runtime version (allowed values: 'v2', 'v4') |  | 'v4' |
 
@@ -175,7 +175,7 @@ docker compose down
 | `source` | `string` | Path to source files |  | ' ' |
 | `entrypoint` | `string` | Entrypoint of the code file |  | ' ' |
 | `variables` | `json` | Environment variables passed into runtime |  | [ ] |
-| `cpus` | `integer` | Maximum CPU cores runtime can utilize |  | 1 |
+| `cpus` | `floats` | Maximum CPU cores runtime can utilize |  | 1 |
 | `memory` | `integer` | Container RAM memory in MBs |  | 512 |
 | `version` | `string` | Runtime Open Runtime version (allowed values: 'v2', 'v4') |  | 'v4' |
 | `runtimeEntrypoint` | `string` | Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long. |  | ' ' |
