@@ -484,7 +484,7 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
 
         $this->assertEquals(400, $response['headers']['status-code']);
-        $this->assertEquals(1024 * 1024, \strlen($response['body']['message']));
+        $this->assertEquals(1000000, \strlen($response['body']['message']));
         $this->assertStringNotContainsString('Preparing for build ...', $response['body']['message']);
         $this->assertStringContainsString('Build exited.', $response['body']['message']);
 
@@ -505,7 +505,7 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
 
         $this->assertEquals(201, $response['headers']['status-code']);
-        $this->assertEquals(1024 * 1024, \strlen($response['body']['output']));
+        $this->assertEquals(1000000, \strlen($response['body']['output']));
         $this->assertStringNotContainsString('Preparing for build ...', $response['body']['output']);
         $this->assertStringContainsString('Build finished.', $response['body']['output']);
     }

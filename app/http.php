@@ -602,7 +602,7 @@ Http::post('/v1/runtimes')
             $endTime = \microtime(true);
             $duration = $endTime - $startTime;
 
-            $output = \mb_substr($output, -1 * 1024 * 1024); // Limit to 1MB
+            $output = \mb_substr($output, -1000000); // Limit to 1MB
 
             $container = array_merge($container, [
                 'output' => $output,
@@ -648,7 +648,7 @@ Http::post('/v1/runtimes')
 
             $activeRuntimes->del($runtimeName);
 
-            $message = \mb_substr($message, -1 * 1024 * 1024); // Limit to 1MB
+            $message = \mb_substr($message, -1000000); // Limit to 1MB
 
             throw new Exception($message, $th->getCode() ?: 500);
         }
