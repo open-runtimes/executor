@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "dddd09b7a6871b51edc0ebbaeee1bb1c",
+    "content-hash": "718cceb4437fccef84f673bd9399ae28",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -262,16 +262,16 @@
         },
         {
             "name": "utopia-php/orchestration",
-            "version": "0.13.1",
+            "version": "dev-fix-dockerapi-stream",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/orchestration.git",
-                "reference": "4cab8a4020cf9a4f38bd4f957b65fce2756e6a4e"
+                "reference": "c01e0bbd665c9d419902975dc079891eecf454ef"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/4cab8a4020cf9a4f38bd4f957b65fce2756e6a4e",
-                "reference": "4cab8a4020cf9a4f38bd4f957b65fce2756e6a4e",
+                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/c01e0bbd665c9d419902975dc079891eecf454ef",
+                "reference": "c01e0bbd665c9d419902975dc079891eecf454ef",
                 "shasum": ""
             },
             "require": {
@@ -306,9 +306,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/orchestration/issues",
-                "source": "https://github.com/utopia-php/orchestration/tree/0.13.1"
+                "source": "https://github.com/utopia-php/orchestration/tree/fix-dockerapi-stream"
             },
-            "time": "2024-08-06T10:09:06+00:00"
+            "time": "2024-08-12T15:35:34+00:00"
         },
         {
             "name": "utopia-php/preloader",
@@ -2437,9 +2437,18 @@
             "time": "2024-03-03T12:36:25+00:00"
         }
     ],
-    "aliases": [],
+    "aliases": [
+        {
+            "package": "utopia-php/orchestration",
+            "version": "dev-fix-dockerapi-stream",
+            "alias": "0.13.99",
+            "alias_normalized": "0.13.99.0"
+        }
+    ],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {
+        "utopia-php/orchestration": 20
+    },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
