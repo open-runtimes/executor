@@ -424,6 +424,92 @@ final class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
+    public function testBuildLogLimit(): void
+    {
+        $size128Kb = 1024 * 128;
+
+        $output = '';
+        Console::execute('cd /app/tests/resources/functions/php-build-logs && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+
+        /** Build runtime */
+        $params = [
+            'runtimeId' => 'test-build',
+            'source' => '/storage/functions/php-build-logs/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v4-8.1',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "sh logs_failure.sh"',
+            'remove' => true
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+
+        $this->assertEquals(400, $response['headers']['status-code']);
+        $this->assertGreaterThanOrEqual($size128Kb * 7, \strlen($response['body']['message']));
+        $this->assertStringContainsString('Preparing for build ...', $response['body']['message']);
+        $this->assertStringContainsString('Build exited.', $response['body']['message']);
+
+        $output = '';
+        Console::execute('cd /app/tests/resources/functions/php-build-logs && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+
+        /** Build runtime */
+        $params = [
+            'runtimeId' => 'test-build',
+            'source' => '/storage/functions/php-build-logs/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v4-8.1',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "sh logs_success.sh"',
+            'remove' => true
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+
+        $this->assertEquals(201, $response['headers']['status-code']);
+        $this->assertGreaterThanOrEqual($size128Kb * 7, \strlen($response['body']['output']));
+        $this->assertStringContainsString('Preparing for build ...', $response['body']['output']);
+        $this->assertStringContainsString('Build finished.', $response['body']['output']);
+
+        /** Build runtime */
+        $params = [
+            'runtimeId' => 'test-build',
+            'source' => '/storage/functions/php-build-logs/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v4-8.1',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "sh logs_failure_large.sh"',
+            'remove' => true
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+
+        $this->assertEquals(400, $response['headers']['status-code']);
+        $this->assertEquals(1000000, \strlen($response['body']['message']));
+        $this->assertStringNotContainsString('Preparing for build ...', $response['body']['message']);
+        $this->assertStringContainsString('Build exited.', $response['body']['message']);
+
+        $output = '';
+        Console::execute('cd /app/tests/resources/functions/php-build-logs && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+
+        /** Build runtime */
+        $params = [
+            'runtimeId' => 'test-build',
+            'source' => '/storage/functions/php-build-logs/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v4-8.1',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "sh logs_success_large.sh"',
+            'remove' => true
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+
+        $this->assertEquals(201, $response['headers']['status-code']);
+        $this->assertEquals(1000000, \strlen($response['body']['output']));
+        $this->assertStringNotContainsString('Preparing for build ...', $response['body']['output']);
+        $this->assertStringContainsString('Build finished.', $response['body']['output']);
+    }
+
     /**
      *
      * @return array<mixed>

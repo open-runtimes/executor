@@ -262,16 +262,16 @@
         },
         {
             "name": "utopia-php/orchestration",
-            "version": "0.13.1",
+            "version": "0.13.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/orchestration.git",
-                "reference": "4cab8a4020cf9a4f38bd4f957b65fce2756e6a4e"
+                "reference": "9d2ff8951eb483ab9ff463c2bcdbeed9dc8e0b79"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/4cab8a4020cf9a4f38bd4f957b65fce2756e6a4e",
-                "reference": "4cab8a4020cf9a4f38bd4f957b65fce2756e6a4e",
+                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/9d2ff8951eb483ab9ff463c2bcdbeed9dc8e0b79",
+                "reference": "9d2ff8951eb483ab9ff463c2bcdbeed9dc8e0b79",
                 "shasum": ""
             },
             "require": {
@@ -306,9 +306,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/orchestration/issues",
-                "source": "https://github.com/utopia-php/orchestration/tree/0.13.1"
+                "source": "https://github.com/utopia-php/orchestration/tree/0.13.4"
             },
-            "time": "2024-08-06T10:09:06+00:00"
+            "time": "2024-08-13T20:13:33+00:00"
         },
         {
             "name": "utopia-php/preloader",
