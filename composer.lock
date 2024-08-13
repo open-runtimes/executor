@@ -266,12 +266,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/orchestration.git",
-                "reference": "a0447f6ebde0ff6c1ae4ea03f858e125e68f17c0"
+                "reference": "7146eac7b0d03d10ba23846caabb305883ae8164"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/a0447f6ebde0ff6c1ae4ea03f858e125e68f17c0",
-                "reference": "a0447f6ebde0ff6c1ae4ea03f858e125e68f17c0",
+                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/7146eac7b0d03d10ba23846caabb305883ae8164",
+                "reference": "7146eac7b0d03d10ba23846caabb305883ae8164",
                 "shasum": ""
             },
             "require": {
@@ -308,7 +308,7 @@
                 "issues": "https://github.com/utopia-php/orchestration/issues",
                 "source": "https://github.com/utopia-php/orchestration/tree/fix-curl-error"
             },
-            "time": "2024-08-13T18:42:51+00:00"
+            "time": "2024-08-13T19:29:02+00:00"
         },
         {
             "name": "utopia-php/preloader",
