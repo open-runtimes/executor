@@ -36,6 +36,7 @@ use Utopia\Http\Route;
 use Utopia\Http\Validator\AnyOf;
 use Utopia\Http\Validator\Assoc;
 use Utopia\Http\Validator\Boolean;
+use Utopia\Http\Validator\FloatValidator;
 use Utopia\Http\Validator\Integer;
 use Utopia\Http\Validator\Text;
 use Utopia\Http\Validator\WhiteList;
@@ -408,7 +409,7 @@ Http::post('/v1/runtimes')
     ->param('command', '', new Text(1024), 'Commands to run after container is created. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('timeout', 600, new Integer(), 'Commands execution time in seconds.', true)
     ->param('remove', false, new Boolean(), 'Remove a runtime after execution.', true)
-    ->param('cpus', 1, new Integer(), 'Container CPU.', true)
+    ->param('cpus', 1, new FloatValidator(true), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Comtainer RAM memory.', true)
     ->param('version', 'v4', new WhiteList(['v2', 'v4']), 'Runtime Open Runtime version.', true)
     ->param('restartPolicy', DockerAPI::RESTART_NO, new WhiteList([DockerAPI::RESTART_NO, DockerAPI::RESTART_ALWAYS, DockerAPI::RESTART_ON_FAILURE, DockerAPI::RESTART_UNLESS_STOPPED], true), 'Define restart policy for the runtime once an exit code is returned. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)
@@ -416,7 +417,7 @@ Http::post('/v1/runtimes')
     ->inject('activeRuntimes')
     ->inject('response')
     ->inject('log')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, int $cpus, int $memory, string $version, string $restartPolicy, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
         $runtimeHostname = \uniqid();
@@ -749,7 +750,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->param('source', '', new Text(0), 'Path to source files.', true)
     ->param('entrypoint', '', new Text(256), 'Entrypoint of the code file.', true)
     ->param('variables', [], new AnyOf([new Text(65535), new Assoc()], AnyOf::TYPE_MIXED), 'Environment variables passed into runtime.', true)
-    ->param('cpus', 1, new Integer(true), 'Container CPU.', true)
+    ->param('cpus', 1, new FloatValidator(true), 'Container CPU.', true)
     ->param('memory', 512, new Integer(true), 'Container RAM memory.', true)
     ->param('version', 'v4', new WhiteList(['v2', 'v4']), 'Runtime Open Runtime version.', true)
     ->param('runtimeEntrypoint', '', new Text(1024, 0), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
@@ -760,17 +761,23 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->inject('request')
     ->inject('log')
     ->action(
-        function (string $runtimeId, ?string $payload, string $path, string $method, mixed $headers, int $timeout, string $image, string $source, string $entrypoint, mixed $variables, int $cpus, int $memory, string $version, string $runtimeEntrypoint, bool $logging, string $restartPolicy, Table $activeRuntimes, Response $response, Request $request, Log $log) {
+        function (string $runtimeId, ?string $payload, string $path, string $method, mixed $headers, int $timeout, string $image, string $source, string $entrypoint, mixed $variables, float $cpus, int $memory, string $version, string $runtimeEntrypoint, bool $logging, string $restartPolicy, Table $activeRuntimes, Response $response, Request $request, Log $log) {
             if (empty($payload)) {
                 $payload = '';
             }
 
             // Extra parsers and validators to support both JSON and multipart
+            $intParams = ['timeout', 'memory'];
+            foreach ($intParams as $intParam) {
+                if (!empty($$intParam) && !is_numeric($$intParam)) {
+                    $$intParam = \intval($$intParam);
+                }
+            }
 
-            $numericParams = ['timeout', 'cpus', 'memory'];
-            foreach ($numericParams as $numericParam) {
-                if (!empty($$numericParam) && !is_numeric($$numericParam)) {
-                    $$numericParam = \intval($$numericParam);
+            $floatParams = ['cpus'];
+            foreach ($floatParams as $floatPram) {
+                if (!empty($$floatPram) && !is_numeric($$floatPram)) {
+                    $$floatPram = \floatval($$floatPram);
                 }
             }
 
