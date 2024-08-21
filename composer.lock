@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "dddd09b7a6871b51edc0ebbaeee1bb1c",
+    "content-hash": "279293da95a2815337451371040f2e04",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
-            "version": "0.14.0",
+            "version": "0.15.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/appwrite/runtimes.git",
-                "reference": "9bae5bebe7c7cb3e4bf3a05a1d36c9d6ce3a2d3e"
+                "reference": "68ea5bcc24c513a6d641ddf9412bbab13e5dfb94"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/appwrite/runtimes/zipball/9bae5bebe7c7cb3e4bf3a05a1d36c9d6ce3a2d3e",
-                "reference": "9bae5bebe7c7cb3e4bf3a05a1d36c9d6ce3a2d3e",
+                "url": "https://api.github.com/repos/appwrite/runtimes/zipball/68ea5bcc24c513a6d641ddf9412bbab13e5dfb94",
+                "reference": "68ea5bcc24c513a6d641ddf9412bbab13e5dfb94",
                 "shasum": ""
             },
             "require": {
@@ -57,9 +57,9 @@
             ],
             "support": {
                 "issues": "https://github.com/appwrite/runtimes/issues",
-                "source": "https://github.com/appwrite/runtimes/tree/0.14.0"
+                "source": "https://github.com/appwrite/runtimes/tree/0.15.0"
             },
-            "time": "2024-07-03T10:18:32+00:00"
+            "time": "2024-08-21T10:23:45+00:00"
         },
         {
             "name": "utopia-php/cli",
