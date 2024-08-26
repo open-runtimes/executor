@@ -1100,7 +1100,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     $logFile = '/tmp/'.$runtimeName .'/logs/' . $fileId . '_logs.log';
                     $errorFile = '/tmp/'.$runtimeName .'/logs/' . $fileId . '_errors.log';
 
-                    $logDevice = getStorageDevice("/");
+                    $logDevice = new Local();
 
                     if ($logDevice->exists($logFile)) {
                         if ($logDevice->getFileSize($logFile) > MAX_LOG_SIZE) {
