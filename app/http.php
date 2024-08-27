@@ -513,8 +513,8 @@ Http::post('/v1/runtimes')
             $codeMountPath = $version === 'v2' ? '/usr/code' : '/mnt/code';
             $workdir = $version === 'v2' ? '/usr/code' : '';
 
-            $openruntimes_networks = explode(',', str_replace(' ', '', Http::getEnv('OPR_EXECUTOR_NETWORK') ?: 'executor_runtimes'));
-            $openruntimes_network = $openruntimes_networks[array_rand($openruntimes_networks)];
+            $networks = explode(',', str_replace(' ', '', Http::getEnv('OPR_EXECUTOR_NETWORK') ?: 'executor_runtimes'));
+            $network = $networks[array_rand($networks)];
 
             $volumes = [
                 \dirname($tmpSource) . ':/tmp:rw',
@@ -537,7 +537,7 @@ Http::post('/v1/runtimes')
                     'openruntimes-runtime-id' => $runtimeId
                 ],
                 volumes: $volumes,
-                network: \strval($openruntimes_network) ?: 'executor_runtimes',
+                network: \strval($network) ?: 'executor_runtimes',
                 workdir: $workdir,
                 restart: $restartPolicy
             );
