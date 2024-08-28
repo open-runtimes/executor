@@ -44,6 +44,9 @@ ARG OPR_EXECUTOR_VERSION
 ENV OPR_EXECUTOR_VERSION=$OPR_EXECUTOR_VERSION
 
 LABEL maintainer="team@appwrite.io"
+LABEL namespace="open-runtimes"
+LABEL component="executor"
+LABEL version="$OPR_EXECUTOR_VERSION"
 
 ENV DOCKER_CONFIG=${DOCKER_CONFIG:-$HOME/.docker}
 
