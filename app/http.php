@@ -110,7 +110,7 @@ $register->set('activeRuntimes', function () {
  * Create a Swoole table of usage stats (separate for host and containers)
  */
 $register->set('statsContainers', function () {
-    $table = new Table(1024);
+    $table = new Table(4096);
 
     $table->column('usage', Table::TYPE_FLOAT, 8);
     $table->create();
@@ -119,7 +119,7 @@ $register->set('statsContainers', function () {
 });
 
 $register->set('statsHost', function () {
-    $table = new Table(1024);
+    $table = new Table(4096);
 
     $table->column('usage', Table::TYPE_FLOAT, 8);
     $table->create();
