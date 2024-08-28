@@ -150,6 +150,7 @@ $register->set('networks', function () use ($orchestration) {
 });
 
 /** Set Resources */
+Http::setResource('log', fn () => new Log());
 Http::setResource('register', fn () => $register);
 Http::setResource('orchestration', fn (Registry $register) => $register->get('orchestration'), ['register']);
 Http::setResource('activeRuntimes', fn (Registry $register) => $register->get('activeRuntimes'), ['register']);
@@ -157,7 +158,6 @@ Http::setResource('logger', fn (Registry $register) => $register->get('logger'),
 Http::setResource('statsContainers', fn (Registry $register) => $register->get('statsContainers'), ['register']);
 Http::setResource('statsHost', fn (Registry $register) => $register->get('statsHost'), ['register']);
 Http::setResource('networks', fn (Registry $register) => $register->get('networks'), ['register']);
-Http::setResource('log', fn () => new Log());
 
 function logError(Log $log, Throwable $error, string $action, Logger $logger = null, Route $route = null): void
 {
