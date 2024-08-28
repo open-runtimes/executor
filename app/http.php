@@ -265,10 +265,10 @@ function createNetworks(Orchestration $orchestration, array $networks): array
 {
     Console::info('Creating networks...');
     $createdNetworks = [];
-    $networkJobs = [];
+    $jobs = [];
 
     foreach ($networks as $network) {
-        $networkJobs[] = function () use ($orchestration, $network, &$createdNetworks) {
+        $jobs[] = function () use ($orchestration, $network, &$createdNetworks) {
             if (!$orchestration->networkExists($network)) {
                 try {
                     $orchestration->createNetwork($network, false);
@@ -284,7 +284,7 @@ function createNetworks(Orchestration $orchestration, array $networks): array
         };
     }
 
-    batch($networkJobs);
+    batch($jobs);
     return $createdNetworks;
 }
 
@@ -1237,13 +1237,13 @@ run(function () use ($register) {
     $statsContainers = $register->get('statsContainers');
     $activeRuntimes = $register->get('activeRuntimes');
     $statsHost = $register->get('statsHost');
-    $networks = $register->get('networks');
 
+    $networks = explode(',', str_replace(' ', '', Http::getEnv('OPR_EXECUTOR_NETWORK') ?: 'executor_runtimes'));
     /**
      * Remove residual runtimes and networks
      */
     Console::info('Removing orphan runtimes and networks...');
-    cleanUp($orchestration, $activeRuntimes);
+    cleanUp($orchestration, $activeRuntimes, $networks);
     Console::success("Orphan runtimes and networks removal finished.");
 
     // TODO: Remove all /tmp folders starting with System::hostname() -
@@ -1252,9 +1252,7 @@ run(function () use ($register) {
      * Create and store Docker Bridge networks used for communication between executor and runtimes
      */
     Console::info('Creating networks...');
-    $networks = explode(',', str_replace(' ', '', Http::getEnv('OPR_EXECUTOR_NETWORK') ?: 'executor_runtimes'));
     $createdNetworks = createNetworks($orchestration, $networks);
-
     Http::setResource('networks', $createdNetworks);
 
     /**
