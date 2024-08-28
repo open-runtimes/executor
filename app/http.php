@@ -261,10 +261,6 @@ function getStorageDevice(string $root): Device
     }
 }
 
-/**
- * @return string
- */
-
 
 /**
  * @param array<string> $networks
@@ -279,8 +275,8 @@ function createNetworks(Orchestration $orchestration, array $networks): array
     }
     $containers = $orchestration->list(['ancestor' => $imageName, 'status' => 'running']);
 
-    if (count($containers) > 1) {
-        throw new \Exception('Too many executor found');
+    if (count($containers) < 1) {
+        throw new \Exception('No running executor found');
     }
 
     $containerName = $containers[0]->getName();
