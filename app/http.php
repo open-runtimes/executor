@@ -49,7 +49,7 @@ ini_set('memory_limit', '-1');
 
 Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
 
-Http::setMode((string) Http::getEnv('OPR_EXECUTOR_ENV', Http::MODE_TYPE_PRODUCTION));
+Http::setMode((string)Http::getEnv('OPR_EXECUTOR_ENV', Http::MODE_TYPE_PRODUCTION));
 
 // Setup Registry
 $register = new Registry();
@@ -81,8 +81,8 @@ $register->set('logger', function () {
  * Create orchestration
  */
 $register->set('orchestration', function () {
-    $dockerUser = (string) Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
-    $dockerPass = (string) Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
+    $dockerUser = (string)Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
+    $dockerPass = (string)Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
     $orchestration = new Orchestration(new DockerCLI($dockerUser, $dockerPass));
 
     return $orchestration;
@@ -145,7 +145,7 @@ function logError(Log $log, Throwable $error, string $action, Logger $logger = n
     Console::error('[Error] Line: ' . $error->getLine());
 
     if ($logger && ($error->getCode() === 500 || $error->getCode() === 0)) {
-        $version = (string) Http::getEnv('OPR_EXECUTOR_VERSION', '');
+        $version = (string)Http::getEnv('OPR_EXECUTOR_VERSION', '');
         if (empty($version)) {
             $version = 'UNKNOWN';
         }
@@ -262,13 +262,28 @@ function getStorageDevice(string $root): Device
 }
 
 /**
+ * @return string
+ */
+
+
+/**
  * @param array<string> $networks
  *
  * @return array<string>
  */
 function createNetworks(Orchestration $orchestration, array $networks): array
 {
-    $containerName = Http::getEnv('OPR_EXECUTOR_NAME') ?? 'executor';
+    $imageName = Http::getEnv('OPR_EXECUTOR_IMAGE') ;
+    if (empty($imageName)) {
+        throw new \Exception('Executor image name is not set');
+    }
+    $containers = $orchestration->list(['ancestor' => $imageName, 'status' => 'running']);
+
+    if (count($containers) > 1) {
+        throw new \Exception('Too many executor found');
+    }
+
+    $containerName = $containers[0]->getName();
     $createdNetworks = [];
     $jobs = [];
 
@@ -502,18 +517,21 @@ Http::post('/v1/runtimes')
             /**
              * Create container
              */
-            $variables = \array_merge($variables, match ($version) {
-                'v2' => [
-                    'INTERNAL_RUNTIME_KEY' => $secret,
-                    'INTERNAL_RUNTIME_ENTRYPOINT' => $entrypoint,
-                    'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
-                ],
-                'v3' => [
-                    'OPEN_RUNTIMES_SECRET' => $secret,
-                    'OPEN_RUNTIMES_ENTRYPOINT' => $entrypoint,
-                    'OPEN_RUNTIMES_HOSTNAME' => System::getHostname()
-                ]
-            });
+            $variables = \array_merge(
+                $variables,
+                match ($version) {
+                    'v2' => [
+                        'INTERNAL_RUNTIME_KEY' => $secret,
+                        'INTERNAL_RUNTIME_ENTRYPOINT' => $entrypoint,
+                        'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
+                    ],
+                    'v3' => [
+                        'OPEN_RUNTIMES_SECRET' => $secret,
+                        'OPEN_RUNTIMES_ENTRYPOINT' => $entrypoint,
+                        'OPEN_RUNTIMES_HOSTNAME' => System::getHostname()
+                    ]
+                }
+            );
 
             $variables = array_map(fn ($v) => strval($v), $variables);
             $orchestration
@@ -1155,7 +1173,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $response
                 ->setStatusCode(Response::STATUS_CODE_OK)
                 ->setContentType(Response::CONTENT_TYPE_JSON, Response::CHARSET_UTF8)
-                ->send((string) $executionString);
+                ->send((string)$executionString);
         }
     );
 
@@ -1296,7 +1314,7 @@ run(function () use ($register) {
      * Run a maintenance worker every X seconds to remove inactive runtimes
      */
     Console::info('Starting maintenance interval...');
-    $interval = (int) Http::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
+    $interval = (int)Http::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
     Timer::tick($interval * 1000, function () use ($orchestration, $activeRuntimes) {
         Console::info("Running maintenance task ...");
         // Stop idling runtimes
