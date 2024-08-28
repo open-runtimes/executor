@@ -127,15 +127,37 @@ $register->set('statsHost', function () {
     return $table;
 });
 
-/** Set Resources */
-Http::setResource('register', fn () => $register);
-Http::setResource('orchestration', fn (Registry $register) => $register->get('orchestration'), ['register']);
-Http::setResource('activeRuntimes', fn (Registry $register) => $register->get('activeRuntimes'), ['register']);
-Http::setResource('logger', fn (Registry $register) => $register->get('logger'), ['register']);
-Http::setResource('statsContainers', fn (Registry $register) => $register->get('statsContainers'), ['register']);
-Http::setResource('statsHost', fn (Registry $register) => $register->get('statsHost'), ['register']);
+/**
+ * Create and store Docker networks used for communication between executor and runtimes
+ */
+$register->set('networks', function () use ($orchestration) {
+    $networks = explode(',', str_replace(' ', '', Http::getEnv('OPR_EXECUTOR_NETWORK') ?: 'executor_runtimes'));
+    $createdNetworks = [];
+    foreach ($networks as $network) {
+        if (!$orchestration->networkExists($network)) {
+            try {
+                $orchestration->createNetwork($network, false);
+                Console::success("Created network: $network");
+            } catch (Exception $e) {
+                Console::error("Failed to create network $network: " . $e->getMessage());
+            }
+        } else {
+            Console::info("Network $network already exists");
+        }
+        $createdNetworks[] = $network;
+    }
+    return $createdNetworks;
+});
 
-Http::setResource('log', fn () => new Log());
+/** Set Resources */
+Http::setResource('register', fn() => $register);
+Http::setResource('orchestration', fn(Registry $register) => $register->get('orchestration'), ['register']);
+Http::setResource('activeRuntimes', fn(Registry $register) => $register->get('activeRuntimes'), ['register']);
+Http::setResource('logger', fn(Registry $register) => $register->get('logger'), ['register']);
+Http::setResource('statsContainers', fn(Registry $register) => $register->get('statsContainers'), ['register']);
+Http::setResource('statsHost', fn(Registry $register) => $register->get('statsHost'), ['register']);
+Http::setResource('networks', fn(Registry $register) => $register->get('networks'), ['register']);
+Http::setResource('log', fn() => new Log());
 
 function logError(Log $log, Throwable $error, string $action, Logger $logger = null, Route $route = null): void
 {
@@ -261,9 +283,9 @@ function getStorageDevice(string $root): Device
     }
 }
 
-function removeAllRuntimes(Table $activeRuntimes, Orchestration $orchestration): void
+function cleanUp(Table $activeRuntimes, Orchestration $orchestration, array $networks = []): void
 {
-    Console::log('Cleaning up containers...');
+    Console::log('Cleaning up containers and networks...');
 
     $functionsToRemove = $orchestration->list(['label' => 'openruntimes-executor=' . System::getHostname()]);
 
@@ -271,16 +293,15 @@ function removeAllRuntimes(Table $activeRuntimes, Orchestration $orchestration):
         Console::info('No containers found to clean up.');
     }
 
-    $callables = [];
-
+    $runtimesToRemove = [];
     foreach ($functionsToRemove as $container) {
-        $callables[] = function () use ($container, $activeRuntimes, $orchestration) {
+        $runtimesToRemove[] = function () use ($container, $activeRuntimes, $orchestration) {
             try {
                 $orchestration->remove($container->getId(), true);
 
                 $activeRuntimeId = $container->getName();
 
-                if (!$activeRuntimes->exists($activeRuntimeId)) {
+                if ($activeRuntimes->exists($activeRuntimeId)) {
                     $activeRuntimes->del($activeRuntimeId);
                 }
 
@@ -291,8 +312,20 @@ function removeAllRuntimes(Table $activeRuntimes, Orchestration $orchestration):
             }
         };
     }
+    batch($runtimesToRemove);
 
-    batch($callables);
+    $networksToRemove = [];
+    foreach ($networks as $network) {
+        $networksToRemove[] = function () use ($orchestration, $network) {
+            try {
+                $orchestration->removeNetwork($network, true);
+                Console::success("Removed network: $network");
+            } catch (Exception $e) {
+                Console::error("Failed to remove network $network: " . $e->getMessage());
+            }
+        };
+    }
+    batch($networksToRemove);
 
     Console::success('Cleanup finished.');
 }
@@ -392,7 +425,12 @@ Http::post('/v1/runtimes')
     ->inject('activeRuntimes')
     ->inject('response')
     ->inject('log')
+<<<<<<< HEAD
     ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
+=======
+    ->inject('networks')
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log, array $networks) {
+>>>>>>> 618370d (feat: executor to manage its own networks)
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
         $runtimeHostname = \uniqid();
@@ -467,7 +505,7 @@ Http::post('/v1/runtimes')
                 ]
             });
 
-            $variables = array_map(fn ($v) => strval($v), $variables);
+            $variables = array_map(fn($v) => strval($v), $variables);
             $orchestration
                 ->setCpus($cpus)
                 ->setMemory($memory);
@@ -487,8 +525,7 @@ Http::post('/v1/runtimes')
             $codeMountPath = $version === 'v2' ? '/usr/code' : '/mnt/code';
             $workdir = $version === 'v2' ? '/usr/code' : '';
 
-            $openruntimes_networks = explode(',', str_replace(' ', '', Http::getEnv('OPR_EXECUTOR_NETWORK') ?: 'executor_runtimes'));
-            $openruntimes_network = $openruntimes_networks[array_rand($openruntimes_networks)];
+            $network = $networks[array_rand($networks)];
 
             /** Keep the container alive if we have commands to be executed */
             $containerId = $orchestration->run(
@@ -501,12 +538,19 @@ Http::post('/v1/runtimes')
                     'openruntimes-executor' => System::getHostname(),
                     'openruntimes-runtime-id' => $runtimeId
                 ],
+<<<<<<< HEAD
                 volumes: [
                     \dirname($tmpSource) . ':/tmp:rw',
                     \dirname($tmpBuild) . ':' . $codeMountPath . ':rw'
                 ],
                 network: \strval($openruntimes_network) ?: 'executor_runtimes',
                 workdir: $workdir
+=======
+                volumes: $volumes,
+                network: \strval($network) ?: 'executor_runtimes',
+                workdir: $workdir,
+                restart: $restartPolicy
+>>>>>>> 618370d (feat: executor to manage its own networks)
             );
 
             if (empty($containerId)) {
@@ -806,7 +850,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                         if ($statusCode >= 500) {
                             $error = $body['message'];
-                        // Continues to retry logic
+                            // Continues to retry logic
                         } elseif ($statusCode >= 400) {
                             $error = $body['message'];
                             throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
@@ -996,8 +1040,45 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     ];
                 }
 
+<<<<<<< HEAD
                 $stdout = $responseHeaders['x-open-runtimes-logs'] ?? '';
                 $stderr = $responseHeaders['x-open-runtimes-errors'] ?? '';
+=======
+                // Extract logs and errors from file based on fileId in header
+                $fileId = $responseHeaders['x-open-runtimes-log-id'] ?? '';
+                $logs = '';
+                $errors = '';
+                if (!empty($fileId)) {
+                    $logFile = '/tmp/' . $runtimeName . '/logs/' . $fileId . '_logs.log';
+                    $errorFile = '/tmp/' . $runtimeName . '/logs/' . $fileId . '_errors.log';
+
+                    $logDevice = new Local();
+
+                    if ($logDevice->exists($logFile)) {
+                        if ($logDevice->getFileSize($logFile) > MAX_LOG_SIZE) {
+                            $maxToRead = MAX_LOG_SIZE;
+                            $logs = $logDevice->read($logFile, 0, $maxToRead);
+                            $logs .= "\nLog file has been truncated to 5MB.";
+                        } else {
+                            $logs = $logDevice->read($logFile);
+                        }
+
+                        $logDevice->delete($logFile);
+                    }
+
+                    if ($logDevice->exists($errorFile)) {
+                        if ($logDevice->getFileSize($errorFile) > MAX_LOG_SIZE) {
+                            $maxToRead = MAX_LOG_SIZE;
+                            $errors = $logDevice->read($errorFile, 0, $maxToRead);
+                            $errors .= "\nError file has been truncated to 5MB.";
+                        } else {
+                            $errors = $logDevice->read($errorFile);
+                        }
+
+                        $logDevice->delete($errorFile);
+                    }
+                }
+>>>>>>> 618370d (feat: executor to manage its own networks)
 
                 $outputHeaders = [];
                 foreach ($responseHeaders as $key => $value) {
@@ -1198,15 +1279,14 @@ run(function () use ($register) {
     $statsContainers = $register->get('statsContainers');
     $activeRuntimes = $register->get('activeRuntimes');
     $statsHost = $register->get('statsHost');
+    $networks = $register->get('networks');
 
     /**
-     * Remove residual runtimes
+     * Remove residual runtimes and networks
      */
-    Console::info('Removing orphan runtimes...');
-
-    removeAllRuntimes($activeRuntimes, $orchestration);
-
-    Console::success("Orphan runtimes removal finished.");
+    Console::info('Removing orphan runtimes and networks...');
+    cleanUp($activeRuntimes, $orchestration);
+    Console::success("Orphan runtimes and networks removal finished.");
 
     // TODO: Remove all /tmp folders starting with System::hostname() -
 
@@ -1333,7 +1413,7 @@ run(function () use ($register) {
         }
 
         if ($recursive) {
-            Timer::after(1000, fn () => getStats($statsHost, $statsContainers, $orchestration, $recursive));
+            Timer::after(1000, fn() => getStats($statsHost, $statsContainers, $orchestration, $recursive));
         }
     }
 
@@ -1352,10 +1432,10 @@ run(function () use ($register) {
 
     Console::success('Executor is ready.');
 
-    Process::signal(SIGINT, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
-    Process::signal(SIGQUIT, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
-    Process::signal(SIGKILL, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
-    Process::signal(SIGTERM, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
+    Process::signal(SIGINT, fn() => cleanUp($activeRuntimes, $orchestration, $networks));
+    Process::signal(SIGQUIT, fn() => cleanUp($activeRuntimes, $orchestration, $networks));
+    Process::signal(SIGKILL, fn() => cleanUp($activeRuntimes, $orchestration, $networks));
+    Process::signal(SIGTERM, fn() => cleanUp($activeRuntimes, $orchestration, $networks));
 
     $http->start();
 });
