@@ -14,14 +14,14 @@ version: '3'
 
 services:
   openruntimes-executor:
-    container_name: openruntimes-executor
-    hostname: executor
+    container_name: $OPR_EXECUTOR_NAME
+    hostname: $OPR_EXECUTOR_NAME
     <<: *x-logging
     stop_signal: SIGINT
     build:
       context: .
-    networks:
-      openruntimes-runtimes:
+    # networks:
+    #   openruntimes-runtimes:
     ports:
       - 9900:80
     volumes:
@@ -40,15 +40,16 @@ services:
       - OPR_EXECUTOR_MAINTENANCE_INTERVAL
       - OPR_EXECUTOR_NETWORK
       - OPR_EXECUTOR_SECRET
+      - OPR_EXECUTOR_NAME
       - OPR_EXECUTOR_LOGGING_PROVIDER
       - OPR_EXECUTOR_LOGGING_CONFIG
       - OPR_EXECUTOR_DOCKER_HUB_USERNAME
       - OPR_EXECUTOR_DOCKER_HUB_PASSWORD
       - OPR_EXECUTOR_RUNTIME_VERSIONS
 
-networks:
-  openruntimes-runtimes:
-    name: openruntimes-runtimes
+# networks:
+#   openruntimes-runtimes:
+#     name: openruntimes-runtimes
 
 volumes:
   openruntimes-builds:

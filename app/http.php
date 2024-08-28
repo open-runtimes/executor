@@ -129,13 +129,13 @@ $register->set('statsHost', function () {
 
 
 /** Set Resources */
-Http::setResource('log', fn () => new Log());
-Http::setResource('register', fn () => $register);
-Http::setResource('orchestration', fn (Registry $register) => $register->get('orchestration'), ['register']);
-Http::setResource('activeRuntimes', fn (Registry $register) => $register->get('activeRuntimes'), ['register']);
-Http::setResource('logger', fn (Registry $register) => $register->get('logger'), ['register']);
-Http::setResource('statsContainers', fn (Registry $register) => $register->get('statsContainers'), ['register']);
-Http::setResource('statsHost', fn (Registry $register) => $register->get('statsHost'), ['register']);
+Http::setResource('log', fn() => new Log());
+Http::setResource('register', fn() => $register);
+Http::setResource('orchestration', fn(Registry $register) => $register->get('orchestration'), ['register']);
+Http::setResource('activeRuntimes', fn(Registry $register) => $register->get('activeRuntimes'), ['register']);
+Http::setResource('logger', fn(Registry $register) => $register->get('logger'), ['register']);
+Http::setResource('statsContainers', fn(Registry $register) => $register->get('statsContainers'), ['register']);
+Http::setResource('statsHost', fn(Registry $register) => $register->get('statsHost'), ['register']);
 
 function logError(Log $log, Throwable $error, string $action, Logger $logger = null, Route $route = null): void
 {
@@ -263,15 +263,16 @@ function getStorageDevice(string $root): Device
 
 function createNetworks(Orchestration $orchestration, array $networks): array
 {
-    Console::info('Creating networks...');
+    $containerName = Http::getEnv('OPR_EXECUTOR_NAME', 'executor');
     $createdNetworks = [];
     $jobs = [];
 
     foreach ($networks as $network) {
-        $jobs[] = function () use ($orchestration, $network, &$createdNetworks) {
+        $jobs[] = function () use ($orchestration, $network, $containerName, &$createdNetworks) {
             if (!$orchestration->networkExists($network)) {
                 try {
                     $orchestration->createNetwork($network, false);
+                    $orchestration->networkConnect($containerName, $network);
                     Console::success("Created network: $network");
                     $createdNetworks[] = $network;
                 } catch (Exception $e) {
@@ -506,7 +507,7 @@ Http::post('/v1/runtimes')
                 ]
             });
 
-            $variables = array_map(fn ($v) => strval($v), $variables);
+            $variables = array_map(fn($v) => strval($v), $variables);
             $orchestration
                 ->setCpus($cpus)
                 ->setMemory($memory);
@@ -845,7 +846,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                         if ($statusCode >= 500) {
                             $error = $body['message'];
-                        // Continues to retry logic
+                            // Continues to retry logic
                         } elseif ($statusCode >= 400) {
                             $error = $body['message'];
                             throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
@@ -1253,7 +1254,7 @@ run(function () use ($register) {
      */
     Console::info('Creating networks...');
     $createdNetworks = createNetworks($orchestration, $networks);
-    Http::setResource('networks', $createdNetworks);
+    Http::setResource('networks', fn() => $createdNetworks);
 
     /**
      * Warmup: make sure images are ready to run fast 🚀
@@ -1378,7 +1379,7 @@ run(function () use ($register) {
         }
 
         if ($recursive) {
-            Timer::after(1000, fn () => getStats($statsHost, $statsContainers, $orchestration, $recursive));
+            Timer::after(1000, fn() => getStats($statsHost, $statsContainers, $orchestration, $recursive));
         }
     }
 
@@ -1397,10 +1398,10 @@ run(function () use ($register) {
 
     Console::success('Executor is ready.');
 
-    Process::signal(SIGINT, fn () => cleanUp($orchestration, $activeRuntimes, $createdNetworks));
-    Process::signal(SIGQUIT, fn () => cleanUp($orchestration, $activeRuntimes, $createdNetworks));
-    Process::signal(SIGKILL, fn () => cleanUp($orchestration, $activeRuntimes, $createdNetworks));
-    Process::signal(SIGTERM, fn () => cleanUp($orchestration, $activeRuntimes, $createdNetworks));
+    Process::signal(SIGINT, fn() => cleanUp($orchestration, $activeRuntimes, $createdNetworks));
+    Process::signal(SIGQUIT, fn() => cleanUp($orchestration, $activeRuntimes, $createdNetworks));
+    Process::signal(SIGKILL, fn() => cleanUp($orchestration, $activeRuntimes, $createdNetworks));
+    Process::signal(SIGTERM, fn() => cleanUp($orchestration, $activeRuntimes, $createdNetworks));
 
     $http->start();
 });
