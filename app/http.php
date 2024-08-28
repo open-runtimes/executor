@@ -263,7 +263,7 @@ function getStorageDevice(string $root): Device
 
 /**
  * @param array<string> $networks
- * 
+ *
  * @return array<string>
  */
 function createNetworks(Orchestration $orchestration, array $networks): array
