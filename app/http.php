@@ -150,14 +150,14 @@ $register->set('networks', function () use ($orchestration) {
 });
 
 /** Set Resources */
-Http::setResource('register', fn() => $register);
-Http::setResource('orchestration', fn(Registry $register) => $register->get('orchestration'), ['register']);
-Http::setResource('activeRuntimes', fn(Registry $register) => $register->get('activeRuntimes'), ['register']);
-Http::setResource('logger', fn(Registry $register) => $register->get('logger'), ['register']);
-Http::setResource('statsContainers', fn(Registry $register) => $register->get('statsContainers'), ['register']);
-Http::setResource('statsHost', fn(Registry $register) => $register->get('statsHost'), ['register']);
-Http::setResource('networks', fn(Registry $register) => $register->get('networks'), ['register']);
-Http::setResource('log', fn() => new Log());
+Http::setResource('register', fn () => $register);
+Http::setResource('orchestration', fn (Registry $register) => $register->get('orchestration'), ['register']);
+Http::setResource('activeRuntimes', fn (Registry $register) => $register->get('activeRuntimes'), ['register']);
+Http::setResource('logger', fn (Registry $register) => $register->get('logger'), ['register']);
+Http::setResource('statsContainers', fn (Registry $register) => $register->get('statsContainers'), ['register']);
+Http::setResource('statsHost', fn (Registry $register) => $register->get('statsHost'), ['register']);
+Http::setResource('networks', fn (Registry $register) => $register->get('networks'), ['register']);
+Http::setResource('log', fn () => new Log());
 
 function logError(Log $log, Throwable $error, string $action, Logger $logger = null, Route $route = null): void
 {
@@ -425,12 +425,8 @@ Http::post('/v1/runtimes')
     ->inject('activeRuntimes')
     ->inject('response')
     ->inject('log')
-<<<<<<< HEAD
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
-=======
     ->inject('networks')
     ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log, array $networks) {
->>>>>>> 618370d (feat: executor to manage its own networks)
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
         $runtimeHostname = \uniqid();
@@ -505,7 +501,7 @@ Http::post('/v1/runtimes')
                 ]
             });
 
-            $variables = array_map(fn($v) => strval($v), $variables);
+            $variables = array_map(fn ($v) => strval($v), $variables);
             $orchestration
                 ->setCpus($cpus)
                 ->setMemory($memory);
@@ -538,19 +534,12 @@ Http::post('/v1/runtimes')
                     'openruntimes-executor' => System::getHostname(),
                     'openruntimes-runtime-id' => $runtimeId
                 ],
-<<<<<<< HEAD
                 volumes: [
                     \dirname($tmpSource) . ':/tmp:rw',
                     \dirname($tmpBuild) . ':' . $codeMountPath . ':rw'
                 ],
-                network: \strval($openruntimes_network) ?: 'executor_runtimes',
+                network: $network,
                 workdir: $workdir
-=======
-                volumes: $volumes,
-                network: \strval($network) ?: 'executor_runtimes',
-                workdir: $workdir,
-                restart: $restartPolicy
->>>>>>> 618370d (feat: executor to manage its own networks)
             );
 
             if (empty($containerId)) {
@@ -850,7 +839,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                         if ($statusCode >= 500) {
                             $error = $body['message'];
-                            // Continues to retry logic
+                        // Continues to retry logic
                         } elseif ($statusCode >= 400) {
                             $error = $body['message'];
                             throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
@@ -1040,45 +1029,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     ];
                 }
 
-<<<<<<< HEAD
                 $stdout = $responseHeaders['x-open-runtimes-logs'] ?? '';
                 $stderr = $responseHeaders['x-open-runtimes-errors'] ?? '';
-=======
-                // Extract logs and errors from file based on fileId in header
-                $fileId = $responseHeaders['x-open-runtimes-log-id'] ?? '';
-                $logs = '';
-                $errors = '';
-                if (!empty($fileId)) {
-                    $logFile = '/tmp/' . $runtimeName . '/logs/' . $fileId . '_logs.log';
-                    $errorFile = '/tmp/' . $runtimeName . '/logs/' . $fileId . '_errors.log';
-
-                    $logDevice = new Local();
-
-                    if ($logDevice->exists($logFile)) {
-                        if ($logDevice->getFileSize($logFile) > MAX_LOG_SIZE) {
-                            $maxToRead = MAX_LOG_SIZE;
-                            $logs = $logDevice->read($logFile, 0, $maxToRead);
-                            $logs .= "\nLog file has been truncated to 5MB.";
-                        } else {
-                            $logs = $logDevice->read($logFile);
-                        }
-
-                        $logDevice->delete($logFile);
-                    }
-
-                    if ($logDevice->exists($errorFile)) {
-                        if ($logDevice->getFileSize($errorFile) > MAX_LOG_SIZE) {
-                            $maxToRead = MAX_LOG_SIZE;
-                            $errors = $logDevice->read($errorFile, 0, $maxToRead);
-                            $errors .= "\nError file has been truncated to 5MB.";
-                        } else {
-                            $errors = $logDevice->read($errorFile);
-                        }
-
-                        $logDevice->delete($errorFile);
-                    }
-                }
->>>>>>> 618370d (feat: executor to manage its own networks)
 
                 $outputHeaders = [];
                 foreach ($responseHeaders as $key => $value) {
@@ -1413,7 +1365,7 @@ run(function () use ($register) {
         }
 
         if ($recursive) {
-            Timer::after(1000, fn() => getStats($statsHost, $statsContainers, $orchestration, $recursive));
+            Timer::after(1000, fn () => getStats($statsHost, $statsContainers, $orchestration, $recursive));
         }
     }
 
@@ -1432,10 +1384,10 @@ run(function () use ($register) {
 
     Console::success('Executor is ready.');
 
-    Process::signal(SIGINT, fn() => cleanUp($activeRuntimes, $orchestration, $networks));
-    Process::signal(SIGQUIT, fn() => cleanUp($activeRuntimes, $orchestration, $networks));
-    Process::signal(SIGKILL, fn() => cleanUp($activeRuntimes, $orchestration, $networks));
-    Process::signal(SIGTERM, fn() => cleanUp($activeRuntimes, $orchestration, $networks));
+    Process::signal(SIGINT, fn () => cleanUp($activeRuntimes, $orchestration, $networks));
+    Process::signal(SIGQUIT, fn () => cleanUp($activeRuntimes, $orchestration, $networks));
+    Process::signal(SIGKILL, fn () => cleanUp($activeRuntimes, $orchestration, $networks));
+    Process::signal(SIGTERM, fn () => cleanUp($activeRuntimes, $orchestration, $networks));
 
     $http->start();
 });
