@@ -14,7 +14,7 @@ version: '3'
 
 services:
   openruntimes-executor:
-    hostname: $OPR_EXECUTOR_NAME
+    hostname: executor
     image: $OPR_EXECUTOR_IMAGE
     <<: *x-logging
     stop_signal: SIGINT
