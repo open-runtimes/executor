@@ -261,9 +261,14 @@ function getStorageDevice(string $root): Device
     }
 }
 
+/**
+ * @param array<string> $networks
+ * 
+ * @return array<string>
+ */
 function createNetworks(Orchestration $orchestration, array $networks): array
 {
-    $containerName = Http::getEnv('OPR_EXECUTOR_NAME', 'executor');
+    $containerName = Http::getEnv('OPR_EXECUTOR_NAME') ?? 'executor';
     $createdNetworks = [];
     $jobs = [];
 
@@ -289,6 +294,9 @@ function createNetworks(Orchestration $orchestration, array $networks): array
     return $createdNetworks;
 }
 
+/**
+ * @param array<string> $networks
+ */
 function cleanUp(Orchestration $orchestration, Table $activeRuntimes, array $networks = []): void
 {
     Console::log('Cleaning up containers and networks...');
@@ -324,7 +332,7 @@ function cleanUp(Orchestration $orchestration, Table $activeRuntimes, array $net
     foreach ($networks as $network) {
         $jobsNetworks[] = function () use ($orchestration, $network) {
             try {
-                $orchestration->removeNetwork($network, true);
+                $orchestration->removeNetwork($network);
                 Console::success("Removed network: $network");
             } catch (Exception $e) {
                 Console::error("Failed to remove network $network: " . $e->getMessage());
