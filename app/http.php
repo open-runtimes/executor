@@ -127,37 +127,15 @@ $register->set('statsHost', function () {
     return $table;
 });
 
-/**
- * Create and store Docker networks used for communication between executor and runtimes
- */
-$register->set('networks', function () use ($orchestration) {
-    $networks = explode(',', str_replace(' ', '', Http::getEnv('OPR_EXECUTOR_NETWORK') ?: 'executor_runtimes'));
-    $createdNetworks = [];
-    foreach ($networks as $network) {
-        if (!$orchestration->networkExists($network)) {
-            try {
-                $orchestration->createNetwork($network, false);
-                Console::success("Created network: $network");
-            } catch (Exception $e) {
-                Console::error("Failed to create network $network: " . $e->getMessage());
-            }
-        } else {
-            Console::info("Network $network already exists");
-        }
-        $createdNetworks[] = $network;
-    }
-    return $createdNetworks;
-});
 
 /** Set Resources */
-Http::setResource('log', fn () => new Log());
-Http::setResource('register', fn () => $register);
-Http::setResource('orchestration', fn (Registry $register) => $register->get('orchestration'), ['register']);
-Http::setResource('activeRuntimes', fn (Registry $register) => $register->get('activeRuntimes'), ['register']);
-Http::setResource('logger', fn (Registry $register) => $register->get('logger'), ['register']);
-Http::setResource('statsContainers', fn (Registry $register) => $register->get('statsContainers'), ['register']);
-Http::setResource('statsHost', fn (Registry $register) => $register->get('statsHost'), ['register']);
-Http::setResource('networks', fn (Registry $register) => $register->get('networks'), ['register']);
+Http::setResource('log', fn() => new Log());
+Http::setResource('register', fn() => $register);
+Http::setResource('orchestration', fn(Registry $register) => $register->get('orchestration'), ['register']);
+Http::setResource('activeRuntimes', fn(Registry $register) => $register->get('activeRuntimes'), ['register']);
+Http::setResource('logger', fn(Registry $register) => $register->get('logger'), ['register']);
+Http::setResource('statsContainers', fn(Registry $register) => $register->get('statsContainers'), ['register']);
+Http::setResource('statsHost', fn(Registry $register) => $register->get('statsHost'), ['register']);
 
 function logError(Log $log, Throwable $error, string $action, Logger $logger = null, Route $route = null): void
 {
@@ -283,7 +261,34 @@ function getStorageDevice(string $root): Device
     }
 }
 
-function cleanUp(Table $activeRuntimes, Orchestration $orchestration, array $networks = []): void
+function createNetworks(Orchestration $orchestration, array $networks): array
+{
+    Console::info('Creating networks...');
+    $createdNetworks = [];
+    $networkJobs = [];
+
+    foreach ($networks as $network) {
+        $networkJobs[] = function () use ($orchestration, $network, &$createdNetworks) {
+            if (!$orchestration->networkExists($network)) {
+                try {
+                    $orchestration->createNetwork($network, false);
+                    Console::success("Created network: $network");
+                    $createdNetworks[] = $network;
+                } catch (Exception $e) {
+                    Console::error("Failed to create network $network: " . $e->getMessage());
+                }
+            } else {
+                Console::info("Network $network already exists");
+                $createdNetworks[] = $network;
+            }
+        };
+    }
+
+    batch($networkJobs);
+    return $createdNetworks;
+}
+
+function cleanUp(Orchestration $orchestration, Table $activeRuntimes, array $networks = []): void
 {
     Console::log('Cleaning up containers and networks...');
 
@@ -501,7 +506,7 @@ Http::post('/v1/runtimes')
                 ]
             });
 
-            $variables = array_map(fn ($v) => strval($v), $variables);
+            $variables = array_map(fn($v) => strval($v), $variables);
             $orchestration
                 ->setCpus($cpus)
                 ->setMemory($memory);
@@ -551,7 +556,8 @@ Http::post('/v1/runtimes')
              */
             if (!empty($command)) {
                 $commands = [
-                    'sh', '-c',
+                    'sh',
+                    '-c',
                     'touch /var/tmp/logs.txt && (' . $command . ') >> /var/tmp/logs.txt 2>&1 && cat /var/tmp/logs.txt'
                 ];
 
@@ -619,7 +625,7 @@ Http::post('/v1/runtimes')
                 $logs = '';
                 $status = $orchestration->execute(
                     name: $runtimeName,
-                    command: [ 'sh', '-c', 'cat /var/tmp/logs.txt' ],
+                    command: ['sh', '-c', 'cat /var/tmp/logs.txt'],
                     output: $logs,
                     timeout: 15
                 );
@@ -627,7 +633,7 @@ Http::post('/v1/runtimes')
                 if (!empty($logs)) {
                     $error = $th->getMessage() . $logs;
                 }
-            } catch(Throwable $err) {
+            } catch (Throwable $err) {
                 // Ignore, use fallback error message
             }
 
@@ -839,7 +845,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                         if ($statusCode >= 500) {
                             $error = $body['message'];
-                        // Continues to retry logic
+                            // Continues to retry logic
                         } elseif ($statusCode >= 400) {
                             $error = $body['message'];
                             throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
@@ -1237,10 +1243,19 @@ run(function () use ($register) {
      * Remove residual runtimes and networks
      */
     Console::info('Removing orphan runtimes and networks...');
-    cleanUp($activeRuntimes, $orchestration);
+    cleanUp($orchestration, $activeRuntimes);
     Console::success("Orphan runtimes and networks removal finished.");
 
     // TODO: Remove all /tmp folders starting with System::hostname() -
+
+    /** 
+     * Create and store Docker Bridge networks used for communication between executor and runtimes
+     */
+    Console::info('Creating networks...');
+    $networks = explode(',', str_replace(' ', '', Http::getEnv('OPR_EXECUTOR_NETWORK') ?: 'executor_runtimes'));
+    $createdNetworks = createNetworks($orchestration, $networks);
+
+    Http::setResource('networks', $createdNetworks);
 
     /**
      * Warmup: make sure images are ready to run fast 🚀
@@ -1365,7 +1380,7 @@ run(function () use ($register) {
         }
 
         if ($recursive) {
-            Timer::after(1000, fn () => getStats($statsHost, $statsContainers, $orchestration, $recursive));
+            Timer::after(1000, fn() => getStats($statsHost, $statsContainers, $orchestration, $recursive));
         }
     }
 
@@ -1384,10 +1399,10 @@ run(function () use ($register) {
 
     Console::success('Executor is ready.');
 
-    Process::signal(SIGINT, fn () => cleanUp($activeRuntimes, $orchestration, $networks));
-    Process::signal(SIGQUIT, fn () => cleanUp($activeRuntimes, $orchestration, $networks));
-    Process::signal(SIGKILL, fn () => cleanUp($activeRuntimes, $orchestration, $networks));
-    Process::signal(SIGTERM, fn () => cleanUp($activeRuntimes, $orchestration, $networks));
+    Process::signal(SIGINT, fn() => cleanUp($orchestration, $activeRuntimes, $createdNetworks));
+    Process::signal(SIGQUIT, fn() => cleanUp($orchestration, $activeRuntimes, $createdNetworks));
+    Process::signal(SIGKILL, fn() => cleanUp($orchestration, $activeRuntimes, $createdNetworks));
+    Process::signal(SIGTERM, fn() => cleanUp($orchestration, $activeRuntimes, $createdNetworks));
 
     $http->start();
 });
