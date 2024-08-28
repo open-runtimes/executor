@@ -298,9 +298,9 @@ function cleanUp(Orchestration $orchestration, Table $activeRuntimes, array $net
         Console::info('No containers found to clean up.');
     }
 
-    $runtimesToRemove = [];
+    $jobsRuntimes = [];
     foreach ($functionsToRemove as $container) {
-        $runtimesToRemove[] = function () use ($container, $activeRuntimes, $orchestration) {
+        $jobsRuntimes[] = function () use ($container, $activeRuntimes, $orchestration) {
             try {
                 $orchestration->remove($container->getId(), true);
 
@@ -317,11 +317,11 @@ function cleanUp(Orchestration $orchestration, Table $activeRuntimes, array $net
             }
         };
     }
-    batch($runtimesToRemove);
+    batch($jobsRuntimes);
 
-    $networksToRemove = [];
+    $jobsNetworks = [];
     foreach ($networks as $network) {
-        $networksToRemove[] = function () use ($orchestration, $network) {
+        $jobsNetworks[] = function () use ($orchestration, $network) {
             try {
                 $orchestration->removeNetwork($network, true);
                 Console::success("Removed network: $network");
@@ -330,7 +330,7 @@ function cleanUp(Orchestration $orchestration, Table $activeRuntimes, array $net
             }
         };
     }
-    batch($networksToRemove);
+    batch($jobsNetworks);
 
     Console::success('Cleanup finished.');
 }
