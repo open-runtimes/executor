@@ -19,10 +19,10 @@ services:
     stop_signal: SIGINT
     build:
       context: .
-      args: 
-        - OPR_EXECUTOR_VERSION
     ports:
       - 9900:80
+    labels:
+      openruntimes-image: $OPR_EXECUTOR_IMAGE
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./app:/usr/local/app:rw
@@ -41,7 +41,7 @@ services:
       - OPR_EXECUTOR_MAINTENANCE_INTERVAL
       - OPR_EXECUTOR_NETWORK
       - OPR_EXECUTOR_SECRET
-      - OPR_EXECUTOR_VERSION
+      - OPR_EXECUTOR_IMAGE
       - OPR_EXECUTOR_LOGGING_PROVIDER
       - OPR_EXECUTOR_LOGGING_CONFIG
       - OPR_EXECUTOR_DOCKER_HUB_USERNAME
