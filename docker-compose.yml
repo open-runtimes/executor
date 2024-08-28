@@ -14,8 +14,8 @@ version: '3'
 
 services:
   openruntimes-executor:
-    container_name: $OPR_EXECUTOR_NAME
-    hostname: $OPR_EXECUTOR_NAME
+    hostname: executor
+    image: $OPR_EXECUTOR_IMAGE
     <<: *x-logging
     stop_signal: SIGINT
     build:
@@ -42,7 +42,7 @@ services:
       - OPR_EXECUTOR_MAINTENANCE_INTERVAL
       - OPR_EXECUTOR_NETWORK
       - OPR_EXECUTOR_SECRET
-      - OPR_EXECUTOR_NAME
+      - OPR_EXECUTOR_IMAGE
       - OPR_EXECUTOR_LOGGING_PROVIDER
       - OPR_EXECUTOR_LOGGING_CONFIG
       - OPR_EXECUTOR_DOCKER_HUB_USERNAME
