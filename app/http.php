@@ -49,7 +49,7 @@ ini_set('memory_limit', '-1');
 
 Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
 
-Http::setMode((string) Http::getEnv('OPR_EXECUTOR_ENV', Http::MODE_TYPE_PRODUCTION));
+Http::setMode((string)Http::getEnv('OPR_EXECUTOR_ENV', Http::MODE_TYPE_PRODUCTION));
 
 // Setup Registry
 $register = new Registry();
@@ -81,8 +81,8 @@ $register->set('logger', function () {
  * Create orchestration
  */
 $register->set('orchestration', function () {
-    $dockerUser = (string) Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
-    $dockerPass = (string) Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
+    $dockerUser = (string)Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
+    $dockerPass = (string)Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
     $orchestration = new Orchestration(new DockerCLI($dockerUser, $dockerPass));
 
     return $orchestration;
@@ -110,7 +110,7 @@ $register->set('activeRuntimes', function () {
  * Create a Swoole table of usage stats (separate for host and containers)
  */
 $register->set('statsContainers', function () {
-    $table = new Table(1024);
+    $table = new Table(4096);
 
     $table->column('usage', Table::TYPE_FLOAT, 8);
     $table->create();
@@ -119,7 +119,7 @@ $register->set('statsContainers', function () {
 });
 
 $register->set('statsHost', function () {
-    $table = new Table(1024);
+    $table = new Table(4096);
 
     $table->column('usage', Table::TYPE_FLOAT, 8);
     $table->create();
@@ -127,15 +127,15 @@ $register->set('statsHost', function () {
     return $table;
 });
 
+
 /** Set Resources */
+Http::setResource('log', fn () => new Log());
 Http::setResource('register', fn () => $register);
 Http::setResource('orchestration', fn (Registry $register) => $register->get('orchestration'), ['register']);
 Http::setResource('activeRuntimes', fn (Registry $register) => $register->get('activeRuntimes'), ['register']);
 Http::setResource('logger', fn (Registry $register) => $register->get('logger'), ['register']);
 Http::setResource('statsContainers', fn (Registry $register) => $register->get('statsContainers'), ['register']);
 Http::setResource('statsHost', fn (Registry $register) => $register->get('statsHost'), ['register']);
-
-Http::setResource('log', fn () => new Log());
 
 function logError(Log $log, Throwable $error, string $action, Logger $logger = null, Route $route = null): void
 {
@@ -145,7 +145,7 @@ function logError(Log $log, Throwable $error, string $action, Logger $logger = n
     Console::error('[Error] Line: ' . $error->getLine());
 
     if ($logger && ($error->getCode() === 500 || $error->getCode() === 0)) {
-        $version = (string) Http::getEnv('OPR_EXECUTOR_VERSION', '');
+        $version = (string)Http::getEnv('OPR_EXECUTOR_VERSION', '');
         if (empty($version)) {
             $version = 'UNKNOWN';
         }
@@ -261,9 +261,61 @@ function getStorageDevice(string $root): Device
     }
 }
 
-function removeAllRuntimes(Table $activeRuntimes, Orchestration $orchestration): void
+
+/**
+ * @param array<string> $networks
+ *
+ * @return array<string>
+ */
+function createNetworks(Orchestration $orchestration, array $networks): array
 {
-    Console::log('Cleaning up containers...');
+    $image = Http::getEnv('OPR_EXECUTOR_IMAGE');
+    if (empty($image)) {
+        throw new \Exception('Variable OPR_EXECUTOR_IMAGE is not set');
+    }
+
+    $containers = $orchestration->list(['label' => "openruntimes-image=$image"]);
+
+    if (count($containers) < 1) {
+        $containerName = '';
+        Console::warning('No matching executor found. Networks will be created but the executor will need to be connected manually.');
+    } else {
+        $containerName = $containers[0]->getName();
+        Console::success('Found matching executor. Networks will be created and the executor will be connected automatically.');
+    }
+
+    $jobs = [];
+    $createdNetworks = [];
+    foreach ($networks as $network) {
+        $jobs[] = function () use ($orchestration, $network, $containerName, &$createdNetworks) {
+            if (!$orchestration->networkExists($network)) {
+                try {
+                    $orchestration->createNetwork($network, false);
+                    if (!empty($containerName)) {
+                        $orchestration->networkConnect($containerName, $network);
+                    }
+                    Console::success("Created network: $network");
+                    $createdNetworks[] = $network;
+                } catch (Exception $e) {
+                    Console::error("Failed to create network $network: " . $e->getMessage());
+                }
+            } else {
+                Console::info("Network $network already exists");
+                $createdNetworks[] = $network;
+            }
+        };
+    }
+
+    batch($jobs);
+    return $createdNetworks;
+}
+
+/**
+ * @param array<string> $networks
+ */
+function cleanUp(Orchestration $orchestration, Table $activeRuntimes, array $networks = []): void
+{
+    Console::log('Cleaning up containers and networks...');
 
     $functionsToRemove = $orchestration->list(['label' => 'openruntimes-executor=' . System::getHostname()]);
 
@@ -271,10 +323,9 @@ function removeAllRuntimes(Table $activeRuntimes, Orchestration $orchestration):
         Console::info('No containers found to clean up.');
     }
 
-    $callables = [];
-
+    $jobsRuntimes = [];
     foreach ($functionsToRemove as $container) {
-        $callables[] = function () use ($container, $activeRuntimes, $orchestration) {
+        $jobsRuntimes[] = function () use ($container, $activeRuntimes, $orchestration) {
             try {
                 $orchestration->remove($container->getId(), true);
 
@@ -291,8 +342,20 @@ function removeAllRuntimes(Table $activeRuntimes, Orchestration $orchestration):
             }
         };
     }
+    batch($jobsRuntimes);
 
-    batch($callables);
+    $jobsNetworks = [];
+    foreach ($networks as $network) {
+        $jobsNetworks[] = function () use ($orchestration, $network) {
+            try {
+                $orchestration->removeNetwork($network);
+                Console::success("Removed network: $network");
+            } catch (Exception $e) {
+                Console::error("Failed to remove network $network: " . $e->getMessage());
+            }
+        };
+    }
+    batch($jobsNetworks);
 
     Console::success('Cleanup finished.');
 }
@@ -388,11 +451,12 @@ Http::post('/v1/runtimes')
     ->param('cpus', 1.0, new FloatValidator(), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Comtainer RAM memory.', true)
     ->param('version', 'v3', new WhiteList(['v2', 'v3']), 'Runtime Open Runtime version.', true)
+    ->inject('networks')
     ->inject('orchestration')
     ->inject('activeRuntimes')
     ->inject('response')
     ->inject('log')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, array $networks, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
         $runtimeHostname = \uniqid();
@@ -454,18 +518,21 @@ Http::post('/v1/runtimes')
             /**
              * Create container
              */
-            $variables = \array_merge($variables, match ($version) {
-                'v2' => [
-                    'INTERNAL_RUNTIME_KEY' => $secret,
-                    'INTERNAL_RUNTIME_ENTRYPOINT' => $entrypoint,
-                    'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
-                ],
-                'v3' => [
-                    'OPEN_RUNTIMES_SECRET' => $secret,
-                    'OPEN_RUNTIMES_ENTRYPOINT' => $entrypoint,
-                    'OPEN_RUNTIMES_HOSTNAME' => System::getHostname()
-                ]
-            });
+            $variables = \array_merge(
+                $variables,
+                match ($version) {
+                    'v2' => [
+                        'INTERNAL_RUNTIME_KEY' => $secret,
+                        'INTERNAL_RUNTIME_ENTRYPOINT' => $entrypoint,
+                        'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
+                    ],
+                    'v3' => [
+                        'OPEN_RUNTIMES_SECRET' => $secret,
+                        'OPEN_RUNTIMES_ENTRYPOINT' => $entrypoint,
+                        'OPEN_RUNTIMES_HOSTNAME' => System::getHostname()
+                    ]
+                }
+            );
 
             $variables = array_map(fn ($v) => strval($v), $variables);
             $orchestration
@@ -487,8 +554,7 @@ Http::post('/v1/runtimes')
             $codeMountPath = $version === 'v2' ? '/usr/code' : '/mnt/code';
             $workdir = $version === 'v2' ? '/usr/code' : '';
 
-            $openruntimes_networks = explode(',', str_replace(' ', '', Http::getEnv('OPR_EXECUTOR_NETWORK') ?: 'executor_runtimes'));
-            $openruntimes_network = $openruntimes_networks[array_rand($openruntimes_networks)];
+            $network = $networks[array_rand($networks)];
 
             /** Keep the container alive if we have commands to be executed */
             $containerId = $orchestration->run(
@@ -505,7 +571,7 @@ Http::post('/v1/runtimes')
                     \dirname($tmpSource) . ':/tmp:rw',
                     \dirname($tmpBuild) . ':' . $codeMountPath . ':rw'
                 ],
-                network: \strval($openruntimes_network) ?: 'executor_runtimes',
+                network: $network,
                 workdir: $workdir
             );
 
@@ -518,7 +584,8 @@ Http::post('/v1/runtimes')
              */
             if (!empty($command)) {
                 $commands = [
-                    'sh', '-c',
+                    'sh',
+                    '-c',
                     'touch /var/tmp/logs.txt && (' . $command . ') >> /var/tmp/logs.txt 2>&1 && cat /var/tmp/logs.txt'
                 ];
 
@@ -586,7 +653,7 @@ Http::post('/v1/runtimes')
                 $logs = '';
                 $status = $orchestration->execute(
                     name: $runtimeName,
-                    command: [ 'sh', '-c', 'cat /var/tmp/logs.txt' ],
+                    command: ['sh', '-c', 'cat /var/tmp/logs.txt'],
                     output: $logs,
                     timeout: 15
                 );
@@ -594,7 +661,7 @@ Http::post('/v1/runtimes')
                 if (!empty($logs)) {
                     $error = $th->getMessage() . $logs;
                 }
-            } catch(Throwable $err) {
+            } catch (Throwable $err) {
                 // Ignore, use fallback error message
             }
 
@@ -1107,7 +1174,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $response
                 ->setStatusCode(Response::STATUS_CODE_OK)
                 ->setContentType(Response::CONTENT_TYPE_JSON, Response::CHARSET_UTF8)
-                ->send((string) $executionString);
+                ->send((string)$executionString);
         }
     );
 
@@ -1199,16 +1266,22 @@ run(function () use ($register) {
     $activeRuntimes = $register->get('activeRuntimes');
     $statsHost = $register->get('statsHost');
 
+    $networks = explode(',', Http::getEnv('OPR_EXECUTOR_NETWORK') ?? 'executor_runtimes');
     /**
-     * Remove residual runtimes
+     * Remove residual runtimes and networks
      */
-    Console::info('Removing orphan runtimes...');
-
-    removeAllRuntimes($activeRuntimes, $orchestration);
-
-    Console::success("Orphan runtimes removal finished.");
+    Console::info('Removing orphan runtimes and networks...');
+    cleanUp($orchestration, $activeRuntimes, $networks);
+    Console::success("Orphan runtimes and networks removal finished.");
 
     // TODO: Remove all /tmp folders starting with System::hostname() -
+
+    /**
+     * Create and store Docker Bridge networks used for communication between executor and runtimes
+     */
+    Console::info('Creating networks...');
+    $createdNetworks = createNetworks($orchestration, $networks);
+    Http::setResource('networks', fn () => $createdNetworks);
 
     /**
      * Warmup: make sure images are ready to run fast 🚀
@@ -1242,7 +1315,7 @@ run(function () use ($register) {
      * Run a maintenance worker every X seconds to remove inactive runtimes
      */
     Console::info('Starting maintenance interval...');
-    $interval = (int) Http::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
+    $interval = (int)Http::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
     Timer::tick($interval * 1000, function () use ($orchestration, $activeRuntimes) {
         Console::info("Running maintenance task ...");
         // Stop idling runtimes
@@ -1352,10 +1425,10 @@ run(function () use ($register) {
 
     Console::success('Executor is ready.');
 
-    Process::signal(SIGINT, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
-    Process::signal(SIGQUIT, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
-    Process::signal(SIGKILL, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
-    Process::signal(SIGTERM, fn () => removeAllRuntimes($activeRuntimes, $orchestration));
+    Process::signal(SIGINT, fn () => cleanUp($orchestration, $activeRuntimes, $createdNetworks));
+    Process::signal(SIGQUIT, fn () => cleanUp($orchestration, $activeRuntimes, $createdNetworks));
+    Process::signal(SIGKILL, fn () => cleanUp($orchestration, $activeRuntimes, $createdNetworks));
+    Process::signal(SIGTERM, fn () => cleanUp($orchestration, $activeRuntimes, $createdNetworks));
 
     $http->start();
 });
