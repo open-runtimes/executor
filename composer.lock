@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "7ba28aad644df7750550c03b3bae9250",
+    "content-hash": "a9abfb0c45c71f0c0deaa0bb616ab27e",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -262,16 +262,16 @@
         },
         {
             "name": "utopia-php/orchestration",
-            "version": "dev-add-network-exists",
+            "version": "0.14.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/orchestration.git",
-                "reference": "1d0054500867bf3a605b6722c3ec99f6cfea5c71"
+                "reference": "331b831bd11a02891095eb05abe94ea5f77d9c0a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/1d0054500867bf3a605b6722c3ec99f6cfea5c71",
-                "reference": "1d0054500867bf3a605b6722c3ec99f6cfea5c71",
+                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/331b831bd11a02891095eb05abe94ea5f77d9c0a",
+                "reference": "331b831bd11a02891095eb05abe94ea5f77d9c0a",
                 "shasum": ""
             },
             "require": {
@@ -306,9 +306,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/orchestration/issues",
-                "source": "https://github.com/utopia-php/orchestration/tree/add-network-exists"
+                "source": "https://github.com/utopia-php/orchestration/tree/0.14.0"
             },
-            "time": "2024-08-28T07:22:25+00:00"
+            "time": "2024-08-29T14:50:31+00:00"
         },
         {
             "name": "utopia-php/preloader",
@@ -2439,9 +2439,7 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "utopia-php/orchestration": 20
-    },
+    "stability-flags": [],
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
