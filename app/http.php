@@ -283,7 +283,7 @@ function createNetworks(Orchestration $orchestration, array $networks): array
         $containerName = $containers[0]->getName();
         Console::success('Found matching executor. Networks will be created and the executor will be connected automatically.');
     }
-    
+
     $jobs = [];
     $createdNetworks = [];
     foreach ($networks as $network) {
@@ -1266,7 +1266,7 @@ run(function () use ($register) {
     $activeRuntimes = $register->get('activeRuntimes');
     $statsHost = $register->get('statsHost');
 
-    $networks = explode(',', Http::getEnv('OPR_EXECUTOR_NETWORK', 'executor_runtimes'));
+    $networks = explode(',', Http::getEnv('OPR_EXECUTOR_NETWORK') ?? 'executor_runtimes');
     /**
      * Remove residual runtimes and networks
      */
