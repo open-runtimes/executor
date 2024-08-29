@@ -269,7 +269,7 @@ function getStorageDevice(string $root): Device
  */
 function createNetworks(Orchestration $orchestration, array $networks): array
 {
-    $image = Http::getEnv('OPR_EXECUTOR_IMAGE') ;
+    $image = Http::getEnv('OPR_EXECUTOR_IMAGE');
     if (empty($image)) {
         throw new \Exception('Variable OPR_EXECUTOR_IMAGE is not set');
     }
@@ -277,19 +277,23 @@ function createNetworks(Orchestration $orchestration, array $networks): array
     $containers = $orchestration->list(['label' => "openruntimes-image=$image"]);
 
     if (count($containers) < 1) {
-        throw new \Exception('No running executor found. Exiting...');
+        $containerName = '';
+        Console::warning('No matching executor found. Networks will be created but the executor will need to be connected manually.');
+    } else {
+        $containerName = $containers[0]->getName();
+        Console::success('Found matching executor. Networks will be created and the executor will be connected automatically.');
     }
-
-    $containerName = $containers[0]->getName();
-    $createdNetworks = [];
+    
     $jobs = [];
-
+    $createdNetworks = [];
     foreach ($networks as $network) {
         $jobs[] = function () use ($orchestration, $network, $containerName, &$createdNetworks) {
             if (!$orchestration->networkExists($network)) {
                 try {
                     $orchestration->createNetwork($network, false);
-                    $orchestration->networkConnect($containerName, $network);
+                    if (!empty($containerName)) {
+                        $orchestration->networkConnect($containerName, $network);
+                    }
                     Console::success("Created network: $network");
                     $createdNetworks[] = $network;
                 } catch (Exception $e) {
@@ -1262,7 +1266,7 @@ run(function () use ($register) {
     $activeRuntimes = $register->get('activeRuntimes');
     $statsHost = $register->get('statsHost');
 
-    $networks = explode(',', str_replace(' ', '', Http::getEnv('OPR_EXECUTOR_NETWORK') ?: 'executor_runtimes'));
+    $networks = explode(',', Http::getEnv('OPR_EXECUTOR_NETWORK', 'executor_runtimes'));
     /**
      * Remove residual runtimes and networks
      */
