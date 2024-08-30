@@ -20,7 +20,7 @@ services:
     ports:
       - 9900:80
     labels:
-      openruntimes-image: $OPR_EXECUTOR_IMAGE
+      com.openruntimes.executor.image : $OPR_EXECUTOR_IMAGE
     networks:
       - openruntimes-runtimes
     volumes:
