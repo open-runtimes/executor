@@ -363,7 +363,7 @@ function cleanUp(Orchestration $orchestration, Table $activeRuntimes, array $net
 
                 $activeRuntimeId = $container->getName();
 
-                if ($activeRuntimes->exists($activeRuntimeId)) {
+                if (!$activeRuntimes->exists($activeRuntimeId)) {
                     $activeRuntimes->del($activeRuntimeId);
                 }
 
