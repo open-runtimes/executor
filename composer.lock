@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "279293da95a2815337451371040f2e04",
+    "content-hash": "a9abfb0c45c71f0c0deaa0bb616ab27e",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -262,16 +262,16 @@
         },
         {
             "name": "utopia-php/orchestration",
-            "version": "0.13.4",
+            "version": "0.14.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/orchestration.git",
-                "reference": "9d2ff8951eb483ab9ff463c2bcdbeed9dc8e0b79"
+                "reference": "331b831bd11a02891095eb05abe94ea5f77d9c0a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/9d2ff8951eb483ab9ff463c2bcdbeed9dc8e0b79",
-                "reference": "9d2ff8951eb483ab9ff463c2bcdbeed9dc8e0b79",
+                "url": "https://api.github.com/repos/utopia-php/orchestration/zipball/331b831bd11a02891095eb05abe94ea5f77d9c0a",
+                "reference": "331b831bd11a02891095eb05abe94ea5f77d9c0a",
                 "shasum": ""
             },
             "require": {
@@ -306,9 +306,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/orchestration/issues",
-                "source": "https://github.com/utopia-php/orchestration/tree/0.13.4"
+                "source": "https://github.com/utopia-php/orchestration/tree/0.14.0"
             },
-            "time": "2024-08-13T20:13:33+00:00"
+            "time": "2024-08-29T14:50:31+00:00"
         },
         {
             "name": "utopia-php/preloader",

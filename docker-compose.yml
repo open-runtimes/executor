@@ -12,20 +12,23 @@ x-logging: &x-logging
 
 services:
   openruntimes-executor:
-    container_name: openruntimes-executor
     hostname: executor
     <<: *x-logging
     stop_signal: SIGINT
     build:
       context: .
-    networks:
-      openruntimes-runtimes:
     ports:
       - 9900:80
+    labels:
+      com.openruntimes.executor.image: $OPR_EXECUTOR_IMAGE
+    networks:
+      - openruntimes-runtimes
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./app:/usr/local/app:rw
       - ./src:/usr/local/src:rw
+      - ./tests:/usr/local/tests:rw
+      - ./phpunit.xml:/usr/local/phpunit.xml
       - openruntimes-builds:/storage/builds:rw
       - openruntimes-functions:/storage/functions:rw
       - /tmp:/tmp:rw
@@ -38,6 +41,7 @@ services:
       - OPR_EXECUTOR_MAINTENANCE_INTERVAL
       - OPR_EXECUTOR_NETWORK
       - OPR_EXECUTOR_SECRET
+      - OPR_EXECUTOR_IMAGE
       - OPR_EXECUTOR_LOGGING_PROVIDER
       - OPR_EXECUTOR_LOGGING_CONFIG
       - OPR_EXECUTOR_DOCKER_HUB_USERNAME
