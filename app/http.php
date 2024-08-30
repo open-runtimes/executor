@@ -153,13 +153,13 @@ $register->set('statsHost', function () {
 
 
 /** Set Resources */
-Http::setResource('log', fn () => new Log());
-Http::setResource('register', fn () => $register);
-Http::setResource('orchestration', fn (Registry $register) => $register->get('orchestration'), ['register']);
-Http::setResource('activeRuntimes', fn (Registry $register) => $register->get('activeRuntimes'), ['register']);
-Http::setResource('logger', fn (Registry $register) => $register->get('logger'), ['register']);
-Http::setResource('statsContainers', fn (Registry $register) => $register->get('statsContainers'), ['register']);
-Http::setResource('statsHost', fn (Registry $register) => $register->get('statsHost'), ['register']);
+Http::setResource('log', fn() => new Log());
+Http::setResource('register', fn() => $register);
+Http::setResource('orchestration', fn(Registry $register) => $register->get('orchestration'), ['register']);
+Http::setResource('activeRuntimes', fn(Registry $register) => $register->get('activeRuntimes'), ['register']);
+Http::setResource('logger', fn(Registry $register) => $register->get('logger'), ['register']);
+Http::setResource('statsContainers', fn(Registry $register) => $register->get('statsContainers'), ['register']);
+Http::setResource('statsHost', fn(Registry $register) => $register->get('statsHost'), ['register']);
 
 function logError(Log $log, Throwable $error, string $action, Logger $logger = null, Route $route = null): void
 {
@@ -293,31 +293,13 @@ function getStorageDevice(string $root): Device
  */
 function createNetworks(Orchestration $orchestration, array $networks): array
 {
-    $image = Http::getEnv('OPR_EXECUTOR_IMAGE');
-    if (empty($image)) {
-        throw new \Exception('Variable OPR_EXECUTOR_IMAGE is not set');
-    }
-
-    $containers = $orchestration->list(['label' => "openruntimes-image=$image"]);
-
-    if (count($containers) < 1) {
-        $containerName = '';
-        Console::warning('No matching executor found. Networks will be created but the executor will need to be connected manually.');
-    } else {
-        $containerName = $containers[0]->getName();
-        Console::success('Found matching executor. Networks will be created and the executor will be connected automatically.');
-    }
-
     $jobs = [];
     $createdNetworks = [];
     foreach ($networks as $network) {
-        $jobs[] = function () use ($orchestration, $network, $containerName, &$createdNetworks) {
+        $jobs[] = function () use ($orchestration, $network, &$createdNetworks) {
             if (!$orchestration->networkExists($network)) {
                 try {
                     $orchestration->createNetwork($network, false);
-                    if (!empty($containerName)) {
-                        $orchestration->networkConnect($containerName, $network);
-                    }
                     Console::success("Created network: $network");
                     $createdNetworks[] = $network;
                 } catch (Exception $e) {
@@ -329,8 +311,34 @@ function createNetworks(Orchestration $orchestration, array $networks): array
             }
         };
     }
-
     batch($jobs);
+
+    $image = Http::getEnv('OPR_EXECUTOR_IMAGE');
+    if (empty($image)) {
+        throw new \Exception('Variable OPR_EXECUTOR_IMAGE is not set');
+    }
+
+    $containers = $orchestration->list(['label' => "openruntimes-image=$image"]);
+
+    if (count($containers) < 1) {
+        $containerName = '';
+        Console::warning('No matching executor found. Executor will need to be connected manually.');
+    } else {
+        $containerName = $containers[0]->getName();
+        Console::success('Found matching executor. Executor will be connected automatically.');
+    }
+
+    if (!empty($containerName)) {
+        foreach ($createdNetworks as $network) {
+            try {
+                $orchestration->networkConnect($containerName, $network);
+                Console::success("Successfully connected executor '$containerName' to network '$network'");
+            } catch (Exception $e) {
+                Console::error("Failed to connect executor '$containerName' to network '$network': " . $e->getMessage());
+            }
+        }
+    }
+
     return $createdNetworks;
 }
 
@@ -557,7 +565,7 @@ Http::post('/v1/runtimes')
                 ]
             });
 
-            $variables = array_map(fn ($v) => strval($v), $variables);
+            $variables = array_map(fn($v) => strval($v), $variables);
             $orchestration
                 ->setCpus($cpus)
                 ->setMemory($memory);
@@ -957,7 +965,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                         if ($statusCode >= 500) {
                             $error = $body['message'];
-                        // Continues to retry logic
+                            // Continues to retry logic
                         } elseif ($statusCode >= 400) {
                             $error = $body['message'];
                             throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
@@ -1410,14 +1418,14 @@ run(function () use ($register) {
     $statsContainers = $register->get('statsContainers');
     $activeRuntimes = $register->get('activeRuntimes');
     $statsHost = $register->get('statsHost');
-    $networks = $register->get('networks');
 
-    $networks = explode(',', Http::getEnv('OPR_EXECUTOR_NETWORK') ?? 'executor_runtimes');
-    /**
+    $networks = explode(',', empty(Http::getEnv('OPR_EXECUTOR_NETWORK')) ? 'openruntimes-runtimes' : Http::getEnv('OPR_EXECUTOR_NETWORK'));
+
+    /*
      * Remove residual runtimes and networks
      */
     Console::info('Removing orphan runtimes and networks...');
-    cleanUp($activeRuntimes, $orchestration);
+    cleanUp($orchestration, $activeRuntimes);
     Console::success("Orphan runtimes and networks removal finished.");
 
     /**
@@ -1425,7 +1433,7 @@ run(function () use ($register) {
      */
     Console::info('Creating networks...');
     $createdNetworks = createNetworks($orchestration, $networks);
-    Http::setResource('networks', fn () => $createdNetworks);
+    Http::setResource('networks', fn() => $createdNetworks);
 
     /**
      * Warmup: make sure images are ready to run fast 🚀
@@ -1551,7 +1559,7 @@ run(function () use ($register) {
         }
 
         if ($recursive) {
-            Timer::after(1000, fn () => getStats($statsHost, $statsContainers, $orchestration, $recursive));
+            Timer::after(1000, fn() => getStats($statsHost, $statsContainers, $orchestration, $recursive));
         }
     }
 
@@ -1570,10 +1578,10 @@ run(function () use ($register) {
 
     Console::success('Executor is ready.');
 
-    Process::signal(SIGINT, fn () => cleanUp($activeRuntimes, $orchestration, $networks));
-    Process::signal(SIGQUIT, fn () => cleanUp($activeRuntimes, $orchestration, $networks));
-    Process::signal(SIGKILL, fn () => cleanUp($activeRuntimes, $orchestration, $networks));
-    Process::signal(SIGTERM, fn () => cleanUp($activeRuntimes, $orchestration, $networks));
+    Process::signal(SIGINT, fn() => cleanUp($orchestration, $activeRuntimes, $networks));
+    Process::signal(SIGQUIT, fn() => cleanUp($orchestration, $activeRuntimes, $networks));
+    Process::signal(SIGKILL, fn() => cleanUp($orchestration, $activeRuntimes, $networks));
+    Process::signal(SIGTERM, fn() => cleanUp($orchestration, $activeRuntimes, $networks));
 
     $http->start();
 });
