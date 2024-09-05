@@ -3,11 +3,8 @@
 namespace Tests;
 
 use PHPUnit\Framework\TestCase;
-use Swoole\Runtime;
 use Swoole\Coroutine as Co;
 use Utopia\CLI\Console;
-
-Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
 
 // TODO: @Meldiron Write more tests (validators mainly)
 // TODO: @Meldiron Health API tests
@@ -120,10 +117,7 @@ final class ExecutorTest extends TestCase
         $this->client->setKey($this->key);
     }
 
-    /**
-     * @return array<string,mixed>
-     */
-    public function testBuild(): array
+    public function testBuild(): void
     {
         $output = '';
         Console::execute('cd /app/tests/resources/functions/php && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
@@ -135,7 +129,7 @@ final class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v4-8.1',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "composer install"'
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "composer install"',
         ];
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
@@ -146,7 +140,10 @@ final class ExecutorTest extends TestCase
         $this->assertIsFloat($response['body']['startTime']);
         $this->assertIsInt($response['body']['size']);
 
-        $buildPath = $response['body']['path'];
+        /** Ensure build folder cleanup */
+        $tmpFolderPath = '/tmp/executor-test-build';
+        $this->assertFalse(\is_dir($tmpFolderPath));
+        $this->assertFalse(\file_exists($tmpFolderPath));
 
         /** List runtimes */
         $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
@@ -205,21 +202,34 @@ final class ExecutorTest extends TestCase
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(500, $response['headers']['status-code']);
-
-        return ['path' => $buildPath];
     }
 
-    /**
-     * @depends testBuild
-     *
-     * @param array<string,mixed> $data
-     */
-    public function testExecute(array $data): void
+    public function testExecute(): void
     {
+        /** Prepare function */
+        $output = '';
+        Console::execute('cd /app/tests/resources/functions/php && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+
+        $params = [
+            'runtimeId' => 'test-build',
+            'source' => '/storage/functions/php/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v4-8.1',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "composer install"',
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(201, $response['headers']['status-code']);
+        $this->assertNotEmpty(201, $response['body']['path']);
+
+        $buildPath = $response['body']['path'];
+
+        /** Test executions */
         $command = 'php src/server.php';
         $params = [
             'runtimeId' => 'test-exec',
-            'source' => $data['path'],
+            'source' => $buildPath,
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v4-8.1',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
@@ -232,6 +242,11 @@ final class ExecutorTest extends TestCase
 
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(200, $response['body']['statusCode']);
+
+        $logsFolderPath = '/tmp/executor-test-exec/logs';
+
+        $this->assertTrue(\is_dir($logsFolderPath));
+        $this->assertCount(2, \scandir($logsFolderPath) ?: []); // . and .. are always present
 
         /** Execute on cold-started runtime */
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions', [], [
@@ -249,7 +264,7 @@ final class ExecutorTest extends TestCase
 
         /** Execute on new runtime */
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [], [
-            'source' => $data['path'],
+            'source' => $buildPath,
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v4-8.1',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
@@ -259,7 +274,7 @@ final class ExecutorTest extends TestCase
 
         /** Execution without / at beginning of path */
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [], [
-            'source' => $data['path'],
+            'source' => $buildPath,
             'entrypoint' => 'index.php',
             'path' => 'v1/users',
             'image' => 'openruntimes/php:v4-8.1',
@@ -271,7 +286,7 @@ final class ExecutorTest extends TestCase
 
         /** Execution with / at beginning of path */
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [], [
-            'source' => $data['path'],
+            'source' => $buildPath,
             'entrypoint' => 'index.php',
             'path' => '/v1/users',
             'image' => 'openruntimes/php:v4-8.1',
@@ -285,7 +300,7 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
             'accept' => 'application/json'
         ], [
-            'source' => $data['path'],
+            'source' => $buildPath,
             'entrypoint' => 'index.php',
             'path' => '/v1/users',
             'image' => 'openruntimes/php:v4-8.1',
@@ -298,7 +313,7 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
             'accept' => 'application/*'
         ], [
-            'source' => $data['path'],
+            'source' => $buildPath,
             'entrypoint' => 'index.php',
             'path' => '/v1/users',
             'image' => 'openruntimes/php:v4-8.1',
@@ -311,7 +326,7 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
             'accept' => 'text/plain, application/json'
         ], [
-            'source' => $data['path'],
+            'source' => $buildPath,
             'entrypoint' => 'index.php',
             'path' => '/v1/users',
             'image' => 'openruntimes/php:v4-8.1',
@@ -324,7 +339,7 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
             'accept' => 'application/xml'
         ], [
-            'source' => $data['path'],
+            'source' => $buildPath,
             'entrypoint' => 'index.php',
             'path' => '/v1/users',
             'image' => 'openruntimes/php:v4-8.1',
@@ -337,7 +352,7 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
             'accept' => 'text/plain'
         ], [
-            'source' => $data['path'],
+            'source' => $buildPath,
             'entrypoint' => 'index.php',
             'path' => '/v1/users',
             'image' => 'openruntimes/php:v4-8.1',
@@ -350,7 +365,7 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
             'accept' => '*/*'
         ], [
-            'source' => $data['path'],
+            'source' => $buildPath,
             'entrypoint' => 'index.php',
             'path' => '/v1/users',
             'image' => 'openruntimes/php:v4-8.1',
