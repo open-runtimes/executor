@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d3407e94419a76cd7c6d6a98c99dedad",
+    "content-hash": "19fe70910a8bd439efe6aa78329b7a7f",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -416,16 +416,16 @@
         },
         {
             "name": "utopia-php/storage",
-            "version": "0.18.5",
+            "version": "0.18.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/storage.git",
-                "reference": "7d355c5e3ccc8ecebc0266f8ddd30088a43be919"
+                "reference": "94ab8758fabcefee5c5fa723616e45719833f922"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/storage/zipball/7d355c5e3ccc8ecebc0266f8ddd30088a43be919",
-                "reference": "7d355c5e3ccc8ecebc0266f8ddd30088a43be919",
+                "url": "https://api.github.com/repos/utopia-php/storage/zipball/94ab8758fabcefee5c5fa723616e45719833f922",
+                "reference": "94ab8758fabcefee5c5fa723616e45719833f922",
                 "shasum": ""
             },
             "require": {
@@ -465,9 +465,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/storage/issues",
-                "source": "https://github.com/utopia-php/storage/tree/0.18.5"
+                "source": "https://github.com/utopia-php/storage/tree/0.18.4"
             },
-            "time": "2024-09-04T08:57:27+00:00"
+            "time": "2024-04-02T08:24:09+00:00"
         },
         {
             "name": "utopia-php/system",
