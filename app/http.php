@@ -1367,6 +1367,12 @@ Http::error()
     ->action(function (?Route $route, Throwable $error, ?Logger $logger, Response $response, Log $log) {
         logError($log, $error, "httpError", $logger, $route);
 
+        $version = System::getEnv('OPR_EXECUTOR_VERSION', 'UNKNOWN');
+        $message = $error->getMessage();
+        $file = $error->getFile();
+        $line = $error->getLine();
+        $trace = $error->getTrace();
+
         switch ($error->getCode()) {
             case 400: // Error allowed publicly
             case 401: // Error allowed publicly
@@ -1386,13 +1392,17 @@ Http::error()
                 $code = 500; // All other errors get the generic 500 server error status code
         }
 
-        $output = [
-            'message' => $error->getMessage(),
-            'code' => $error->getCode(),
-            'file' => $error->getFile(),
-            'line' => $error->getLine(),
-            'trace' => $error->getTrace(),
-            'version' => Http::getEnv('OPR_EXECUTOR_VERSION', 'UNKNOWN')
+        $output = ((Http::isDevelopment())) ? [
+            'message' => $message,
+            'code' => $code,
+            'file' => $file,
+            'line' => $line,
+            'trace' => \json_encode($trace, JSON_UNESCAPED_UNICODE) === false ? [] : $trace, // check for failing encode
+            'version' => $version
+        ] : [
+            'message' => $message,
+            'code' => $code,
+            'version' => $version
         ];
 
         $response

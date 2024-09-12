@@ -417,16 +417,16 @@
         },
         {
             "name": "utopia-php/storage",
-            "version": "0.18.4",
+            "version": "0.18.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/storage.git",
-                "reference": "94ab8758fabcefee5c5fa723616e45719833f922"
+                "reference": "7d355c5e3ccc8ecebc0266f8ddd30088a43be919"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/storage/zipball/94ab8758fabcefee5c5fa723616e45719833f922",
-                "reference": "94ab8758fabcefee5c5fa723616e45719833f922",
+                "url": "https://api.github.com/repos/utopia-php/storage/zipball/7d355c5e3ccc8ecebc0266f8ddd30088a43be919",
+                "reference": "7d355c5e3ccc8ecebc0266f8ddd30088a43be919",
                 "shasum": ""
             },
             "require": {
@@ -466,9 +466,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/storage/issues",
-                "source": "https://github.com/utopia-php/storage/tree/0.18.4"
+                "source": "https://github.com/utopia-php/storage/tree/0.18.5"
             },
-            "time": "2024-04-02T08:24:09+00:00"
+            "time": "2024-09-04T08:57:27+00:00"
         },
         {
             "name": "utopia-php/system",
