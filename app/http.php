@@ -1239,7 +1239,7 @@ Http::error()
                 $code = 500; // All other errors get the generic 500 server error status code
         }
 
-        $output = ((Http::isDevelopment())) ? [
+        $output = Http::isDevelopment() ? [
             'message' => $message,
             'code' => $code,
             'file' => $file,
