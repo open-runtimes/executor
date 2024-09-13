@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "19fe70910a8bd439efe6aa78329b7a7f",
+    "content-hash": "d3407e94419a76cd7c6d6a98c99dedad",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
