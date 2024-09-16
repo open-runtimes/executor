@@ -20,7 +20,7 @@ services:
     build:
       context: .
     networks:
-      - executor_runtimes
+      - openruntimes-runtimes
     ports:
       - 9900:80
     volumes:
@@ -52,4 +52,4 @@ volumes:
   openruntimes-functions:
 
 networks:
-  executor_runtimes:
+  openruntimes-runtimes:
