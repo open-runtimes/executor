@@ -140,10 +140,10 @@ final class ExecutorTest extends TestCase
         $this->assertIsFloat($response['body']['startTime']);
         $this->assertIsInt($response['body']['size']);
 
-        /** Ensure build folder cleanup */
+        /** Ensure build folder exists (container still running) */
         $tmpFolderPath = '/tmp/executor-test-build';
-        $this->assertFalse(\is_dir($tmpFolderPath));
-        $this->assertFalse(\file_exists($tmpFolderPath));
+        $this->assertTrue(\is_dir($tmpFolderPath));
+        $this->assertTrue(\file_exists($tmpFolderPath));
 
         /** List runtimes */
         $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
@@ -172,6 +172,17 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
 
+        /** Ensure build folder cleanup */
+        $tmpFolderPath = '/tmp/executor-test-build-selfdelete';
+        $this->assertFalse(\is_dir($tmpFolderPath));
+        $this->assertFalse(\file_exists($tmpFolderPath));
+
+        /** List runtimes */
+        $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals(0, count($response['body'])); // Not 1, it was auto-removed
+
+        /** Failure getRuntime */
         $response = $this->client->call(Client::METHOD_GET, '/runtimes/test-build-selfdelete', [], []);
         $this->assertEquals(404, $response['headers']['status-code']);
 
@@ -448,7 +459,7 @@ final class ExecutorTest extends TestCase
 
         /** Build runtime */
         $params = [
-            'runtimeId' => 'test-build',
+            'runtimeId' => 'test-build-logs',
             'source' => '/storage/functions/php-build-logs/code.tar.gz',
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
@@ -469,7 +480,7 @@ final class ExecutorTest extends TestCase
 
         /** Build runtime */
         $params = [
-            'runtimeId' => 'test-build',
+            'runtimeId' => 'test-build-logs',
             'source' => '/storage/functions/php-build-logs/code.tar.gz',
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
@@ -487,7 +498,7 @@ final class ExecutorTest extends TestCase
 
         /** Build runtime */
         $params = [
-            'runtimeId' => 'test-build',
+            'runtimeId' => 'test-build-logs',
             'source' => '/storage/functions/php-build-logs/code.tar.gz',
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
@@ -508,7 +519,7 @@ final class ExecutorTest extends TestCase
 
         /** Build runtime */
         $params = [
-            'runtimeId' => 'test-build',
+            'runtimeId' => 'test-build-logs',
             'source' => '/storage/functions/php-build-logs/code.tar.gz',
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
