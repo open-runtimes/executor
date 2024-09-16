@@ -1272,7 +1272,7 @@ run(function () use ($register) {
     $activeRuntimes = $register->get('activeRuntimes');
     $statsHost = $register->get('statsHost');
 
-    $networks = explode(',', Http::getEnv('OPR_EXECUTOR_NETWORK') ?? 'openruntimes-runtimes');
+    $networks = explode(',', Http::getEnv('OPR_EXECUTOR_NETWORK') ?? 'executor_runtimes');
     /**
      * Remove residual runtimes and networks
      */
