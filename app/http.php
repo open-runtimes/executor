@@ -313,19 +313,15 @@ function createNetworks(Orchestration $orchestration, array $networks): array
     }
     batch($jobs);
 
-    $image = Http::getEnv('OPR_EXECUTOR_IMAGE');
-    if (empty($image)) {
-        throw new \Exception('Variable OPR_EXECUTOR_IMAGE is not set');
-    }
-
+    $image = Http::getEnv('OPR_EXECUTOR_IMAGE', '');
     $containers = $orchestration->list(['label' => "com.openruntimes.executor.image=$image"]);
 
     if (count($containers) < 1) {
         $containerName = '';
-        Console::warning('No matching executor found. Please check the value of OPR_EXECUTOR_IMAGE. Executor will need to be connected manually.');
+        Console::warning('No matching executor found. Please check the value of OPR_EXECUTOR_IMAGE. Executor will need to be connected to the runtime network manually.');
     } else {
         $containerName = $containers[0]->getName();
-        Console::success('Found matching executor. Executor will be connected automatically.');
+        Console::success('Found matching executor. Executor will be connected to runtime network automatically.');
     }
 
     if (!empty($containerName)) {
@@ -1392,7 +1388,7 @@ Http::error()
                 $code = 500; // All other errors get the generic 500 server error status code
         }
 
-        $output = ((Http::isDevelopment())) ? [
+        $output = Http::isDevelopment() ? [
             'message' => $message,
             'code' => $code,
             'file' => $file,
