@@ -269,11 +269,7 @@ function getStorageDevice(string $root): Device
  */
 function createNetworks(Orchestration $orchestration, array $networks): array
 {
-    $image = Http::getEnv('OPR_EXECUTOR_IMAGE');
-    if (empty($image)) {
-        throw new \Exception('Variable OPR_EXECUTOR_IMAGE is not set');
-    }
-
+    $image = Http::getEnv('OPR_EXECUTOR_IMAGE', '');
     $containers = $orchestration->list(['label' => "openruntimes-image=$image"]);
 
     if (count($containers) < 1) {
