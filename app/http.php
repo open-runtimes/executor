@@ -293,6 +293,17 @@ function getStorageDevice(string $root): Device
  */
 function createNetworks(Orchestration $orchestration, array $networks): array
 {
+    $image = Http::getEnv('OPR_EXECUTOR_IMAGE', '');
+    $containers = $orchestration->list(['label' => "openruntimes-image=$image"]);
+
+    if (count($containers) < 1) {
+        $containerName = '';
+        Console::warning('No matching executor found. Networks will be created but the executor will need to be connected manually.');
+    } else {
+        $containerName = $containers[0]->getName();
+        Console::success('Found matching executor. Networks will be created and the executor will be connected automatically.');
+    }
+
     $jobs = [];
     $createdNetworks = [];
     foreach ($networks as $network) {
@@ -1392,7 +1403,7 @@ Http::error()
                 $code = 500; // All other errors get the generic 500 server error status code
         }
 
-        $output = ((Http::isDevelopment())) ? [
+        $output = Http::isDevelopment() ? [
             'message' => $message,
             'code' => $code,
             'file' => $file,
