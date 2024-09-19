@@ -40,7 +40,9 @@ use Utopia\Http\Validator\FloatValidator;
 use Utopia\Http\Validator\Integer;
 use Utopia\Http\Validator\Text;
 use Utopia\Http\Validator\WhiteList;
+use Utopia\Orchestration\Adapter as DockerAdapter;
 use Utopia\Orchestration\Adapter\DockerAPI;
+use Utopia\Orchestration\Adapter\DockerCLI;
 use Utopia\Registry\Registry;
 
 use function Swoole\Coroutine\batch;
@@ -107,9 +109,14 @@ $register->set('logger', function () {
 $register->set('orchestration', function () {
     $dockerUser = (string) Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
     $dockerPass = (string) Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
-    $orchestration = new Orchestration(new DockerAPI($dockerUser, $dockerPass));
 
-    return $orchestration;
+    $adapterName = Http::getEnv('OPR_EXECUTOR_DOCKER_ADAPTER', 'DockerAPI');
+    $adapter = match ($adapterName) {
+        'DockerAPI' => new DockerAPI($dockerUser, $dockerPass),
+        'DockerCLI' => new DockerCLI($dockerUser, $dockerPass),
+        default => throw new Exception('Adapter "' . $adapterName . '" not supported.')
+    };
+    return new Orchestration($adapter);
 });
 
 /**
@@ -479,7 +486,7 @@ Http::post('/v1/runtimes')
     ->param('cpus', 1, new FloatValidator(true), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Comtainer RAM memory.', true)
     ->param('version', 'v4', new WhiteList(['v2', 'v4']), 'Runtime Open Runtime version.', true)
-    ->param('restartPolicy', DockerAPI::RESTART_NO, new WhiteList([DockerAPI::RESTART_NO, DockerAPI::RESTART_ALWAYS, DockerAPI::RESTART_ON_FAILURE, DockerAPI::RESTART_UNLESS_STOPPED], true), 'Define restart policy for the runtime once an exit code is returned. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)
+    ->param('restartPolicy', DockerAdapter::RESTART_NO, new WhiteList([DockerAdapter::RESTART_NO, DockerAdapter::RESTART_ALWAYS, DockerAdapter::RESTART_ON_FAILURE, DockerAdapter::RESTART_UNLESS_STOPPED], true), 'Define restart policy for the runtime once an exit code is returned. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)
     ->inject('networks')
     ->inject('orchestration')
     ->inject('activeRuntimes')
@@ -822,7 +829,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->param('version', 'v4', new WhiteList(['v2', 'v4']), 'Runtime Open Runtime version.', true)
     ->param('runtimeEntrypoint', '', new Text(1024, 0), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('logging', true, new Boolean(true), 'Whether executions will be logged.', true)
-    ->param('restartPolicy', DockerAPI::RESTART_NO, new WhiteList([DockerAPI::RESTART_NO, DockerAPI::RESTART_ALWAYS, DockerAPI::RESTART_ON_FAILURE, DockerAPI::RESTART_UNLESS_STOPPED], true), 'Define restart policy once exit code is returned by command. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)
+    ->param('restartPolicy', DockerAdapter::RESTART_NO, new WhiteList([DockerAdapter::RESTART_NO, DockerAdapter::RESTART_ALWAYS, DockerAdapter::RESTART_ON_FAILURE, DockerAdapter::RESTART_UNLESS_STOPPED], true), 'Define restart policy once exit code is returned by command. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)
     ->inject('activeRuntimes')
     ->inject('response')
     ->inject('request')

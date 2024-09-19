@@ -62,6 +62,7 @@ RUN \
   && apk add --no-cache \
   libstdc++ \
   docker-cli \
+  openssh \
   && docker-php-ext-install sockets \
   && apk del .deps \
   && rm -rf /var/cache/apk/*
