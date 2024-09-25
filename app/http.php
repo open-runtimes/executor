@@ -1579,7 +1579,14 @@ run(function () use ($register) {
 
     Console::success('Stats interval started.');
 
-    $server = new Server('0.0.0.0', '80');
+    $payloadSize = 22 * (1024 * 1024);
+
+    $settings = [
+        'package_max_length' => $payloadSize,
+        'buffer_output_size' => $payloadSize,
+    ];
+
+    $server = new Server('0.0.0.0', '80', $settings);
     $http = new Http($server, 'UTC');
 
     Console::success('Executor is ready.');
