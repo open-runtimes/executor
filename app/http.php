@@ -203,9 +203,23 @@ function logError(Log $log, Throwable $error, string $action, Logger $logger = n
     }
 }
 
-function getStorageDevice(string $root): Device
+
+function getStorageDevice(string $root, string $region): Device
 {
-    $connection = Http::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '');
+
+    $connections = explode(',', Http::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', ''));
+    if(count($connections) > 1) {
+        $dsn = [];
+        foreach ($connections as $connection) {
+            $parts = explode('=', $connection);
+            $dsn[$parts[0]] = str_replace('#', '=', $parts[1]);
+        }
+
+        $connection = $dsn[$region];
+
+    } else {
+        $connection = Http::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '');
+    }
 
     if (!empty($connection)) {
         $acl = 'private';
@@ -525,7 +539,7 @@ Http::post('/v1/runtimes')
         $tmpBuild = "/{$tmpFolder}builds/code.tar.gz";
         $tmpLogs = "/{$tmpFolder}logs";
 
-        $sourceDevice = getStorageDevice("/");
+        $sourceDevice = getStorageDevice("/", $variables['APPWRITE_REGION']);
         $localDevice = new Local();
 
         try {
@@ -651,7 +665,7 @@ Http::post('/v1/runtimes')
                 $size = $localDevice->getFileSize($tmpBuild);
                 $container['size'] = $size;
 
-                $destinationDevice = getStorageDevice($destination);
+                $destinationDevice = getStorageDevice($destination, $variables['APPWRITE_REGION']);
                 $path = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo('code.tar.gz', PATHINFO_EXTENSION));
 
 
