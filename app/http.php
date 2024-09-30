@@ -125,6 +125,7 @@ $register->set('activeRuntimes', function () {
     $table->column('status', Table::TYPE_STRING, 256);
     $table->column('key', Table::TYPE_STRING, 1024);
     $table->column('listening', Table::TYPE_INT, 1);
+    $table->column('image', Table::TYPE_STRING, 1024);
     $table->create();
 
     return $table;
@@ -490,6 +491,7 @@ Http::post('/v1/runtimes')
 
         $runtimeHostname = \uniqid();
 
+        $log->addTag('image', $image);
         $log->addTag('version', $version);
         $log->addTag('runtimeId', $runtimeName);
 
@@ -515,6 +517,7 @@ Http::post('/v1/runtimes')
             'updated' => $startTime,
             'status' => 'pending',
             'key' => $secret,
+            'image' => $image,
         ]);
 
         /**
@@ -880,6 +883,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             $runtimeName = System::getHostname() . '-' . $runtimeId;
 
+            $log->addTag('image', $image);
             $log->addTag('version', $version);
             $log->addTag('runtimeId', $runtimeName);
 
@@ -982,6 +986,9 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             // Update swoole table
             $runtime = $activeRuntimes->get($runtimeName) ?? [];
+
+            $log->addTag('image', $runtime['image']);
+
             $runtime['updated'] = \time();
             $activeRuntimes->set($runtimeName, $runtime);
 
