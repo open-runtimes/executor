@@ -1368,7 +1368,11 @@ Http::error()
     ->inject('response')
     ->inject('log')
     ->action(function (?Route $route, Throwable $error, ?Logger $logger, Response $response, Log $log) {
-        logError($log, $error, "httpError", $logger, $route);
+        try {
+            logError($log, $error, "httpError", $logger, $route);
+        } catch (Throwable) {
+            Console::warning('Unable to send log message');
+        }
 
         $version = System::getEnv('OPR_EXECUTOR_VERSION', 'UNKNOWN');
         $message = $error->getMessage();
