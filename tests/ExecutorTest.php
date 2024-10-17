@@ -762,21 +762,28 @@ final class ExecutorTest extends TestCase
                 'folder' => 'node-specs',
                 'version' => 'v4',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
-                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
-                'cpus' => 2.5,
-                'memory' => 1024,
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i && npm run build"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals(200, $response['body']['statusCode']);
 
-                    $this->assertIsString($response['body']);
-                    $this->assertNotEmpty($response['body']);
-                    $json = \json_decode($response['body'], true);
+                    $this->assertIsString($response['body']['body']);
+                    $this->assertNotEmpty($response['body']['body']);
+                    $json = \json_decode($response['body']['body'], true);
                     $this->assertEquals("2.5", $json['cpus']);
                     $this->assertEquals("1024", $json['memory']);
 
                     $this->assertEmpty($response['body']['logs']);
                     $this->assertEmpty($response['body']['errors']);
+                },
+                'body' => null,
+                'logging' => true,
+                'mimeType' => 'application/json',
+                'cpus' => 2.5,
+                'memory' => 1024,
+                'buildAssertions' => function ($response) {
+                    $this->assertStringContainsString("cpus=2.5", $response['body']['output']);
+                    $this->assertStringContainsString("memory=1024", $response['body']['output']);
                 }
             ],
         ];
@@ -794,7 +801,7 @@ final class ExecutorTest extends TestCase
      *
      * @dataProvider provideScenarios
      */
-    public function testScenarios(string $image, string $entrypoint, string $folder, string $version, string $startCommand, string $buildCommand, callable $assertions, callable $body = null, bool $logging = true, string $mimeType = "application/json", float $cpus = 1, int $memory = 512): void
+    public function testScenarios(string $image, string $entrypoint, string $folder, string $version, string $startCommand, string $buildCommand, callable $assertions, callable $body = null, bool $logging = true, string $mimeType = "application/json", float $cpus = 1, int $memory = 512, callable $buildAssertions = null): void
     {
         /** Prepare deployment */
         $output = '';
@@ -818,6 +825,10 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
 
+        if (!is_null($buildAssertions)) {
+            call_user_func($buildAssertions, $response);
+        }
+
         $path = $response['body']['path'];
 
         $params = [
@@ -828,6 +839,8 @@ final class ExecutorTest extends TestCase
             'runtimeEntrypoint' => $startCommand,
             'timeout' => 45,
             'logging' => $logging,
+            'cpus' => $cpus,
+            'memory' => $memory,
         ];
 
         if (isset($body)) {
@@ -848,6 +861,7 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/scenario-execute-{$folder}", [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
     }
+
 
     /**
      *
