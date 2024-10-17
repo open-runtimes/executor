@@ -756,6 +756,29 @@ final class ExecutorTest extends TestCase
                 'logging' => true,
                 'mimeType' => 'multipart/form-data'
             ],
+            [
+                'image' => 'openruntimes/node:v4-18.0',
+                'entrypoint' => 'index.js',
+                'folder' => 'node-specs',
+                'version' => 'v4',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'cpus' => 2.5,
+                'memory' => 1024,
+                'assertions' => function ($response) {
+                    $this->assertEquals(200, $response['headers']['status-code']);
+                    $this->assertEquals(200, $response['body']['statusCode']);
+
+                    $this->assertIsString($response['body']);
+                    $this->assertNotEmpty($response['body']);
+                    $json = \json_decode($response['body'], true);
+                    $this->assertEquals("2.5", $json['cpus']);
+                    $this->assertEquals("1024", $json['memory']);
+
+                    $this->assertEmpty($response['body']['logs']);
+                    $this->assertEmpty($response['body']['errors']);
+                }
+            ],
         ];
     }
 
@@ -771,7 +794,7 @@ final class ExecutorTest extends TestCase
      *
      * @dataProvider provideScenarios
      */
-    public function testScenarios(string $image, string $entrypoint, string $folder, string $version, string $startCommand, string $buildCommand, callable $assertions, callable $body = null, bool $logging = true, string $mimeType = "application/json"): void
+    public function testScenarios(string $image, string $entrypoint, string $folder, string $version, string $startCommand, string $buildCommand, callable $assertions, callable $body = null, bool $logging = true, string $mimeType = "application/json", float $cpus = 1, int $memory = 512): void
     {
         /** Prepare deployment */
         $output = '';
@@ -787,7 +810,9 @@ final class ExecutorTest extends TestCase
             'image' => $image,
             'workdir' => '/usr/code',
             'remove' => true,
-            'command' => $buildCommand
+            'command' => $buildCommand,
+            'cpus' => $cpus,
+            'memory' => $memory
         ];
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
