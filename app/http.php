@@ -478,7 +478,7 @@ Http::post('/v1/runtimes')
     ->param('timeout', 600, new Integer(), 'Commands execution time in seconds.', true)
     ->param('remove', false, new Boolean(), 'Remove a runtime after execution.', true)
     ->param('cpus', 1, new FloatValidator(true), 'Container CPU.', true)
-    ->param('memory', 512, new Integer(), 'Comtainer RAM memory.', true)
+    ->param('memory', 512, new Integer(), 'Container RAM memory.', true)
     ->param('version', 'v4', new WhiteList(['v2', 'v4']), 'Runtime Open Runtime version.', true)
     ->param('restartPolicy', DockerAPI::RESTART_NO, new WhiteList([DockerAPI::RESTART_NO, DockerAPI::RESTART_ALWAYS, DockerAPI::RESTART_ON_FAILURE, DockerAPI::RESTART_UNLESS_STOPPED], true), 'Define restart policy for the runtime once an exit code is returned. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)
     ->inject('networks')
@@ -560,7 +560,9 @@ Http::post('/v1/runtimes')
                 'v4' => [
                     'OPEN_RUNTIMES_SECRET' => $secret,
                     'OPEN_RUNTIMES_ENTRYPOINT' => $entrypoint,
-                    'OPEN_RUNTIMES_HOSTNAME' => System::getHostname()
+                    'OPEN_RUNTIMES_HOSTNAME' => System::getHostname(),
+                    'OPEN_RUNTIMES_CPUS' => $cpus,
+                    'OPEN_RUNTIMES_MEMORY' => $memory,
                 ]
             });
 
