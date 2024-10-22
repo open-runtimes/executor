@@ -4,7 +4,6 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use Appwrite\Runtimes\Runtimes;
 use OpenRuntimes\Executor\BodyMultipart;
-use OpenRuntimes\Executor\Validator\TCP;
 use OpenRuntimes\Executor\Usage;
 use Swoole\Process;
 use Swoole\Runtime;
@@ -1231,15 +1230,14 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             if (empty($listening)) {
                 // Wait for cold-start to finish (app listening on port)
                 $pingStart = \microtime(true);
-                $validator = new TCP();
                 while (true) {
                     // If timeout is passed, stop and return error
                     if (\microtime(true) - $pingStart >= $timeout) {
                         throw new Exception('Function timed out during cold start.', 400);
                     }
 
-                    $online = $validator->isValid($hostname . ':' . 3000);
-                    if ($online) {
+                    $status = Console::execute('nc -z ' . $hostname . ' 3000', $output, $errNo);
+                    if ($status === 0) {
                         break;
                     }
 
