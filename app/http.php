@@ -1248,7 +1248,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                     $online = $orchestration->execute(
                         name: $runtimeName,
-                        command: ['sh', '-c', 'nc -zv 3000'],
+                        command: ['sh', '-c', 'nc -zv localhost 3000'],
                         output: $output,
                     );
 
