@@ -1248,7 +1248,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                     $status = $orchestration->execute(
                         name: $runtimeName,
-                        command: ['bash', '-c', '>/dev/tcp/localhost/3000'],
+                        command: ['bash', '-c', 'nc -zv localhost 3000'],
                         output: $output,
                         timeout: $timeout
                     );
