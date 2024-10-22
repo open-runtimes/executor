@@ -1246,14 +1246,12 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                     $output = '';
 
-                    $status = $orchestration->execute(
+                    $online = $orchestration->execute(
                         name: $runtimeName,
                         command: ['sh', '-c', 'nc -zv 3000'],
                         output: $output,
-                        timeout: $timeout
                     );
 
-                    $online = $status === 0;
                     if ($online) {
                         break;
                     }
