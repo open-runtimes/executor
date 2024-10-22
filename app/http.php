@@ -832,8 +832,9 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->inject('response')
     ->inject('request')
     ->inject('log')
+    ->inject('orchestration')
     ->action(
-        function (string $runtimeId, ?string $payload, string $path, string $method, mixed $headers, int $timeout, string $image, string $source, string $entrypoint, mixed $variables, float $cpus, int $memory, string $version, string $runtimeEntrypoint, bool $logging, string $restartPolicy, Table $activeRuntimes, Response $response, Request $request, Log $log) {
+        function (string $runtimeId, ?string $payload, string $path, string $method, mixed $headers, int $timeout, string $image, string $source, string $entrypoint, mixed $variables, float $cpus, int $memory, string $version, string $runtimeEntrypoint, bool $logging, string $restartPolicy, Table $activeRuntimes, Response $response, Request $request, Log $log, Orchestration $orchestration) {
             if (empty($payload)) {
                 $payload = '';
             }
@@ -1243,7 +1244,16 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                         throw new Exception('Function timed out during cold start.', 400);
                     }
 
-                    $online = $validator->isValid($hostname . ':' . 3000);
+                    $output = '';
+
+                    $status = $orchestration->execute(
+                        name: $runtimeName,
+                        command: ['bash', '-c', '>/dev/tcp/localhost/3000'],
+                        output: $output,
+                        timeout: $timeout
+                    );
+
+                    $online = $status === 0;
                     if ($online) {
                         break;
                     }
