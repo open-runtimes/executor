@@ -1236,7 +1236,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                         throw new Exception('Function timed out during cold start.', 400);
                     }
 
-                    $status = Console::execute('nc -z ' . $hostname . ' 3000', '', '');
+                    $output = '';
+                    $status = Console::execute('nc -z ' . $hostname . ' 3000', '', $output);
                     if ($status === 0) {
                         break;
                     }
