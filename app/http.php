@@ -968,10 +968,10 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                         // If the runtime has not yet attempted to start, it will return 500
                         if ($statusCode >= 500) {
                             $error = $body['message'];
-                    
+
                         // If the runtime fails to start, it will return 400, except for 409
                         // which indicates that the runtime is already being created
-                        } elseif ($statusCode >= 400 && $statusCode !== 409) { 
+                        } elseif ($statusCode >= 400 && $statusCode !== 409) {
                             $error = $body['message'];
                             throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
                         } else {
