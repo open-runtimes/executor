@@ -965,16 +965,21 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     if ($errNo === 0) {
                         $body = \json_decode($executorResponse, true);
 
+                        // If the runtime has not yet attempted to start, it will return 500
                         if ($statusCode >= 500) {
                             $error = $body['message'];
-                        // Continues to retry logic
-                        } elseif ($statusCode >= 400) {
+                    
+                        // If the runtime fails to start, it will return 400, except for 409
+                        // which indicates that the runtime is already being created
+                        } elseif ($statusCode >= 400 && $statusCode !== 409) { 
                             $error = $body['message'];
                             throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
                         } else {
                             break;
                         }
-                    } elseif ($errNo !== 111) { // Connection Refused - see https://openswoole.com/docs/swoole-error-code
+
+                    // Connection refused - see https://openswoole.com/docs/swoole-error-code
+                    } elseif ($errNo !== 111) {
                         throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
                     }
 
