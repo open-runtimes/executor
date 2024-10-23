@@ -1273,9 +1273,9 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 }
 
                 // Cleanup frequent errors
-               $log->addExtra('error', $executionResponse['error']);
-               $log->addTag('hostname', $hostname);
-             
+                $log->addExtra('error', $executionResponse['error']);
+                $log->addTag('hostname', $hostname);
+
                 throw new Exception('Internal curl errors has occurred within the executor! Error Number: ' . $executionResponse['errNo'], 500);
             }
 
