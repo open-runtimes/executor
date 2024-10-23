@@ -1276,11 +1276,11 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 if ($executionResponse['errNo'] === CURLE_COULDNT_RESOLVE_HOST) {
                     $executionResponse['error'] = 'Could not resolve host';
                     $log->addTag('hostname', $hostname);
-                    $log->addTag('port', 3000);
-                } else if ($executionResponse['errNo'] === CURLE_COULDNT_CONNECT) {
+                    $log->addTag('port', '3000');
+                } elseif ($executionResponse['errNo'] === CURLE_COULDNT_CONNECT) {
                     $executionResponse['error'] = 'Could not connect to host';
                     $log->addTag('hostname', $hostname);
-                    $log->addTag('port', 3000);
+                    $log->addTag('port', '3000');
                 }
 
                 throw new Exception('Internal curl errors has occurred within the executor! Error Number: ' . $executionResponse['errNo'] . '. Error Msg: ' . $executionResponse['error'], 500);
