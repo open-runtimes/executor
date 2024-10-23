@@ -921,7 +921,6 @@ final class ExecutorTest extends TestCase
             'source' => $path,
             'entrypoint' => $entrypoint,
             'image' => $image,
-            // start server but stay open container
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh helpers/server.sh',
             'timeout' => 120,
             'variables' => [
