@@ -1272,8 +1272,10 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     throw new Exception($executionResponse['error'], 400);
                 }
 
-                // Unknown error
-                throw new Exception('Internal curl errors has occurred within the executor! Error Number: ' . $executionResponse['errNo'] . '. Error Msg: ' . $executionResponse['error'], 500);
+                $log->addExtra('error', $executionResponse['error']);
+                $log->addTag('hostname', $hostname);
+
+                throw new Exception('Internal curl errors has occurred within the executor! Error Number: ' . $executionResponse['errNo'], 500);
             }
 
             // Successful execution
