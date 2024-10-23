@@ -1273,17 +1273,10 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 }
 
                 // Cleanup frequent errors
-                if ($executionResponse['errNo'] === CURLE_COULDNT_RESOLVE_HOST) {
-                    $executionResponse['error'] = 'Could not resolve host';
-                    $log->addTag('hostname', $hostname);
-                    $log->addTag('port', '3000');
-                } elseif ($executionResponse['errNo'] === CURLE_COULDNT_CONNECT) {
-                    $executionResponse['error'] = 'Could not connect to host';
-                    $log->addTag('hostname', $hostname);
-                    $log->addTag('port', '3000');
-                }
-
-                throw new Exception('Internal curl errors has occurred within the executor! Error Number: ' . $executionResponse['errNo'] . '. Error Msg: ' . $executionResponse['error'], 500);
+               $log->addExtra('error', $executionResponse['error']);
+               $log->addTag('hostname', $hostname);
+             
+                throw new Exception('Internal curl errors has occurred within the executor! Error Number: ' . $executionResponse['errNo'], 500);
             }
 
             // Successful execution
