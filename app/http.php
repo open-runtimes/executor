@@ -122,6 +122,7 @@ $register->set('activeRuntimes', function () {
     $table->column('updated', Table::TYPE_FLOAT);
     $table->column('name', Table::TYPE_STRING, 1024);
     $table->column('hostname', Table::TYPE_STRING, 1024);
+    $table->column('ip', Table::TYPE_STRING, 1024);
     $table->column('status', Table::TYPE_STRING, 256);
     $table->column('key', Table::TYPE_STRING, 1024);
     $table->column('listening', Table::TYPE_INT, 1);
@@ -618,6 +619,24 @@ Http::post('/v1/runtimes')
                 throw new Exception('Failed to create runtime', 500);
             }
 
+            // Retrieve the container's IP address
+            $output = '';
+            $code = Console::execute('docker container inspect ' . \escapeshellarg($runtimeName), '', $output);
+            
+            $ip = '';
+            if ($code === 0) {
+                $containerInfo = \json_decode($output, true);
+                $ip = $containerInfo[0]['NetworkSettings']['Networks'][$network]['IPAddress'];
+            }
+
+            if (empty($ip)) {
+                throw new Exception('Failed to get runtime IP address', 500);
+            }
+
+            $activeRuntime = $activeRuntimes->get($runtimeName);
+            $activeRuntime['ip'] = $ip;
+            $activeRuntimes->set($runtimeName, $activeRuntime);
+
             /**
              * Execute any commands if they were provided
              */
@@ -1020,13 +1039,13 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             // Ensure we have secret
             $runtime = $activeRuntimes->get($runtimeName);
-            $hostname = $runtime['hostname'];
+            $ip = $runtime['ip'];
             $secret = $runtime['key'];
             if (empty($secret)) {
                 throw new Exception('Runtime secret not found. Please re-create the runtime.', 500);
             }
 
-            $executeV2 = function () use ($variables, $payload, $secret, $hostname, $timeout): array {
+            $executeV2 = function () use ($variables, $payload, $secret, $ip, $timeout): array {
                 $statusCode = 0;
                 $errNo = -1;
                 $executorResponse = '';
@@ -1039,7 +1058,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     'headers' => []
                 ], JSON_FORCE_OBJECT);
 
-                \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000/");
+                \curl_setopt($ch, CURLOPT_URL, "http://" . $ip . ":3000/");
                 \curl_setopt($ch, CURLOPT_POST, true);
                 \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
                 \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -1099,7 +1118,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 ];
             };
 
-            $executeV4 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName, $logging): array {
+            $executeV4 = function () use ($path, $method, $headers, $payload, $secret, $ip, $timeout, $runtimeName, $logging): array {
                 $statusCode = 0;
                 $errNo = -1;
                 $executorResponse = '';
@@ -1112,7 +1131,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     $path = '/' . $path;
                 }
 
-                \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000" . $path);
+                \curl_setopt($ch, CURLOPT_URL, "http://" . $ip . ":3000" . $path);
                 \curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
                 \curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
                 \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -1243,7 +1262,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                         throw new Exception('Function timed out during cold start.', 400);
                     }
 
-                    $online = $validator->isValid($hostname . ':' . 3000);
+                    $online = $validator->isValid($ip . ':' . 3000);
                     if ($online) {
                         break;
                     }
