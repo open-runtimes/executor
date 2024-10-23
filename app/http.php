@@ -1272,7 +1272,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     throw new Exception($executionResponse['error'], 400);
                 }
 
-                // Cleanup frequent errors
                 $log->addExtra('error', $executionResponse['error']);
                 $log->addTag('hostname', $hostname);
 
