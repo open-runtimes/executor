@@ -12,6 +12,8 @@ RUN composer install --ignore-platform-reqs --optimize-autoloader \
 # Executor
 FROM openruntimes/base:0.1.0 as final
 
+RUN apk add --no-cache netcat-openbsd
+
 ARG OPR_EXECUTOR_VERSION
 ENV OPR_EXECUTOR_VERSION=$OPR_EXECUTOR_VERSION
 
