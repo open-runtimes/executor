@@ -34,7 +34,7 @@
         "utopia-php/dsn": "0.1.*",
         "utopia-php/registry": "0.5.*",
         "utopia-php/preloader": "0.2.*",
-        "utopia-php/system": "0.8.*",
+        "utopia-php/system": "0.9.*",
         "utopia-php/orchestration": "0.14.*",
         "appwrite/php-runtimes": "0.16.*"
     },

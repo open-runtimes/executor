@@ -4,25 +4,25 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "62ece0e4df7acb35d7fac685c954e61f",
+    "content-hash": "d71a8118d7f5bcbecd59f6a9b2623a1f",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
-            "version": "0.16.1",
+            "version": "0.16.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/appwrite/runtimes.git",
-                "reference": "b36da25768c2dc66908ae226f6eed1b073a6f642"
+                "reference": "7e4741337b9373f77210396e68eca539018cabd1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/appwrite/runtimes/zipball/b36da25768c2dc66908ae226f6eed1b073a6f642",
-                "reference": "b36da25768c2dc66908ae226f6eed1b073a6f642",
+                "url": "https://api.github.com/repos/appwrite/runtimes/zipball/7e4741337b9373f77210396e68eca539018cabd1",
+                "reference": "7e4741337b9373f77210396e68eca539018cabd1",
                 "shasum": ""
             },
             "require": {
                 "php": ">=8.0",
-                "utopia-php/system": "0.8.*"
+                "utopia-php/system": "0.9.*"
             },
             "require-dev": {
                 "laravel/pint": "^1.15",
@@ -57,9 +57,9 @@
             ],
             "support": {
                 "issues": "https://github.com/appwrite/runtimes/issues",
-                "source": "https://github.com/appwrite/runtimes/tree/0.16.1"
+                "source": "https://github.com/appwrite/runtimes/tree/0.16.4"
             },
-            "time": "2024-10-09T10:27:14+00:00"
+            "time": "2024-10-26T10:39:59+00:00"
         },
         {
             "name": "utopia-php/cli",
@@ -472,16 +472,16 @@
         },
         {
             "name": "utopia-php/system",
-            "version": "0.8.0",
+            "version": "0.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/system.git",
-                "reference": "a2cbfb3c69b9ecb8b6f06c5774f3cf279ea7665e"
+                "reference": "8e4a7edaf2dfeb4c9524e9f766d27754f2c4b64d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/system/zipball/a2cbfb3c69b9ecb8b6f06c5774f3cf279ea7665e",
-                "reference": "a2cbfb3c69b9ecb8b6f06c5774f3cf279ea7665e",
+                "url": "https://api.github.com/repos/utopia-php/system/zipball/8e4a7edaf2dfeb4c9524e9f766d27754f2c4b64d",
+                "reference": "8e4a7edaf2dfeb4c9524e9f766d27754f2c4b64d",
                 "shasum": ""
             },
             "require": {
@@ -522,9 +522,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/system/issues",
-                "source": "https://github.com/utopia-php/system/tree/0.8.0"
+                "source": "https://github.com/utopia-php/system/tree/0.9.0"
             },
-            "time": "2024-04-01T10:22:28+00:00"
+            "time": "2024-10-09T14:44:01+00:00"
         }
     ],
     "packages-dev": [
@@ -2439,7 +2439,7 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": [],
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
@@ -2448,7 +2448,7 @@
         "ext-json": "*",
         "ext-swoole": "*"
     },
-    "platform-dev": {},
+    "platform-dev": [],
     "platform-overrides": {
         "php": "8.3"
     },
