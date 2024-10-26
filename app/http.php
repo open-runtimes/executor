@@ -472,6 +472,7 @@ Http::post('/v1/runtimes')
     ->param('entrypoint', '', new Text(256, 0), 'Entrypoint of the code file.', true)
     ->param('source', '', new Text(0), 'Path to source files.', true)
     ->param('destination', '', new Text(0), 'Destination folder to store runtime files into.', true)
+    ->param('outputDirectory', '', new Text(0), 'Path inside build to use as output. If empty, entire build is used.', true)
     ->param('variables', [], new Assoc(), 'Environment variables passed into runtime.', true)
     ->param('runtimeEntrypoint', '', new Text(1024, 0), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('command', '', new Text(1024), 'Commands to run after container is created. Maximum of 100 commands are allowed, each 1024 characters long.', true)
@@ -486,7 +487,7 @@ Http::post('/v1/runtimes')
     ->inject('activeRuntimes')
     ->inject('response')
     ->inject('log')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, array $networks, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, string $outputDirectory, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, array $networks, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
         $runtimeHostname = \uniqid();
@@ -565,6 +566,12 @@ Http::post('/v1/runtimes')
                     'OPEN_RUNTIMES_MEMORY' => $memory,
                 ]
             });
+
+            if (!empty($outputDirectory)) {
+                $variables = \array_merge($variables, [
+                    'OPEN_RUNTIMES_OUTPUT_DIRECTORY' => $outputDirectory
+                ]);
+            }
 
             $variables = array_map(fn ($v) => strval($v), $variables);
             $orchestration

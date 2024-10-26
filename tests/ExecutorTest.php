@@ -215,6 +215,57 @@ final class ExecutorTest extends TestCase
         $this->assertEquals(500, $response['headers']['status-code']);
     }
 
+    public function testBuildOutputDirectory(): void
+    {
+        $output = '';
+        Console::execute('cd /app/tests/resources/functions/static && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+
+        /** Build runtime */
+        $params = [
+            'runtimeId' => 'test-build-site',
+            'source' => '/storage/functions/static/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'image' => 'openruntimes/static:v4-1',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "sh build.sh"',
+            'outputDirectory' => './dist'
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(201, $response['headers']['status-code']);
+        $this->assertIsString($response['body']['path']);
+        $this->assertIsString($response['body']['output']);
+        $this->assertIsFloat($response['body']['duration']);
+        $this->assertIsFloat($response['body']['startTime']);
+        $this->assertIsInt($response['body']['size']);
+
+        /** Ensure build folder exists (container still running) */
+        $tmpFolderPath = '/tmp/executor-test-build-site';
+        $this->assertTrue(\is_dir($tmpFolderPath));
+        $this->assertTrue(\file_exists($tmpFolderPath));
+
+        $buildPath = $response['body']['path'];
+
+        /** Test executions */
+        $command = 'sh helpers/server.sh';
+        $params = [
+            'runtimeId' => 'test-exec-site',
+            'source' => $buildPath,
+            'image' => 'openruntimes/static:v4-1',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-site/executions', [
+            'path' => '/index.html'
+        ]);
+
+        \var_dump($response);
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals(200, $response['body']['statusCode']);
+    }
+
     public function testExecute(): void
     {
         /** Prepare function */
