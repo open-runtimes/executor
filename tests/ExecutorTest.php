@@ -261,7 +261,6 @@ final class ExecutorTest extends TestCase
             'path' => '/index.html'
         ]);
 
-        \var_dump($response);
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(200, $response['body']['statusCode']);
     }
