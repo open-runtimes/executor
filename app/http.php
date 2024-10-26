@@ -1141,7 +1141,9 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     $headers['x-open-runtimes-logging'] = 'disabled';
                 }
 
+                $headers['Authorization'] = 'Basic ' . \base64_encode('opr:' . $secret);
                 $headers['x-open-runtimes-secret'] = $secret;
+
                 $headers['x-open-runtimes-timeout'] = \max(\intval($timeout), 1);
                 $headersArr = [];
                 foreach ($headers as $key => $value) {
