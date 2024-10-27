@@ -477,17 +477,15 @@ Http::get('/v1/runtimes/:runtimeId/logs')
                     continue;
                 }
 
-                [ $timing, $length ] = \explode(' ', $row, 2);
+                [$timing, $length] = \explode(' ', $row, 2);
                 $timing = \floatval($timing);
                 $timing = \ceil($timing * 1000000); // Convert to microseconds
                 $length = \intval($length);
 
-                \var_dump($timing);
                 $di = DateInterval::createFromDateString($timing . ' microseconds');
                 $datetime->add($di);
 
                 $timingContent = $datetime->format('Y-m-d\TH:i:s.vP');
-                \var_dump($timingContent);
                 $logContent = \file_get_contents($tmpLogging . '/logs.txt', false, null, $introOffset + $offset, \abs($length)) ?: '';
 
                 $logContent = \str_replace("\n", "\\n", $logContent);
@@ -673,11 +671,20 @@ Http::post('/v1/runtimes')
              * Execute any commands if they were provided
              */
             if (!empty($command)) {
-                $commands = [
-                    'sh',
-                    '-c',
-                    'touch /tmp/logging/timings.txt && touch /tmp/logging/logs.txt && script --log-out /tmp/logging/logs.txt --flush --log-timing /tmp/logging/timings.txt --return --quiet --command "' . \str_replace('"', '\"', $command) . '"'
-                ];
+                if ($version === 'v2') {
+                    // TODO: Remove this, release v2 images with script installed
+                    $commands = [
+                        'sh',
+                        '-c',
+                        'touch /var/tmp/logs.txt && (' . $command . ') >> /var/tmp/logs.txt 2>&1 && cat /var/tmp/logs.txt'
+                    ];
+                } else {
+                    $commands = [
+                        'sh',
+                        '-c',
+                        'mkdir -p /tmp/logging && touch /tmp/logging/timings.txt && touch /tmp/logging/logs.txt && script --log-out /tmp/logging/logs.txt --flush --log-timing /tmp/logging/timings.txt --return --quiet --command "' . \str_replace('"', '\"', $command) . '"'
+                    ];
+                }
 
                 try {
                     $status = $orchestration->execute(
