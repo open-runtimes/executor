@@ -905,7 +905,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             // Prepare runtime
             if (!$activeRuntimes->exists($runtimeName)) {
-                if (empty($image) || empty($source) || empty($entrypoint)) {
+                if (empty($image) || empty($source)) {
                     throw new Exception('Runtime not found. Please start it first or provide runtime-related parameters.', 401);
                 }
 
