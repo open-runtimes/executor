@@ -111,7 +111,48 @@ final class ExecutorTest extends TestCase
 
         $this->assertGreaterThan(3, $totalChunks);
 
-        // TODO: Test streamChunks properly
+        $this->assertGreaterThan(3, $streamChunks);
+
+        $hasOrange = false;
+        $hasRed = false;
+        $hasStep = false;
+
+        $previousTimestamp = null;
+        $firstTimestamp = null;
+
+        foreach ($streamChunks as $streamChunk) {
+            $this->assertNotEmpty($streamChunk['content']);
+            $this->assertNotEmpty($streamChunk['timestamp']);
+
+            if (!\is_null($previousTimestamp)) {
+                $this->assertGreaterThanOrEqual($previousTimestamp, $streamChunk['timestamp']);
+            } else {
+                $firstTimestamp = null;
+            }
+
+            $previousTimestamp = $streamChunk['timestamp'];
+
+            if (!(\str_contains($streamChunk['content'], "echo -e"))) {
+                if (\str_contains($streamChunk['content'], "[33mOrange message") && \str_contains($streamChunk['content'], "[0m")) {
+                    $hasOrange = true;
+                    continue;
+                }
+                if (\str_contains($streamChunk['content'], "[31mRed message") && \str_contains($streamChunk['content'], "[0m")) {
+                    $hasRed = true;
+                    continue;
+                }
+            }
+
+            if (\str_contains($streamChunk['content'], "Step: 5")) {
+                $hasStep = true;
+            }
+        }
+
+        $this->assertGreaterThanOrEqual($firstTimestamp, $previousTimestamp);
+
+        $this->assertTrue($hasRed);
+        $this->assertTrue($hasOrange);
+        $this->assertTrue($hasStep);
     }
 
     public function testErrors(): void
