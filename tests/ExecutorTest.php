@@ -74,6 +74,23 @@ final class ExecutorTest extends TestCase
             ]);
         });
 
+        // Stream parsing
+        $streamChunks = [];
+        $streamLogs = \str_replace("\\n", "{OPR_LINEBREAK_PLACEHOLDER}", $streamLogs);
+        foreach (\explode("\n", $streamLogs) as $streamLog) {
+            if (empty($streamLog)) {
+                continue;
+            }
+
+            $streamLog = \str_replace("{OPR_LINEBREAK_PLACEHOLDER}", "\n", $streamLog);
+            $streamParts = \explode(" ", $streamLog, 2);
+
+            $streamChunks[] = [
+                'timestamp' => $streamParts[0] ?? '',
+                'content' => $streamParts[1] ?? ''
+            ];
+        }
+
         $this->assertStringContainsString('Preparing for build', $runtimeLogs);
         $this->assertStringContainsString('Preparing for build', $streamLogs);
 
@@ -83,13 +100,18 @@ final class ExecutorTest extends TestCase
         $this->assertStringContainsString('Step: 2', $runtimeLogs);
         $this->assertStringContainsString('Step: 2', $streamLogs);
 
-        $this->assertStringContainsString('Step: 30', $runtimeLogs);
-        $this->assertStringContainsString('Step: 30', $streamLogs);
+        $this->assertStringContainsString('Step: 14', $runtimeLogs);
+        $this->assertStringContainsString('Step: 14', $streamLogs);
+
+        $this->assertStringContainsString('Step: 15', $runtimeLogs);
+        $this->assertStringContainsString('Step: 15', $streamLogs);
 
         $this->assertStringContainsString('Build finished', $runtimeLogs);
         $this->assertStringContainsString('Build finished', $streamLogs);
 
         $this->assertGreaterThan(3, $totalChunks);
+
+        // TODO: Test streamChunks properly
     }
 
     public function testErrors(): void

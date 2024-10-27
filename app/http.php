@@ -400,28 +400,25 @@ Http::get('/v1/runtimes/:runtimeId/logs')
 
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
+        $log->addTag('runtimeId', $runtimeName);
+
         $response->sendHeader('Content-Type', 'text/event-stream');
         $response->sendHeader('Cache-Control', 'no-cache');
 
-        // Wait for runtime
-        for ($i = 0; $i < 10; $i++) {
-            $output = '';
-            $code = Console::execute('docker container inspect ' . \escapeshellarg($runtimeName), '', $output);
-            if ($code === 0) {
+        $tmpFolder = "tmp/$runtimeName/";
+        $tmpLogging = "/{$tmpFolder}logging"; // Build logs
+
+        $checkStart = \microtime(true);
+        while (true) {
+            if (\microtime(true) - $checkStart >= $timeout) {
+                throw new Exception('Log file was not created in time.', 400);
+            }
+
+            if (\file_exists($tmpLogging . '/logs.txt') && file_exists($tmpLogging . '/timings.txt')) {
                 break;
             }
 
-            if ($i === 9) {
-                $runtimeIdTokens = explode("-", $runtimeName);
-                $executorId = $runtimeIdTokens[0];
-                $functionId = $runtimeIdTokens[1];
-                $deploymentId = $runtimeIdTokens[2];
-                $log->addTag('executorId', $executorId);
-                $log->addTag('functionId', $functionId);
-                $log->addTag('deploymentId', $deploymentId);
-                throw new Exception('Runtime not ready. Container not found.', 500);
-            }
-
+            // Wait 0.5s and check again
             \usleep(500000);
         }
 
@@ -451,17 +448,58 @@ Http::get('/v1/runtimes/:runtimeId/logs')
             }
         });
 
-        $output = '';
-        Console::execute('docker exec ' . \escapeshellarg($runtimeName) . ' tail -F /var/tmp/logs.txt', '', $output, $timeout, function (string $outputChunk, mixed $process) use (&$logsChunk, &$logsProcess) {
+        $offset = 0; // Current offset from timing for reading logs content
+        $datetime = new DateTime("now", new DateTimeZone("UTC")); // Date used for tracking absolute log timing
+
+        $tempLogsContent = \file_get_contents($tmpLogging . '/logs.txt') ?: '';
+        $tempLogsContentSplit = \explode("\n", $tempLogsContent, 2); // Find first linebreak to identify prefix
+        $introOffset = \strlen($tempLogsContentSplit[0]); // Ignore script addition "Script started on..."
+        $introOffset += 1; // Consider linebreak an intro too
+
+        $output = ''; // Unused, just a refference for stdout
+        Console::execute('tail -F ' . $tmpLogging . '/timings.txt', '', $output, $timeout, function (string $timingChunk, mixed $process) use ($tmpLogging, &$logsChunk, &$logsProcess, &$offset, &$datetime, $introOffset) {
             $logsProcess = $process;
 
-            if (!empty($outputChunk)) {
-                $logsChunk .= $outputChunk;
+            if (!\file_exists($tmpLogging . '/logs.txt')) {
+                if (!empty($logsProcess)) {
+                    \proc_terminate($logsProcess, 9);
+                }
+                return;
+            }
+
+            if (empty($timingChunk)) {
+                return;
+            }
+
+            $rows = \explode("\n", $timingChunk);
+            foreach ($rows as $row) {
+                if (empty($row)) {
+                    continue;
+                }
+
+                [ $timing, $length ] = \explode(' ', $row, 2);
+                $timing = \floatval($timing);
+                $timing = \ceil($timing * 1000000); // Convert to microseconds
+                $length = \intval($length);
+
+                \var_dump($timing);
+                $di = DateInterval::createFromDateString($timing . ' microseconds');
+                $datetime->add($di);
+
+                $timingContent = $datetime->format('Y-m-d\TH:i:s.vP');
+                \var_dump($timingContent);
+                $logContent = \file_get_contents($tmpLogging . '/logs.txt', false, null, $introOffset + $offset, \abs($length)) ?: '';
+
+                $logContent = \str_replace("\n", "\\n", $logContent);
+
+                $output = $timingContent . " " . $logContent . "\n";
+
+                $logsChunk .= $output;
+                $offset += $length;
             }
         });
 
         Timer::clear($timerId);
-
         $response->end();
     });
 
@@ -527,7 +565,8 @@ Http::post('/v1/runtimes')
         $tmpFolder = "tmp/$runtimeName/";
         $tmpSource = "/{$tmpFolder}src/code.tar.gz";
         $tmpBuild = "/{$tmpFolder}builds/code.tar.gz";
-        $tmpLogs = "/{$tmpFolder}logs";
+        $tmpLogging = "/{$tmpFolder}logging"; // Build logs
+        $tmpLogs = "/{$tmpFolder}logs"; // Runtime logs
 
         $sourceDevice = getStorageDevice("/");
         $localDevice = new Local();
@@ -573,6 +612,10 @@ Http::post('/v1/runtimes')
                 ]);
             }
 
+            $variables = \array_merge($variables, [
+                'CI' => 'true'
+            ]);
+
             $variables = array_map(fn ($v) => strval($v), $variables);
             $orchestration
                 ->setCpus($cpus)
@@ -602,6 +645,7 @@ Http::post('/v1/runtimes')
 
             if ($version === 'v4') {
                 $volumes[] = \dirname($tmpLogs . '/logs') . ':/mnt/logs:rw';
+                $volumes[] = \dirname($tmpLogging . '/logging') . ':/tmp/logging:rw';
             }
 
             /** Keep the container alive if we have commands to be executed */
@@ -632,7 +676,7 @@ Http::post('/v1/runtimes')
                 $commands = [
                     'sh',
                     '-c',
-                    'touch /var/tmp/logs.txt && (' . $command . ') >> /var/tmp/logs.txt 2>&1 && cat /var/tmp/logs.txt'
+                    'touch /tmp/logging/timings.txt && touch /tmp/logging/logs.txt && script --log-out /tmp/logging/logs.txt --flush --log-timing /tmp/logging/timings.txt --return --quiet --command "' . \str_replace('"', '\"', $command) . '"'
                 ];
 
                 try {
