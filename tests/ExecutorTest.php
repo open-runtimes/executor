@@ -126,6 +126,7 @@ final class ExecutorTest extends TestCase
 
             if (!\is_null($previousTimestamp)) {
                 $this->assertGreaterThanOrEqual($previousTimestamp, $streamChunk['timestamp']);
+                $this->assertStringStartsWith('Preparing for build', $streamChunk['content']);
             } else {
                 $firstTimestamp = null;
             }
