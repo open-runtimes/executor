@@ -1274,10 +1274,18 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $executionRequest = $version === 'v4' ? $executeV4 : $executeV2;
             do {
                 $executionResponse = \call_user_func($executionRequest);
-            } while (
-                \in_array($executionResponse['errNo'], [CURLE_COULDNT_RESOLVE_HOST, CURLE_COULDNT_CONNECT]) &&
-                (\microtime(true) - $startTime < $timeout)
-            );
+                if ($executionResponse['errNo'] === CURLE_OK) {
+                    break;
+                }
+            
+                // Retryable errors, runtime not ready
+                if (in_array($executionResponse['errNo'], [CURLE_COULDNT_RESOLVE_HOST, CURLE_COULDNT_CONNECT])) {
+                    usleep(100000);
+                    continue;
+                }
+            
+                break;
+            } while (\microtime(true) - $startTime < $timeout);
 
             // Error occurred
             if ($executionResponse['errNo'] !== CURLE_OK) {
