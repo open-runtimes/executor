@@ -490,7 +490,7 @@ Http::post('/v1/runtimes')
     ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, string $outputDirectory, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, array $networks, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
-        $runtimeHostname = \uniqid();
+        $runtimeHostname = \bin2hex(\random_bytes(16));
 
         $log->addTag('image', $image);
         $log->addTag('version', $version);
@@ -1272,23 +1272,34 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             // Execute function
             $executionRequest = $version === 'v4' ? $executeV4 : $executeV2;
-            $executionResponse = \call_user_func($executionRequest);
 
-            // Error occured
-            if ($executionResponse['errNo'] !== 0) {
-                // Intended timeout error for v2 functions
-                if ($executionResponse['errNo'] === 110 && $version === 'v2') {
-                    throw new Exception($executionResponse['error'], 400);
+            while (\microtime(true) - $startTime < $timeout) {
+                $executionResponse = \call_user_func($executionRequest);
+                if ($executionResponse['errNo'] === CURLE_OK) {
+                    break;
                 }
+            
+                // Retryable errors, runtime not ready
+                if (in_array($executionResponse['errNo'], [CURLE_COULDNT_RESOLVE_HOST, CURLE_COULDNT_CONNECT])) {
+                    continue;
+                }
+        
+                break;
+            }
 
+            if ($executionResponse['errNo'] !== CURLE_OK) {
+                $log->addExtra('activeRuntime', $activeRuntimes->get($runtimeName));
                 $log->addExtra('error', $executionResponse['error']);
                 $log->addTag('hostname', $hostname);
-
-                throw new Exception('Internal curl errors has occurred within the executor! Error Number: ' . $executionResponse['errNo'], 500);
+            
+                if ($version === 'v2' && $executionResponse['errNo'] === SOCKET_ETIMEDOUT) {
+                    throw new Exception($executionResponse['error'], 400);
+                }
+            
+                throw new Exception('Internal curl error has occurred within the executor! Error Number: ' . $executionResponse['errNo'], 500);
             }
 
             // Successful execution
-
             ['statusCode' => $statusCode, 'body' => $body, 'logs' => $logs, 'errors' => $errors, 'headers' => $headers] = $executionResponse;
 
             $endTime = \microtime(true);
