@@ -1273,7 +1273,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             // Execute function
             $executionRequest = $version === 'v4' ? $executeV4 : $executeV2;
 
-            while (\microtime(true) - $startTime < $timeout) {
+            do {
                 $executionResponse = \call_user_func($executionRequest);
                 if ($executionResponse['errNo'] === CURLE_OK) {
                     break;
@@ -1285,7 +1285,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 }
 
                 break;
-            }
+            } while (\microtime(true) - $startTime < $timeout);
 
             if ($executionResponse['errNo'] !== CURLE_OK) {
                 $log->addExtra('activeRuntime', $activeRuntimes->get($runtimeName));
