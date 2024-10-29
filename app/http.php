@@ -1278,12 +1278,12 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 if ($executionResponse['errNo'] === CURLE_OK) {
                     break;
                 }
-            
+
                 // Retryable errors, runtime not ready
                 if (in_array($executionResponse['errNo'], [CURLE_COULDNT_RESOLVE_HOST, CURLE_COULDNT_CONNECT])) {
                     continue;
                 }
-        
+
                 break;
             }
 
@@ -1291,11 +1291,11 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 $log->addExtra('activeRuntime', $activeRuntimes->get($runtimeName));
                 $log->addExtra('error', $executionResponse['error']);
                 $log->addTag('hostname', $hostname);
-            
+
                 if ($version === 'v2' && $executionResponse['errNo'] === SOCKET_ETIMEDOUT) {
                     throw new Exception($executionResponse['error'], 400);
                 }
-            
+
                 throw new Exception('Internal curl error has occurred within the executor! Error Number: ' . $executionResponse['errNo'], 500);
             }
 
