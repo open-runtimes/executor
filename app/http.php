@@ -1272,26 +1272,20 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             // Execute function
             $executionRequest = $version === 'v4' ? $executeV4 : $executeV2;
-
             do {
                 $executionResponse = \call_user_func($executionRequest);
-                if ($executionResponse['errNo'] === CURLE_OK) {
-                    break;
-                }
+            } while (
+                \in_array($executionResponse['errNo'], [CURLE_COULDNT_RESOLVE_HOST, CURLE_COULDNT_CONNECT]) &&
+                (\microtime(true) - $startTime < $timeout)
+            );
 
-                // Retryable errors, runtime not ready
-                if (in_array($executionResponse['errNo'], [CURLE_COULDNT_RESOLVE_HOST, CURLE_COULDNT_CONNECT])) {
-                    continue;
-                }
-
-                break;
-            } while (\microtime(true) - $startTime < $timeout);
-
+            // Error occurred
             if ($executionResponse['errNo'] !== CURLE_OK) {
                 $log->addExtra('activeRuntime', $activeRuntimes->get($runtimeName));
                 $log->addExtra('error', $executionResponse['error']);
                 $log->addTag('hostname', $hostname);
 
+                // Intended timeout error for v2 functions
                 if ($version === 'v2' && $executionResponse['errNo'] === SOCKET_ETIMEDOUT) {
                     throw new Exception($executionResponse['error'], 400);
                 }
