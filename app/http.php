@@ -1273,8 +1273,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             // Execute function
             $executionRequest = $version === 'v4' ? $executeV4 : $executeV2;
 
-            $retryDelayMs = Http::getEnv('OPR_EXECUTOR_RETRY_DELAY_MS', 500);
-            $retryAttempts = Http::getEnv('OPR_EXECUTOR_RETRY_ATTEMPTS', 4);
+            $retryDelayMs = \intval(Http::getEnv('OPR_EXECUTOR_RETRY_DELAY_MS', '500'));
+            $retryAttempts = \intval(Http::getEnv('OPR_EXECUTOR_RETRY_ATTEMPTS', '5'));
 
             $attempts = 0;
             do {
@@ -1293,7 +1293,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 }
 
                 usleep($retryDelayMs * 1000);
-            } while (++$attempts < $retryAttempts);
+            } while ((++$attempts < $retryAttempts) || (\microtime(true) - $startTime < $timeout));
 
             // Error occurred
             if ($executionResponse['errNo'] !== CURLE_OK) {
