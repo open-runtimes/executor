@@ -1287,7 +1287,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 if (!in_array($executionResponse['errNo'], [
                     CURLE_COULDNT_RESOLVE_HOST, // 6
                     CURLE_COULDNT_CONNECT, // 7
-                    CURLE_GOT_NOTHING, // 52
                 ])) {
                     break;
                 }
