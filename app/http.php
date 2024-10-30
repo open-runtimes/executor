@@ -1272,20 +1272,28 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             // Execute function
             $executionRequest = $version === 'v4' ? $executeV4 : $executeV2;
+
+            $retryDelayMs = Http::getEnv('OPR_EXECUTOR_RETRY_DELAY_MS', 500);
+            $retryAttempts = Http::getEnv('OPR_EXECUTOR_RETRY_ATTEMPTS', 4);
+
+            $attempts = 0;
             do {
                 $executionResponse = \call_user_func($executionRequest);
                 if ($executionResponse['errNo'] === CURLE_OK) {
                     break;
                 }
 
-                // Retryable errors, runtime not ready
-                if (in_array($executionResponse['errNo'], [CURLE_COULDNT_RESOLVE_HOST, CURLE_COULDNT_CONNECT])) {
-                    usleep(100000);
-                    continue;
+                // Not retryable, return error immediately
+                if (!in_array($executionResponse['errNo'], [
+                    CURLE_COULDNT_RESOLVE_HOST, // 6
+                    CURLE_COULDNT_CONNECT, // 7
+                    CURLE_GOT_NOTHING, // 52
+                ])) {
+                    break;
                 }
 
-                break;
-            } while (\microtime(true) - $startTime < $timeout);
+                usleep($retryDelayMs * 1000);
+            } while (++$attempts < $retryAttempts);
 
             // Error occurred
             if ($executionResponse['errNo'] !== CURLE_OK) {
