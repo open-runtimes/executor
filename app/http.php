@@ -1308,19 +1308,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 throw new Exception('Internal curl error has occurred within the executor! Error Number: ' . $executionResponse['errNo'], 500);
             }
 
-            // Error occured
-            if ($executionResponse['errNo'] !== 0) {
-                // Intended timeout error for v2 functions
-                if ($executionResponse['errNo'] === 110 && $version === 'v2') {
-                    throw new Exception($executionResponse['error'], 400);
-                }
-
-                $log->addExtra('error', $executionResponse['error']);
-                $log->addTag('hostname', $hostname);
-
-                throw new Exception('Internal curl errors has occurred within the executor! Error Number: ' . $executionResponse['errNo'], 500);
-            }
-
             // Successful execution
             ['statusCode' => $statusCode, 'body' => $body, 'logs' => $logs, 'errors' => $errors, 'headers' => $headers] = $executionResponse;
 
