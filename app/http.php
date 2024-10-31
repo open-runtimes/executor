@@ -1272,7 +1272,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             // Execute function
             $executionRequest = $version === 'v4' ? $executeV4 : $executeV2;
-            
+
             $retryDelayMs = \intval(Http::getEnv('OPR_EXECUTOR_RETRY_DELAY_MS', '500'));
             $retryAttempts = \intval(Http::getEnv('OPR_EXECUTOR_RETRY_ATTEMPTS', '5'));
 
@@ -1294,8 +1294,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 usleep($retryDelayMs * 1000);
             } while ((++$attempts < $retryAttempts) || (\microtime(true) - $startTime < $timeout));
 
-             // Error occurred
-             if ($executionResponse['errNo'] !== CURLE_OK) {
+            // Error occurred
+            if ($executionResponse['errNo'] !== CURLE_OK) {
                 $log->addExtra('activeRuntime', $activeRuntimes->get($runtimeName));
                 $log->addExtra('error', $executionResponse['error']);
                 $log->addTag('hostname', $hostname);
