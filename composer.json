@@ -42,7 +42,7 @@
         "swoole/ide-helper": "4.8.5",
         "phpunit/phpunit": "^9.3",
         "laravel/pint": "1.2.*",
-        "phpstan/phpstan": "1.8.*"
+        "phpstan/phpstan": "1.9.*"
     },
     "config": {
         "platform": {
