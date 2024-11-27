@@ -655,6 +655,20 @@ final class ExecutorTest extends TestCase
             [
                 'image' => 'openruntimes/node:v4-18.0',
                 'entrypoint' => 'index.js',
+                'folder' => 'node-timeout-blocking',
+                'version' => 'v4',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'assertions' => function ($response) {
+                    $this->assertEquals(200, $response['headers']['status-code']);
+                    $this->assertEquals(500, $response['body']['statusCode']);
+                    $this->assertStringContainsString('Execution timed out.', $response['body']['errors']);
+                    $this->assertEmpty($response['body']['logs']);
+                }
+            ],
+            [
+                'image' => 'openruntimes/node:v4-18.0',
+                'entrypoint' => 'index.js',
                 'folder' => 'node-logs',
                 'version' => 'v4',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
