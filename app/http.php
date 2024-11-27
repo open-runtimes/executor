@@ -1307,7 +1307,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                 // Intended timeout error for v4 functions
                 // if ($version === 'v4' && $executionResponse['errNo'] === CURLE_OPERATION_TIMEDOUT) {
-                    // throw new Exception($executionResponse['error'], 500);
+                // throw new Exception($executionResponse['error'], 500);
                 // }
 
                 throw new Exception('Internal curl error has occurred within the executor! Error Number: ' . $executionResponse['errNo'], 500);
