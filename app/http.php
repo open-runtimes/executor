@@ -1491,7 +1491,7 @@ run(function () use ($register) {
      */
     $allowList = empty(Http::getEnv('OPR_EXECUTOR_RUNTIMES')) ? [] : \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIMES'));
 
-    if(Http::isDevelopment()) {
+    if (Http::isDevelopment()) {
         // Useful to prevent auto-pulling from remote when testing local images
         Console::info("Skipping image pulling in development mode.");
     } else {
