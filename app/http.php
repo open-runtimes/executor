@@ -1491,9 +1491,9 @@ run(function () use ($register) {
      */
     $allowList = empty(Http::getEnv('OPR_EXECUTOR_RUNTIMES')) ? [] : \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIMES'));
 
-    if (Http::isDevelopment()) {
+    if (Http::getEnv('OPR_EXECUTOR_IMAGE_PULL', 'enabled') === 'disabled') {
         // Useful to prevent auto-pulling from remote when testing local images
-        Console::info("Skipping image pulling in development mode.");
+        Console::info("Skipping image pulling");
     } else {
         $runtimeVersions = \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v4') ?? 'v4');
         foreach ($runtimeVersions as $runtimeVersion) {

@@ -62,6 +62,7 @@ services:
       - OPR_EXECUTOR_RUNTIME_VERSIONS
       - OPR_EXECUTOR_RETRY_ATTEMPTS
       - OPR_EXECUTOR_RETRY_DELAY_MS
+      - OPR_EXECUTOR_IMAGE_PULL
 
 networks:
   openruntimes-runtimes:
@@ -80,6 +81,7 @@ volumes:
 OPR_EXECUTOR_ENV=development
 OPR_EXECUTOR_RUNTIMES=php-8.0
 OPR_EXECUTOR_CONNECTION_STORAGE=file://localhost
+OPR_EXECUTOR_IMAGE_PULL=enabled
 OPR_EXECUTOR_INACTIVE_TRESHOLD=60
 OPR_EXECUTOR_MAINTENANCE_INTERVAL=60
 OPR_EXECUTOR_NETWORK=openruntimes-runtimes
@@ -202,6 +204,7 @@ docker compose down
 | OPR_EXECUTOR_RUNTIME_VERSIONS    | Version tag for runtime environments, ex: `v4`                                                                                                |
 | OPR_EXECUTOR_RETRY_ATTEMPTS      | Number of retry attempts for failed executions, ex: `5`                                                                                       |
 | OPR_EXECUTOR_RETRY_DELAY_MS      | Delay (in milliseconds) between retry attempts, ex: `500`                                                                                    |
+| OPR_EXECUTOR_IMAGE_PULL      | Pull open runtimes images before executor starts. Takes `disabled` and `enabled` |
 
 ## Contributing
 
