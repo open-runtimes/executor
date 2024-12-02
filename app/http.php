@@ -1491,25 +1491,30 @@ run(function () use ($register) {
      */
     $allowList = empty(Http::getEnv('OPR_EXECUTOR_RUNTIMES')) ? [] : \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIMES'));
 
-    $runtimeVersions = \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v4') ?? 'v4');
-    foreach ($runtimeVersions as $runtimeVersion) {
-        Console::success("Pulling $runtimeVersion images...");
-        $runtimes = new Runtimes($runtimeVersion); // TODO: @Meldiron Make part of open runtimes
-        $runtimes = $runtimes->getAll(true, $allowList);
-        $callables = [];
-        foreach ($runtimes as $runtime) {
-            $callables[] = function () use ($runtime, $orchestration) {
-                Console::log('Warming up ' . $runtime['name'] . ' ' . $runtime['version'] . ' environment...');
-                $response = $orchestration->pull($runtime['image']);
-                if ($response) {
-                    Console::info("Successfully Warmed up {$runtime['name']} {$runtime['version']}!");
-                } else {
-                    Console::warning("Failed to Warmup {$runtime['name']} {$runtime['version']}!");
-                }
-            };
-        }
+    if (Http::getEnv('OPR_EXECUTOR_IMAGE_PULL', 'enabled') === 'disabled') {
+        // Useful to prevent auto-pulling from remote when testing local images
+        Console::info("Skipping image pulling");
+    } else {
+        $runtimeVersions = \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v4') ?? 'v4');
+        foreach ($runtimeVersions as $runtimeVersion) {
+            Console::success("Pulling $runtimeVersion images...");
+            $runtimes = new Runtimes($runtimeVersion); // TODO: @Meldiron Make part of open runtimes
+            $runtimes = $runtimes->getAll(true, $allowList);
+            $callables = [];
+            foreach ($runtimes as $runtime) {
+                $callables[] = function () use ($runtime, $orchestration) {
+                    Console::log('Warming up ' . $runtime['name'] . ' ' . $runtime['version'] . ' environment...');
+                    $response = $orchestration->pull($runtime['image']);
+                    if ($response) {
+                        Console::info("Successfully Warmed up {$runtime['name']} {$runtime['version']}!");
+                    } else {
+                        Console::warning("Failed to Warmup {$runtime['name']} {$runtime['version']}!");
+                    }
+                };
+            }
 
-        batch($callables);
+            batch($callables);
+        }
     }
 
     Console::success("Image pulling finished.");
