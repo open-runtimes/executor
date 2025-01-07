@@ -1005,4 +1005,47 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/custom-execute-{$folder}", [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
     }
+
+    public function testZipBuild(): void
+    {
+        /** Prepare function */
+        $output = '';
+        Console::execute('cd /app/tests/resources/functions/php && zip -x code.zip -r code.zip .', '', $output);
+
+        $params = [
+            'remove' => true,
+            'runtimeId' => 'test-build-zip',
+            'source' => '/storage/functions/php/code.zip',
+            'destination' => '/storage/builds/test-zip',
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v4-8.1',
+            'command' => 'unzip /tmp/code.tar.gz -d /mnt/code && helpers/build.sh "composer install"',
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+
+        $this->assertEquals(201, $response['headers']['status-code']);
+        $this->assertNotEmpty(201, $response['body']['path']);
+
+        $buildPath = $response['body']['path'];
+
+        /** Test executions */
+        $command = 'php src/server.php';
+        $params = [
+            'runtimeId' => 'test-exec-zip',
+            'source' => $buildPath,
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v4-8.1',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-zip/executions');
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals(200, $response['body']['statusCode']);
+
+    }
 }
