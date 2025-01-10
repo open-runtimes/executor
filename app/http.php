@@ -366,8 +366,10 @@ function cleanUp(Orchestration $orchestration, Table $activeRuntimes, array $net
 
                 Console::success('Removed container ' . $container->getName());
             } catch (\Throwable $th) {
-                Console::error('Failed to remove container: ' . $container->getName());
-                Console::error($th);
+                if ($th->getCode() !== 409) {
+                    Console::error('Failed to remove container: ' . $container->getName());
+                    Console::error($th);
+                }
             }
         };
     }
@@ -380,7 +382,9 @@ function cleanUp(Orchestration $orchestration, Table $activeRuntimes, array $net
                 $orchestration->removeNetwork($network);
                 Console::success("Removed network: $network");
             } catch (Exception $e) {
-                Console::error("Failed to remove network $network: " . $e->getMessage());
+                if ($e->getCode() !== 409) {
+                    Console::error("Failed to remove network $network: " . $e->getMessage());
+                }
             }
         };
     }
