@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d71a8118d7f5bcbecd59f6a9b2623a1f",
+    "content-hash": "6b8f92ac75f385c9388b758730c0748f",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
-            "version": "0.16.4",
+            "version": "0.17.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/appwrite/runtimes.git",
-                "reference": "7e4741337b9373f77210396e68eca539018cabd1"
+                "reference": "9a9e20d1f5c28caf539ad4cb52164dc283f99797"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/appwrite/runtimes/zipball/7e4741337b9373f77210396e68eca539018cabd1",
-                "reference": "7e4741337b9373f77210396e68eca539018cabd1",
+                "url": "https://api.github.com/repos/appwrite/runtimes/zipball/9a9e20d1f5c28caf539ad4cb52164dc283f99797",
+                "reference": "9a9e20d1f5c28caf539ad4cb52164dc283f99797",
                 "shasum": ""
             },
             "require": {
@@ -57,9 +57,9 @@
             ],
             "support": {
                 "issues": "https://github.com/appwrite/runtimes/issues",
-                "source": "https://github.com/appwrite/runtimes/tree/0.16.4"
+                "source": "https://github.com/appwrite/runtimes/tree/0.17.0"
             },
-            "time": "2024-10-26T10:39:59+00:00"
+            "time": "2025-01-10T13:36:30+00:00"
         },
         {
             "name": "utopia-php/cli",
@@ -2439,7 +2439,7 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {},
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
@@ -2448,7 +2448,7 @@
         "ext-json": "*",
         "ext-swoole": "*"
     },
-    "platform-dev": [],
+    "platform-dev": {},
     "platform-overrides": {
         "php": "8.3"
     },
