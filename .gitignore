@@ -2,3 +2,4 @@
 /.idea/
 .phpunit.result.cache
 /tests/resources/functions/**/code.tar.gz
+/tests/resources/functions/**/code.zip

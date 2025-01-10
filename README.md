@@ -60,6 +60,9 @@ services:
       - OPR_EXECUTOR_DOCKER_HUB_USERNAME
       - OPR_EXECUTOR_DOCKER_HUB_PASSWORD
       - OPR_EXECUTOR_RUNTIME_VERSIONS
+      - OPR_EXECUTOR_RETRY_ATTEMPTS
+      - OPR_EXECUTOR_RETRY_DELAY_MS
+      - OPR_EXECUTOR_IMAGE_PULL
 
 networks:
   openruntimes-runtimes:
@@ -78,6 +81,7 @@ volumes:
 OPR_EXECUTOR_ENV=development
 OPR_EXECUTOR_RUNTIMES=php-8.0
 OPR_EXECUTOR_CONNECTION_STORAGE=file://localhost
+OPR_EXECUTOR_IMAGE_PULL=enabled
 OPR_EXECUTOR_INACTIVE_TRESHOLD=60
 OPR_EXECUTOR_MAINTENANCE_INTERVAL=60
 OPR_EXECUTOR_NETWORK=openruntimes-runtimes
@@ -87,6 +91,8 @@ OPR_EXECUTOR_LOGGING_CONFIG=
 OPR_EXECUTOR_DOCKER_HUB_USERNAME=
 OPR_EXECUTOR_DOCKER_HUB_PASSWORD=
 OPR_EXECUTOR_RUNTIME_VERSIONS=v4
+OPR_EXECUTOR_RETRY_ATTEMPTS=5
+OPR_EXECUTOR_RETRY_DELAY_MS=500
 ```
 
 > `OPR_EXECUTOR_CONNECTION_STORAGE` takes a DSN string that represents a connection to your storage device. If you would like to use your local filesystem, you can use `file://localhost`. If using S3 or any other provider for storage, use a DSN of the following format `s3://access_key:access_secret@host:port/bucket_name?region=us-east-1`
@@ -196,6 +202,9 @@ docker compose down
 | OPR_EXECUTOR_DOCKER_HUB_USERNAME | Username for Docker Hub authentication (if applicable)                                                                                        |
 | OPR_EXECUTOR_DOCKER_HUB_PASSWORD | Password for Docker Hub authentication (if applicable)                                                                                        |
 | OPR_EXECUTOR_RUNTIME_VERSIONS    | Version tag for runtime environments, ex: `v4`                                                                                                |
+| OPR_EXECUTOR_RETRY_ATTEMPTS      | Number of retry attempts for failed executions, ex: `5`                                                                                       |
+| OPR_EXECUTOR_RETRY_DELAY_MS      | Delay (in milliseconds) between retry attempts, ex: `500`                                                                                    |
+| OPR_EXECUTOR_IMAGE_PULL      | Pull open runtimes images before executor starts. Takes `disabled` and `enabled` |
 
 ## Contributing
 

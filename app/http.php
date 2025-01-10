@@ -526,7 +526,7 @@ Http::post('/v1/runtimes')
     ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, string $outputDirectory, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, array $networks, Orchestration $orchestration, Table $activeRuntimes, Response $response, Log $log) {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
-        $runtimeHostname = \uniqid();
+        $runtimeHostname = \bin2hex(\random_bytes(16));
 
         $log->addTag('image', $image);
         $log->addTag('version', $version);
@@ -1323,23 +1323,43 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             // Execute function
             $executionRequest = $version === 'v4' ? $executeV4 : $executeV2;
-            $executionResponse = \call_user_func($executionRequest);
 
-            // Error occured
-            if ($executionResponse['errNo'] !== 0) {
-                // Intended timeout error for v2 functions
-                if ($executionResponse['errNo'] === 110 && $version === 'v2') {
-                    throw new Exception($executionResponse['error'], 400);
+            $retryDelayMs = \intval(Http::getEnv('OPR_EXECUTOR_RETRY_DELAY_MS', '500'));
+            $retryAttempts = \intval(Http::getEnv('OPR_EXECUTOR_RETRY_ATTEMPTS', '5'));
+
+            $attempts = 0;
+            do {
+                $executionResponse = \call_user_func($executionRequest);
+                if ($executionResponse['errNo'] === CURLE_OK) {
+                    break;
                 }
 
+                // Not retryable, return error immediately
+                if (!in_array($executionResponse['errNo'], [
+                    CURLE_COULDNT_RESOLVE_HOST, // 6
+                    CURLE_COULDNT_CONNECT, // 7
+                ])) {
+                    break;
+                }
+
+                usleep($retryDelayMs * 1000);
+            } while ((++$attempts < $retryAttempts) || (\microtime(true) - $startTime < $timeout));
+
+            // Error occurred
+            if ($executionResponse['errNo'] !== CURLE_OK) {
+                $log->addExtra('activeRuntime', $activeRuntimes->get($runtimeName));
                 $log->addExtra('error', $executionResponse['error']);
                 $log->addTag('hostname', $hostname);
 
-                throw new Exception('Internal curl errors has occurred within the executor! Error Number: ' . $executionResponse['errNo'], 500);
+                // Intended timeout error for v2 functions
+                if ($version === 'v2' && $executionResponse['errNo'] === SOCKET_ETIMEDOUT) {
+                    throw new Exception($executionResponse['error'], 400);
+                }
+
+                throw new Exception('Internal curl error has occurred within the executor! Error Number: ' . $executionResponse['errNo'], 500);
             }
 
             // Successful execution
-
             ['statusCode' => $statusCode, 'body' => $body, 'logs' => $logs, 'errors' => $errors, 'headers' => $headers] = $executionResponse;
 
             $endTime = \microtime(true);
@@ -1410,16 +1430,12 @@ Http::get('/v1/health')
     ->inject('response')
     ->action(function (Table $statsHost, Table $statsContainers, Response $response) {
         $output = [
-            'status' => 'pass',
-            'runtimes' => []
+            'runtimes' => [],
+            'usage' => $statsHost->get('host', 'usage') ?? null
         ];
-
-        $hostUsage = $statsHost->get('host', 'usage') ?? null;
-        $output['usage'] = $hostUsage;
 
         foreach ($statsContainers as $hostname => $stat) {
             $output['runtimes'][$hostname] = [
-                'status' => 'pass',
                 'usage' => $stat['usage'] ?? null
             ];
         }
@@ -1526,25 +1542,30 @@ run(function () use ($register) {
      */
     $allowList = empty(Http::getEnv('OPR_EXECUTOR_RUNTIMES')) ? [] : \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIMES'));
 
-    $runtimeVersions = \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v4') ?? 'v4');
-    foreach ($runtimeVersions as $runtimeVersion) {
-        Console::success("Pulling $runtimeVersion images...");
-        $runtimes = new Runtimes($runtimeVersion); // TODO: @Meldiron Make part of open runtimes
-        $runtimes = $runtimes->getAll(true, $allowList);
-        $callables = [];
-        foreach ($runtimes as $runtime) {
-            $callables[] = function () use ($runtime, $orchestration) {
-                Console::log('Warming up ' . $runtime['name'] . ' ' . $runtime['version'] . ' environment...');
-                $response = $orchestration->pull($runtime['image']);
-                if ($response) {
-                    Console::info("Successfully Warmed up {$runtime['name']} {$runtime['version']}!");
-                } else {
-                    Console::warning("Failed to Warmup {$runtime['name']} {$runtime['version']}!");
-                }
-            };
-        }
+    if (Http::getEnv('OPR_EXECUTOR_IMAGE_PULL', 'enabled') === 'disabled') {
+        // Useful to prevent auto-pulling from remote when testing local images
+        Console::info("Skipping image pulling");
+    } else {
+        $runtimeVersions = \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v4') ?? 'v4');
+        foreach ($runtimeVersions as $runtimeVersion) {
+            Console::success("Pulling $runtimeVersion images...");
+            $runtimes = new Runtimes($runtimeVersion); // TODO: @Meldiron Make part of open runtimes
+            $runtimes = $runtimes->getAll(true, $allowList);
+            $callables = [];
+            foreach ($runtimes as $runtime) {
+                $callables[] = function () use ($runtime, $orchestration) {
+                    Console::log('Warming up ' . $runtime['name'] . ' ' . $runtime['version'] . ' environment...');
+                    $response = $orchestration->pull($runtime['image']);
+                    if ($response) {
+                        Console::info("Successfully Warmed up {$runtime['name']} {$runtime['version']}!");
+                    } else {
+                        Console::warning("Failed to Warmup {$runtime['name']} {$runtime['version']}!");
+                    }
+                };
+            }
 
-        batch($callables);
+            batch($callables);
+        }
     }
 
     Console::success("Image pulling finished.");
