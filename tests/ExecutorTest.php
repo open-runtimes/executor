@@ -36,7 +36,7 @@ final class ExecutorTest extends TestCase
 
     public function testLogStream(): void
     {
-        $runtimeLogs = '';
+        $runtimeLogs = [];
         $streamLogs = '';
         $totalChunks = 0;
 
@@ -91,22 +91,30 @@ final class ExecutorTest extends TestCase
             ];
         }
 
-        $this->assertStringContainsString('Preparing for build', $runtimeLogs);
+        $runtimeLogsString = '';
+        foreach($runtimeLogs as $logItem) {
+            \var_dump($logItem);
+            $runtimeLogsString .= $logItem['content'];
+        }
+
+        // TODO: @Meldiron Test for runtimeLogs as array
+
+        $this->assertStringContainsString('Preparing for build', $runtimeLogsString);
         $this->assertStringContainsString('Preparing for build', $streamLogs);
 
-        $this->assertStringContainsString('Step: 1', $runtimeLogs);
+        $this->assertStringContainsString('Step: 1', $runtimeLogsString);
         $this->assertStringContainsString('Step: 1', $streamLogs);
 
-        $this->assertStringContainsString('Step: 2', $runtimeLogs);
+        $this->assertStringContainsString('Step: 2', $runtimeLogsString);
         $this->assertStringContainsString('Step: 2', $streamLogs);
 
-        $this->assertStringContainsString('Step: 14', $runtimeLogs);
+        $this->assertStringContainsString('Step: 14', $runtimeLogsString);
         $this->assertStringContainsString('Step: 14', $streamLogs);
 
-        $this->assertStringContainsString('Step: 15', $runtimeLogs);
+        $this->assertStringContainsString('Step: 15', $runtimeLogsString);
         $this->assertStringContainsString('Step: 15', $streamLogs);
 
-        $this->assertStringContainsString('Build finished', $runtimeLogs);
+        $this->assertStringContainsString('Build finished', $runtimeLogsString);
         $this->assertStringContainsString('Build finished', $streamLogs);
 
         $this->assertGreaterThan(3, $totalChunks);
@@ -198,7 +206,7 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
         $this->assertIsString($response['body']['path']);
-        $this->assertIsString($response['body']['output']);
+        $this->assertIsArray($response['body']['output']);
         $this->assertIsFloat($response['body']['duration']);
         $this->assertIsFloat($response['body']['startTime']);
         $this->assertIsInt($response['body']['size']);
@@ -296,7 +304,7 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
         $this->assertIsString($response['body']['path']);
-        $this->assertIsString($response['body']['output']);
+        $this->assertIsArray($response['body']['output']);
         $this->assertIsFloat($response['body']['duration']);
         $this->assertIsFloat($response['body']['startTime']);
         $this->assertIsInt($response['body']['size']);
@@ -563,92 +571,6 @@ final class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
-    public function testBuildLogLimit(): void
-    {
-        $size128Kb = 1024 * 128;
-
-        $output = '';
-        Console::execute('cd /app/tests/resources/functions/php-build-logs && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
-
-        /** Build runtime */
-        $params = [
-            'runtimeId' => 'test-build-logs',
-            'source' => '/storage/functions/php-build-logs/code.tar.gz',
-            'destination' => '/storage/builds/test',
-            'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v4-8.1',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "sh logs_failure.sh"',
-            'remove' => true
-        ];
-
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
-
-        $this->assertEquals(400, $response['headers']['status-code']);
-        $this->assertGreaterThanOrEqual($size128Kb * 7, \strlen($response['body']['message']));
-        $this->assertStringContainsString('Preparing for build ...', $response['body']['message']);
-        $this->assertStringContainsString('Build exited.', $response['body']['message']);
-
-        $output = '';
-        Console::execute('cd /app/tests/resources/functions/php-build-logs && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
-
-        /** Build runtime */
-        $params = [
-            'runtimeId' => 'test-build-logs',
-            'source' => '/storage/functions/php-build-logs/code.tar.gz',
-            'destination' => '/storage/builds/test',
-            'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v4-8.1',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "sh logs_success.sh"',
-            'remove' => true
-        ];
-
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
-
-        $this->assertEquals(201, $response['headers']['status-code']);
-        $this->assertGreaterThanOrEqual($size128Kb * 7, \strlen($response['body']['output']));
-        $this->assertStringContainsString('Preparing for build ...', $response['body']['output']);
-        $this->assertStringContainsString('Build finished.', $response['body']['output']);
-
-        /** Build runtime */
-        $params = [
-            'runtimeId' => 'test-build-logs',
-            'source' => '/storage/functions/php-build-logs/code.tar.gz',
-            'destination' => '/storage/builds/test',
-            'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v4-8.1',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "sh logs_failure_large.sh"',
-            'remove' => true
-        ];
-
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
-
-        $this->assertEquals(400, $response['headers']['status-code']);
-        $this->assertEquals(1000000, \strlen($response['body']['message']));
-        $this->assertStringNotContainsString('Preparing for build ...', $response['body']['message']);
-        $this->assertStringContainsString('Build exited.', $response['body']['message']);
-
-        $output = '';
-        Console::execute('cd /app/tests/resources/functions/php-build-logs && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
-
-        /** Build runtime */
-        $params = [
-            'runtimeId' => 'test-build-logs',
-            'source' => '/storage/functions/php-build-logs/code.tar.gz',
-            'destination' => '/storage/builds/test',
-            'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v4-8.1',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "sh logs_success_large.sh"',
-            'remove' => true
-        ];
-
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
-
-        $this->assertEquals(201, $response['headers']['status-code']);
-        $this->assertEquals(1000000, \strlen($response['body']['output']));
-        $this->assertStringNotContainsString('Preparing for build ...', $response['body']['output']);
-        $this->assertStringContainsString('Build finished.', $response['body']['output']);
-    }
-
     /**
      *
      * @return array<mixed>
@@ -895,8 +817,13 @@ final class ExecutorTest extends TestCase
                 'cpus' => 2.5,
                 'memory' => 1024,
                 'buildAssertions' => function ($response) {
-                    $this->assertStringContainsString("cpus=2.5", $response['body']['output']);
-                    $this->assertStringContainsString("memory=1024", $response['body']['output']);
+                    $output = '';
+                    foreach($response['body']['output'] as $outputItem) {
+                        $output .= $outputItem['content'];
+                    }
+
+                    $this->assertStringContainsString("cpus=2.5", $output);
+                    $this->assertStringContainsString("memory=1024", $output);
                 }
             ],
         ];

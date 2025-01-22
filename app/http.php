@@ -4,6 +4,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use Appwrite\Runtimes\Runtimes;
 use OpenRuntimes\Executor\BodyMultipart;
+use OpenRuntimes\Executor\Logs;
 use OpenRuntimes\Executor\Validator\TCP;
 use OpenRuntimes\Executor\Usage;
 use Swoole\Process;
@@ -409,7 +410,7 @@ Http::get('/v1/runtimes/:runtimeId/logs')
 
         $tmpFolder = "tmp/$runtimeName/";
         $tmpLogging = "/{$tmpFolder}logging"; // Build logs
-        
+
         $version = null;
         $checkStart = \microtime(true);
         while (true) {
@@ -418,7 +419,7 @@ Http::get('/v1/runtimes/:runtimeId/logs')
             }
 
             $runtime = $activeRuntimes->get($runtimeName);
-            if(!\is_null($runtime)) {
+            if (!\is_null($runtime)) {
                 $version = $runtime['version'];
                 break;
             }
@@ -427,7 +428,7 @@ Http::get('/v1/runtimes/:runtimeId/logs')
             \usleep(500000);
         }
 
-        if($version === 'v2') {
+        if ($version === 'v2') {
             $response->end();
             return;
         }
@@ -742,7 +743,6 @@ Http::post('/v1/runtimes')
                 $destinationDevice = getStorageDevice($destination);
                 $path = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo('code.tar.gz', PATHINFO_EXTENSION));
 
-
                 if (!$localDevice->transfer($tmpBuild, $path, $destinationDevice)) {
                     throw new Exception('Failed to move built code to storage', 500);
                 };
@@ -750,15 +750,10 @@ Http::post('/v1/runtimes')
                 $container['path'] = $path;
             }
 
-            if ($output === '') {
-                $output = 'Runtime created successfully!';
-            }
-
             $endTime = \microtime(true);
             $duration = $endTime - $startTime;
 
-            $output = \mb_substr($output, -1000000); // Limit to 1MB
-
+            $output = Logs::getLogs($runtimeName);
             $container = array_merge($container, [
                 'output' => $output,
                 'startTime' => $startTime,
@@ -770,6 +765,7 @@ Http::post('/v1/runtimes')
             $activeRuntime['status'] = 'Up ' . \round($duration, 2) . 's';
             $activeRuntimes->set($runtimeName, $activeRuntime);
         } catch (Throwable $th) {
+            $output = Logs::getLogs($runtimeName);
             $message = !empty($output) ? $output : $th->getMessage();
 
             // Extract as much logs as we can
