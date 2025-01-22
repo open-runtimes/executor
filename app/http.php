@@ -118,6 +118,7 @@ $register->set('orchestration', function () {
 $register->set('activeRuntimes', function () {
     $table = new Table(4096);
 
+    $table->column('version', Table::TYPE_STRING, 32);
     $table->column('created', Table::TYPE_FLOAT);
     $table->column('updated', Table::TYPE_FLOAT);
     $table->column('name', Table::TYPE_STRING, 1024);
@@ -395,7 +396,8 @@ Http::get('/v1/runtimes/:runtimeId/logs')
     ->param('timeout', '600', new Text(16), 'Maximum logs timeout.', true)
     ->inject('response')
     ->inject('log')
-    ->action(function (string $runtimeId, string $timeoutStr, Response $response, Log $log) {
+    ->inject('activeRuntimes')
+    ->action(function (string $runtimeId, string $timeoutStr, Response $response, Log $log, Table $activeRuntimes) {
         $timeout = \intval($timeoutStr);
 
         $runtimeName = System::getHostname() . '-' . $runtimeId;
@@ -407,6 +409,28 @@ Http::get('/v1/runtimes/:runtimeId/logs')
 
         $tmpFolder = "tmp/$runtimeName/";
         $tmpLogging = "/{$tmpFolder}logging"; // Build logs
+        
+        $version = null;
+        $checkStart = \microtime(true);
+        while (true) {
+            if (\microtime(true) - $checkStart >= $timeout) {
+                throw new Exception('Runtime was not created in time.', 400);
+            }
+
+            $runtime = $activeRuntimes->get($runtimeName);
+            if(!\is_null($runtime)) {
+                $version = $runtime['version'];
+                break;
+            }
+
+            // Wait 0.5s and check again
+            \usleep(500000);
+        }
+
+        if($version === 'v2') {
+            $response->end();
+            return;
+        }
 
         $checkStart = \microtime(true);
         while (true) {
@@ -547,6 +571,7 @@ Http::post('/v1/runtimes')
         $secret = \bin2hex(\random_bytes(16));
 
         $activeRuntimes->set($runtimeName, [
+            'version' => $version,
             'listening' => 0,
             'name' => $runtimeName,
             'hostname' => $runtimeHostname,
