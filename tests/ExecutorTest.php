@@ -70,11 +70,14 @@ final class ExecutorTest extends TestCase
                     $this->assertEquals(201, $response['headers']['status-code']);
 
                     $runtimeLogs = $response['body']['output'];
+
+                    \var_dump($response);
+                    die();
                 }),
             ]);
         });
 
-        // Stream parsing
+        // stream log parsing
         $streamChunks = [];
         $streamLogs = \str_replace("\\n", "{OPR_LINEBREAK_PLACEHOLDER}", $streamLogs);
         foreach (\explode("\n", $streamLogs) as $streamLog) {
@@ -91,9 +94,9 @@ final class ExecutorTest extends TestCase
             ];
         }
 
+        // output log parsing
         $runtimeLogsString = '';
-        foreach($runtimeLogs as $logItem) {
-            \var_dump($logItem);
+        foreach ($runtimeLogs as $logItem) {
             $runtimeLogsString .= $logItem['content'];
         }
 
@@ -818,7 +821,7 @@ final class ExecutorTest extends TestCase
                 'memory' => 1024,
                 'buildAssertions' => function ($response) {
                     $output = '';
-                    foreach($response['body']['output'] as $outputItem) {
+                    foreach ($response['body']['output'] as $outputItem) {
                         $output .= $outputItem['content'];
                     }
 

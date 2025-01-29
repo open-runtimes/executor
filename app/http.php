@@ -474,15 +474,13 @@ Http::get('/v1/runtimes/:runtimeId/logs')
         });
 
         $offset = 0; // Current offset from timing for reading logs content
+        $tempLogsContent = \file_get_contents($tmpLogging . '/logs.txt') ?: '';
+        $introOffset = Logs::getLogOffset($tempLogsContent);
+
         $datetime = new DateTime("now", new DateTimeZone("UTC")); // Date used for tracking absolute log timing
 
-        $tempLogsContent = \file_get_contents($tmpLogging . '/logs.txt') ?: '';
-        $tempLogsContentSplit = \explode("\n", $tempLogsContent, 2); // Find first linebreak to identify prefix
-        $introOffset = \strlen($tempLogsContentSplit[0]); // Ignore script addition "Script started on..."
-        $introOffset += 1; // Consider linebreak an intro too
-
         $output = ''; // Unused, just a refference for stdout
-        Console::execute('tail -F ' . $tmpLogging . '/timings.txt', '', $output, $timeout, function (string $timingChunk, mixed $process) use ($tmpLogging, &$logsChunk, &$logsProcess, &$offset, &$datetime, $introOffset) {
+        Console::execute('tail -F ' . $tmpLogging . '/timings.txt', '', $output, $timeout, function (string $timingChunk, mixed $process) use ($tmpLogging, &$logsChunk, &$logsProcess, &$datetime, &$offset, $introOffset) {
             $logsProcess = $process;
 
             if (!\file_exists($tmpLogging . '/logs.txt')) {
@@ -492,30 +490,17 @@ Http::get('/v1/runtimes/:runtimeId/logs')
                 return;
             }
 
-            if (empty($timingChunk)) {
-                return;
-            }
+            $parts = Logs::parseTiming($timingChunk, $datetime);
 
-            $rows = \explode("\n", $timingChunk);
-            foreach ($rows as $row) {
-                if (empty($row)) {
-                    continue;
-                }
+            foreach ($parts as $part) {
+                $timestamp = $part['timestamp'] ?? '';
+                $length = \intval($part['length'] ?? '0');
 
-                [$timing, $length] = \explode(' ', $row, 2);
-                $timing = \floatval($timing);
-                $timing = \ceil($timing * 1000000); // Convert to microseconds
-                $length = \intval($length);
-
-                $di = DateInterval::createFromDateString($timing . ' microseconds');
-                $datetime->add($di);
-
-                $timingContent = $datetime->format('Y-m-d\TH:i:s.vP');
                 $logContent = \file_get_contents($tmpLogging . '/logs.txt', false, null, $introOffset + $offset, \abs($length)) ?: '';
 
                 $logContent = \str_replace("\n", "\\n", $logContent);
 
-                $output = $timingContent . " " . $logContent . "\n";
+                $output = $timestamp . " " . $logContent . "\n";
 
                 $logsChunk .= $output;
                 $offset += $length;
@@ -752,6 +737,8 @@ Http::post('/v1/runtimes')
 
             $endTime = \microtime(true);
             $duration = $endTime - $startTime;
+
+            \var_dump("Checking " . $runtimeName);
 
             $output = Logs::getLogs($runtimeName);
             $container = array_merge($container, [

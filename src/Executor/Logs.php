@@ -9,7 +9,7 @@ use DateTimeZone;
 class Logs
 {
     /**
-     * @return array<array<string, string>>
+     * @return array<array<string, mixed>>
      */
     public static function getLogs(string $containerId): array
     {
@@ -19,6 +19,9 @@ class Logs
         $logsFile = $dir . "/logs.txt";
         $timingsFile = $dir . "/timings.txt";
 
+        \var_dump($logsFile);
+        \var_dump($timingsFile);
+
         if (!\file_exists($logsFile) || !\file_exists($timingsFile)) {
             return [];
         }
@@ -27,12 +30,43 @@ class Logs
         $timings = \file_get_contents($timingsFile) ?: '';
 
         $offset = 0; // Current offset from timing for reading logs content
-        $tempLogsContentSplit = \explode("\n", $logs, 2); // Find first linebreak to identify prefix
-        $introOffset = \strlen($tempLogsContentSplit[0]); // Ignore script addition "Script started on..."
-        $introOffset += 1; // Consider linebreak an intro too
+        $introOffset = self::getLogOffset($logs);
 
-        $datetime = new DateTime("now", new DateTimeZone("UTC")); // Date used for tracking absolute log timing
-        $rows = \explode("\n", $timings);
+        $parts = self::parseTiming($timings);
+
+        foreach ($parts as $part) {
+            $timestamp = $part['timestamp'] ?? '';
+            $length = \intval($part['length'] ?? '0');
+
+            $logContent = \substr($logs, $introOffset + $offset, \abs($length)) ?: '';
+
+            $putput[] = [
+                'timestamp' => $timestamp,
+                'content' => $logContent
+            ];
+
+            $offset += $length;
+        }
+
+        return $output;
+    }
+
+        /**
+     * @return array<array<string, mixed>>
+     */
+    public static function parseTiming(string $timing, ?DateTime $datetime = null): array
+    {
+        if (\is_null($datetime)) {
+            $datetime = new DateTime("now", new DateTimeZone("UTC")); // Date used for tracking absolute log timing
+        }
+
+        if (empty($timing)) {
+            return [];
+        }
+
+        $parts = [];
+
+        $rows = \explode("\n", $timing);
         foreach ($rows as $row) {
             if (empty($row)) {
                 continue;
@@ -46,18 +80,23 @@ class Logs
             $di = DateInterval::createFromDateString($timing . ' microseconds');
             $datetime->add($di);
 
-            $timingContent = $datetime->format('Y-m-d\TH:i:s.vP');
+            $date = $datetime->format('Y-m-d\TH:i:s.vP');
 
-            $logContent = \substr($logs, $introOffset + $offset, \abs($length)) ?: '';
-
-            $putput[] = [
-                'timestamp' => $timingContent,
-                'content' => $logContent
+            $parts[] = [
+                'timestamp' => $date,
+                'length' => $length
             ];
-
-            $offset += $length;
         }
 
-        return $output;
+        return $parts;
+    }
+
+    public static function getLogOffset(string $logs): int
+    {
+        $contentSplit = \explode("\n", $logs, 2); // Find first linebreak to identify prefix
+        $offset = \strlen($contentSplit[0] ?? ''); // Ignore script addition "Script started on..."
+        $offset += 1; // Consider linebreak an intro too
+
+        return $offset;
     }
 }
