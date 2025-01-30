@@ -19,9 +19,6 @@ class Logs
         $logsFile = $dir . "/logs.txt";
         $timingsFile = $dir . "/timings.txt";
 
-        \var_dump($logsFile);
-        \var_dump($timingsFile);
-
         if (!\file_exists($logsFile) || !\file_exists($timingsFile)) {
             return [];
         }
@@ -40,7 +37,7 @@ class Logs
 
             $logContent = \substr($logs, $introOffset + $offset, \abs($length)) ?: '';
 
-            $putput[] = [
+            $output[] = [
                 'timestamp' => $timestamp,
                 'content' => $logContent
             ];
@@ -51,7 +48,7 @@ class Logs
         return $output;
     }
 
-        /**
+    /**
      * @return array<array<string, mixed>>
      */
     public static function parseTiming(string $timing, ?DateTime $datetime = null): array
@@ -98,5 +95,10 @@ class Logs
         $offset += 1; // Consider linebreak an intro too
 
         return $offset;
+    }
+
+    public static function getTimestamp(): string
+    {
+        return (new DateTime("now", new DateTimeZone("UTC")))->format('Y-m-d\TH:i:s.vP');
     }
 }

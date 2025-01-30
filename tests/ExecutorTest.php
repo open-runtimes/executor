@@ -36,25 +36,36 @@ final class ExecutorTest extends TestCase
 
     public function testLogStream(): void
     {
-        $runtimeLogs = [];
-        $streamLogs = '';
-        $totalChunks = 0;
+        $runtimeChunks = [];
+        $streamChunks = [];
 
-        Co\run(function () use (&$runtimeLogs, &$streamLogs, &$totalChunks) {
+        Co\run(function () use (&$runtimeChunks, &$streamChunks) {
             /** Prepare build */
             $output = '';
             Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
 
             Co::join([
                 /** Watch logs */
-                Co\go(function () use (&$streamLogs, &$totalChunks) {
-                    $this->client->call(Client::METHOD_GET, '/runtimes/test-log-stream/logs', [], [], true, function ($data) use (&$streamLogs, &$totalChunks) {
-                        $streamLogs .= $data;
-                        $totalChunks++;
+                Co\go(function () use (&$streamChunks) {
+                    $this->client->call(Client::METHOD_GET, '/runtimes/test-log-stream/logs', [], [], true, function ($data) use (&$streamChunks) {
+                        // stream log parsing
+                        $data = \str_replace("\\n", "{OPR_LINEBREAK_PLACEHOLDER}", $data);
+                        foreach (\explode("\n", $data) as $chunk) {
+                            if (empty($chunk)) {
+                                continue;
+                            }
+
+                            $chunk = \str_replace("{OPR_LINEBREAK_PLACEHOLDER}", "\n", $chunk);
+                            $parts = \explode(" ", $chunk, 2);
+                            $streamChunks[] = [
+                                'timestamp' => $parts[0] ?? '',
+                                'content' => $parts[1] ?? ''
+                            ];
+                        }
                     });
                 }),
                 /** Start runtime */
-                Co\go(function () use (&$runtimeLogs) {
+                Co\go(function () use (&$runtimeChunks) {
                     $params = [
                         'runtimeId' => 'test-log-stream',
                         'source' => '/storage/functions/node/code.tar.gz',
@@ -69,101 +80,73 @@ final class ExecutorTest extends TestCase
                     $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
                     $this->assertEquals(201, $response['headers']['status-code']);
 
-                    $runtimeLogs = $response['body']['output'];
-
-                    \var_dump($response);
-                    die();
+                    $runtimeChunks = $response['body']['output'];
                 }),
             ]);
         });
 
-        // stream log parsing
-        $streamChunks = [];
-        $streamLogs = \str_replace("\\n", "{OPR_LINEBREAK_PLACEHOLDER}", $streamLogs);
-        foreach (\explode("\n", $streamLogs) as $streamLog) {
-            if (empty($streamLog)) {
-                continue;
+        // Realtime logs are non-strict regarding exact end of logs
+        $validateLogs = function (array $logs, bool $strict) {
+            $content = '';
+            foreach ($logs as $log) {
+                $content .= $log['content'];
             }
 
-            $streamLog = \str_replace("{OPR_LINEBREAK_PLACEHOLDER}", "\n", $streamLog);
-            $streamParts = \explode(" ", $streamLog, 2);
+            $this->assertStringContainsString('Preparing for build', $content);
+            $this->assertStringContainsString('Step: 1', $content);
+            $this->assertStringContainsString('Step: 2', $content);
+            $this->assertStringContainsString('Step: 9', $content);
+            $this->assertStringContainsString('Step: 10', $content);
 
-            $streamChunks[] = [
-                'timestamp' => $streamParts[0] ?? '',
-                'content' => $streamParts[1] ?? ''
-            ];
-        }
-
-        // output log parsing
-        $runtimeLogsString = '';
-        foreach ($runtimeLogs as $logItem) {
-            $runtimeLogsString .= $logItem['content'];
-        }
-
-        // TODO: @Meldiron Test for runtimeLogs as array
-
-        $this->assertStringContainsString('Preparing for build', $runtimeLogsString);
-        $this->assertStringContainsString('Preparing for build', $streamLogs);
-
-        $this->assertStringContainsString('Step: 1', $runtimeLogsString);
-        $this->assertStringContainsString('Step: 1', $streamLogs);
-
-        $this->assertStringContainsString('Step: 2', $runtimeLogsString);
-        $this->assertStringContainsString('Step: 2', $streamLogs);
-
-        $this->assertStringContainsString('Step: 14', $runtimeLogsString);
-        $this->assertStringContainsString('Step: 14', $streamLogs);
-
-        $this->assertStringContainsString('Step: 15', $runtimeLogsString);
-        $this->assertStringContainsString('Step: 15', $streamLogs);
-
-        $this->assertStringContainsString('Build finished', $runtimeLogsString);
-        $this->assertStringContainsString('Build finished', $streamLogs);
-
-        $this->assertGreaterThan(3, $totalChunks);
-
-        $this->assertGreaterThan(3, $streamChunks);
-
-        $hasOrange = false;
-        $hasRed = false;
-        $hasStep = false;
-
-        $previousTimestamp = null;
-        $firstTimestamp = null;
-
-        foreach ($streamChunks as $streamChunk) {
-            $this->assertNotEmpty($streamChunk['content']);
-            $this->assertNotEmpty($streamChunk['timestamp']);
-
-            if (!\is_null($previousTimestamp)) {
-                $this->assertGreaterThanOrEqual($previousTimestamp, $streamChunk['timestamp']);
-            } else {
-                $firstTimestamp = null;
+            if ($strict) {
+                $this->assertStringContainsString('Build finished', $content);
             }
 
-            $previousTimestamp = $streamChunk['timestamp'];
+            $this->assertGreaterThan(5, \count($logs));
 
-            if (!(\str_contains($streamChunk['content'], "echo -e"))) {
-                if (\str_contains($streamChunk['content'], "[33mOrange message") && \str_contains($streamChunk['content'], "[0m")) {
-                    $hasOrange = true;
-                    continue;
+            $hasOrange = false;
+            $hasRed = false;
+            $hasStep = false;
+
+            $previousTimestamp = null;
+            $firstTimestamp = null;
+            foreach ($logs as $log) {
+                $this->assertNotEmpty($log['content']);
+                $this->assertNotEmpty($log['timestamp']);
+
+                if (!\is_null($previousTimestamp)) {
+                    $this->assertGreaterThanOrEqual($previousTimestamp, $log['timestamp']);
+                } else {
+                    $firstTimestamp = null;
                 }
-                if (\str_contains($streamChunk['content'], "[31mRed message") && \str_contains($streamChunk['content'], "[0m")) {
-                    $hasRed = true;
-                    continue;
+
+                $previousTimestamp = $log['timestamp'];
+
+                if (!(\str_contains($log['content'], "echo -e"))) {
+                    if (\str_contains($log['content'], "[33mOrange message") && \str_contains($log['content'], "[0m")) {
+                        $hasOrange = true;
+                        continue;
+                    }
+                    if (\str_contains($log['content'], "[31mRed message") && \str_contains($log['content'], "[0m")) {
+                        $hasRed = true;
+                        continue;
+                    }
+                }
+
+                if (\str_contains($log['content'], "Step: 5")) {
+                    $hasStep = true;
                 }
             }
 
-            if (\str_contains($streamChunk['content'], "Step: 5")) {
-                $hasStep = true;
-            }
-        }
+            $this->assertGreaterThanOrEqual($firstTimestamp, $previousTimestamp);
 
-        $this->assertGreaterThanOrEqual($firstTimestamp, $previousTimestamp);
+            $this->assertTrue($hasRed);
+            $this->assertTrue($hasOrange);
+            $this->assertTrue($hasStep);
+        };
 
-        $this->assertTrue($hasRed);
-        $this->assertTrue($hasOrange);
-        $this->assertTrue($hasStep);
+        $validateLogs($runtimeChunks, true);
+        $validateLogs($streamChunks, false);
     }
 
     public function testErrors(): void

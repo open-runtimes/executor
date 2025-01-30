@@ -419,7 +419,7 @@ Http::get('/v1/runtimes/:runtimeId/logs')
             }
 
             $runtime = $activeRuntimes->get($runtimeName);
-            if (!\is_null($runtime)) {
+            if (!\is_null($runtime) && $runtime !== false) {
                 $version = $runtime['version'];
                 break;
             }
@@ -551,7 +551,7 @@ Http::post('/v1/runtimes')
         }
 
         $container = [];
-        $output = '';
+        $output = [];
         $startTime = \microtime(true);
 
         $secret = \bin2hex(\random_bytes(16));
@@ -698,15 +698,23 @@ Http::post('/v1/runtimes')
                 }
 
                 try {
+                    $statusOutput = '';
                     $status = $orchestration->execute(
                         name: $runtimeName,
                         command: $commands,
-                        output: $output,
+                        output: $statusOutput,
                         timeout: $timeout
                     );
 
                     if (!$status) {
-                        throw new Exception('Failed to create runtime: ' . $output, 400);
+                        throw new Exception('Failed to create runtime: ' . $statusOutput, 400);
+                    }
+
+                    if ($version === 'v2') {
+                        $output[] = [
+                            'timestamp' => Logs::getTimestamp(),
+                            'content' => $statusOutput
+                        ];
                     }
                 } catch (Throwable $err) {
                     throw new Exception($err->getMessage(), 400);
@@ -738,9 +746,10 @@ Http::post('/v1/runtimes')
             $endTime = \microtime(true);
             $duration = $endTime - $startTime;
 
-            \var_dump("Checking " . $runtimeName);
+            if ($version !== 'v2') {
+                $output = Logs::getLogs($runtimeName);
+            }
 
-            $output = Logs::getLogs($runtimeName);
             $container = array_merge($container, [
                 'output' => $output,
                 'startTime' => $startTime,
@@ -752,28 +761,34 @@ Http::post('/v1/runtimes')
             $activeRuntime['status'] = 'Up ' . \round($duration, 2) . 's';
             $activeRuntimes->set($runtimeName, $activeRuntime);
         } catch (Throwable $th) {
-            $output = Logs::getLogs($runtimeName);
-            $message = !empty($output) ? $output : $th->getMessage();
+            if ($version === 'v2') {
+                $message = !empty($output) ? $output : $th->getMessage();
+                try {
+                    $logs = '';
+                    $status = $orchestration->execute(
+                        name: $runtimeName,
+                        command: ['sh', '-c', 'cat /var/tmp/logs.txt'],
+                        output: $logs,
+                        timeout: 15
+                    );
 
-            // Extract as much logs as we can
-            try {
-                $logs = '';
-                $status = $orchestration->execute(
-                    name: $runtimeName,
-                    command: ['sh', '-c', 'cat /var/tmp/logs.txt'],
-                    output: $logs,
-                    timeout: 15
-                );
-
-                if (!empty($logs)) {
-                    $message = $logs;
+                    if (!empty($logs)) {
+                        $message = $logs;
+                    }
+                } catch (Throwable $err) {
+                    // Ignore, use fallback error message
                 }
-            } catch (Throwable $err) {
-                // Ignore, use fallback error message
-            }
 
-            if ($remove) {
-                \sleep(2); // Allow time to read logs
+                $output = [
+                    'timestamp' => Logs::getTimestamp(),
+                    'content' => $message
+                ];
+            } else {
+                $output = Logs::getLogs($runtimeName);
+                $output = \count($output) > 0 ? $output : [
+                    'timestamp' => Logs::getTimestamp(),
+                    'content' => $th->getMessage()
+                ];
             }
 
             $localDevice->deletePath($tmpFolder);
@@ -786,6 +801,10 @@ Http::post('/v1/runtimes')
 
             $activeRuntimes->del($runtimeName);
 
+            $message = '';
+            foreach ($output as $chunk) {
+                $message .= $chunk['content'];
+            }
             $message = \mb_substr($message, -1000000); // Limit to 1MB
 
             throw new Exception($message, $th->getCode() ?: 500);
@@ -793,8 +812,6 @@ Http::post('/v1/runtimes')
 
         // Container cleanup
         if ($remove) {
-            \sleep(2); // Allow time to read logs
-
             $localDevice->deletePath($tmpFolder);
 
             // Silently try to kill container
