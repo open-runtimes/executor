@@ -2,7 +2,7 @@ let i = 0;
 const interval = setInterval(() => {
   i++;
 
-  if (i >= 15) {
+  if (i >= 10) {
     clearInterval(interval);
   }
 
