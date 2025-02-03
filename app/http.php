@@ -414,12 +414,12 @@ Http::get('/v1/runtimes/:runtimeId/logs')
         $version = null;
         $checkStart = \microtime(true);
         while (true) {
-            if (\microtime(true) - $checkStart >= $timeout) {
+            if (\microtime(true) - $checkStart >= 10) { // Enforced timeout of 10s
                 throw new Exception('Runtime was not created in time.', 400);
             }
 
             $runtime = $activeRuntimes->get($runtimeName);
-            if (!\is_null($runtime) && $runtime !== false) {
+            if (!empty($runtime)) {
                 $version = $runtime['version'];
                 break;
             }
@@ -441,6 +441,13 @@ Http::get('/v1/runtimes/:runtimeId/logs')
 
             if (\file_exists($tmpLogging . '/logs.txt') && file_exists($tmpLogging . '/timings.txt')) {
                 break;
+            }
+
+            // Ensure runtime is still present
+            $runtime = $activeRuntimes->get($runtimeName);
+            if (empty($runtime)) {
+                $response->end();
+                return;
             }
 
             // Wait 0.5s and check again
