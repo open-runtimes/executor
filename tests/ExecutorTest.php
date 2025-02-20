@@ -1110,4 +1110,28 @@ final class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(200, $response['body']['statusCode']);
     }
+
+    public function testCommands(): void
+    {
+        $params = [
+            'runtimeId' => 'test-commands',
+            'remove' => false,
+            'image' => 'openruntimes/php:v4-8.1',
+            'entrypoint' => 'tail -f /dev/null',
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-commands/commands', [], [
+            'command' => 'echo "Hello, World!"',
+            'timeout' => 10
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertStringContainsString('Hello, World!', $response['body']['output']); // echo adds a newline, so need to use string contains
+
+        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/test-commands", [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
+    }
 }

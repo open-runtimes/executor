@@ -501,6 +501,41 @@ Http::get('/v1/runtimes/:runtimeId/logs')
         $response->end();
     });
 
+Http::post('/v1/runtimes/:runtimeId/commands')
+    ->desc('Execute a command inside an existing runtime')
+    ->param('runtimeId', '', new Text(64), 'Unique runtime ID.')
+    ->param('command', '', new Text(1024), 'Command to execute.')
+    ->param('timeout', 600, new Integer(), 'Commands execution time in seconds.', true)
+    ->inject('orchestration')
+    ->inject('activeRuntimes')
+    ->inject('response')
+    ->action(function (string $runtimeId, string $command, int $timeout, Orchestration $orchestration, Table $activeRuntimes, Response $response) {
+        $runtimeName = System::getHostname() . '-' . $runtimeId;
+
+        if (!$activeRuntimes->exists($runtimeName)) {
+            throw new Exception('Runtime not found', 404);
+        }
+
+        $commands = [
+            'sh',
+            '-c',
+            $command
+        ];
+
+        $output = '';
+        $orchestration->execute($runtimeName, $commands, $output, [], $timeout);
+
+        $output = array("output" => $output);
+
+        if (isset($output['error'])) {
+            throw new Exception("Failed to execute command: " . $output['error']);
+        }
+
+        $response
+            ->setStatusCode(Response::STATUS_CODE_OK)
+            ->json($output);
+    });
+
 Http::post('/v1/runtimes')
     ->desc("Create a new runtime server")
     ->param('runtimeId', '', new Text(64), 'Unique runtime ID.')
