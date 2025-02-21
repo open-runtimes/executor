@@ -1110,4 +1110,44 @@ final class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(200, $response['body']['statusCode']);
     }
+
+    public function testCommands(): void
+    {
+        $params = [
+            'runtimeId' => 'test-commands',
+            'remove' => false,
+            'image' => 'openruntimes/php:v4-8.1',
+            'entrypoint' => 'tail -f /dev/null',
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-commands/commands', [], [
+            'command' => 'echo "Hello, World!"'
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertStringContainsString('Hello, World!', $response['body']['output']); // echo adds a newline, so need to use string contains
+
+        // test for TIMEOUT
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-commands/commands', [], [
+            'command' => 'sleep 5 && echo "Ok"',
+            'timeout' => 1
+        ]);
+
+        $this->assertEquals(500, $response['headers']['status-code']);
+        $this->assertStringContainsString('Curl Error: Operation timed out', $response['body']['message']);
+
+        // test for FAILURE
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-commands/commands', [], [
+            'command' => 'var_dump("hello")'
+        ]);
+
+        $this->assertEquals(500, $response['headers']['status-code']);
+        $this->assertEquals('Failed to execute command. Exit code: 2', $response['body']['message']);
+
+        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/test-commands", [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
+    }
 }
