@@ -525,10 +525,6 @@ Http::post('/v1/runtimes/:runtimeId/commands')
         $output = '';
         $orchestration->execute($runtimeName, $commands, $output, [], $timeout);
 
-        if (isset($output['error'])) {
-            throw new Exception("Failed to execute command: " . $output['error']);
-        }
-
         $response
             ->setStatusCode(Response::STATUS_CODE_OK)
             ->json([ 'output' => $output ]);
