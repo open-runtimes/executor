@@ -3,7 +3,6 @@
 use OpenRuntimes\Executor\BodyMultipart;
 use OpenRuntimes\Executor\Runner\Adapter as Runner;
 use Swoole\Runtime;
-use Swoole\Table;
 use Utopia\CLI\Console;
 use Utopia\Logger\Log;
 use Utopia\Logger\Logger;
@@ -82,54 +81,11 @@ $register->set('logger', function () {
     return $logger;
 });
 
-/**
- * Create a Swoole table to store runtime information
- */
-$register->set('activeRuntimes', function () {
-    $table = new Table(4096);
-
-    $table->column('created', Table::TYPE_FLOAT);
-    $table->column('updated', Table::TYPE_FLOAT);
-    $table->column('name', Table::TYPE_STRING, 1024);
-    $table->column('hostname', Table::TYPE_STRING, 1024);
-    $table->column('status', Table::TYPE_STRING, 256);
-    $table->column('key', Table::TYPE_STRING, 1024);
-    $table->column('listening', Table::TYPE_INT, 1);
-    $table->column('image', Table::TYPE_STRING, 1024);
-    $table->create();
-
-    return $table;
-});
-
-/**
- * Create a Swoole table of usage stats (separate for host and containers)
- */
-$register->set('statsContainers', function () {
-    $table = new Table(4096);
-
-    $table->column('usage', Table::TYPE_FLOAT, 8);
-    $table->create();
-
-    return $table;
-});
-
-$register->set('statsHost', function () {
-    $table = new Table(4096);
-
-    $table->column('usage', Table::TYPE_FLOAT, 8);
-    $table->create();
-
-    return $table;
-});
-
 
 /** Set Resources */
 Http::setResource('log', fn () => new Log());
 Http::setResource('register', fn () => $register);
-Http::setResource('activeRuntimes', fn (Registry $register) => $register->get('activeRuntimes'), ['register']);
 Http::setResource('logger', fn (Registry $register) => $register->get('logger'), ['register']);
-Http::setResource('statsContainers', fn (Registry $register) => $register->get('statsContainers'), ['register']);
-Http::setResource('statsHost', fn (Registry $register) => $register->get('statsHost'), ['register']);
 
 function logError(Log $log, Throwable $error, string $action, Logger $logger = null, Route $route = null): void
 {
@@ -209,12 +165,10 @@ Http::post('/v1/runtimes')
     ->param('memory', 512, new Integer(), 'Container RAM memory.', true)
     ->param('version', 'v4', new WhiteList(['v2', 'v4']), 'Runtime Open Runtime version.', true)
     ->param('restartPolicy', DockerAPI::RESTART_NO, new WhiteList([DockerAPI::RESTART_NO, DockerAPI::RESTART_ALWAYS, DockerAPI::RESTART_ON_FAILURE, DockerAPI::RESTART_UNLESS_STOPPED], true), 'Define restart policy for the runtime once an exit code is returned. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)
-    ->inject('networks')
-    ->inject('activeRuntimes')
     ->inject('response')
     ->inject('log')
     ->inject('runner')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, string $outputDirectory, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, array $networks, Table $activeRuntimes, Response $response, Log $log, Runner $runner) {
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, string $outputDirectory, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Response $response, Log $log, Runner $runner) {
         $secret = \bin2hex(\random_bytes(16));
 
         /**
@@ -244,60 +198,39 @@ Http::post('/v1/runtimes')
 
         $variables = array_map(fn ($v) => strval($v), $variables);
 
-        $container = $runner->createRuntime($runtimeId, $secret, $image, $entrypoint, $source, $destination, $variables, $runtimeEntrypoint, $command, $timeout, $remove, $cpus, $memory, $version, $restartPolicy, $networks, $activeRuntimes, $log);
+        $container = $runner->createRuntime($runtimeId, $secret, $image, $entrypoint, $source, $destination, $variables, $runtimeEntrypoint, $command, $timeout, $remove, $cpus, $memory, $version, $restartPolicy, $log);
         $response->setStatusCode(Response::STATUS_CODE_CREATED)->json($container);
     });
 
 Http::get('/v1/runtimes')
     ->desc("List currently active runtimes")
-    ->inject('activeRuntimes')
+    ->inject('runner')
     ->inject('response')
-    ->action(function (Table $activeRuntimes, Response $response) {
-        $runtimes = [];
-
-        foreach ($activeRuntimes as $runtime) {
-            $runtimes[] = $runtime;
-        }
-
-        $response
-            ->setStatusCode(Response::STATUS_CODE_OK)
-            ->json($runtimes);
+    ->action(function (Runner $runner, Response $response) {
+        $response->setStatusCode(Response::STATUS_CODE_OK)->json($runner->getRuntimes());
     });
 
 Http::get('/v1/runtimes/:runtimeId')
     ->desc("Get a runtime by its ID")
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
-    ->inject('activeRuntimes')
+    ->inject('runner')
     ->inject('response')
     ->inject('log')
-    ->action(function (string $runtimeId, Table $activeRuntimes, Response $response, Log $log) {
+    ->action(function (string $runtimeId, Runner $runner, Response $response, Log $log) {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
-
         $log->addTag('runtimeId', $runtimeName);
-
-        if (!$activeRuntimes->exists($runtimeName)) {
-            throw new Exception('Runtime not found', 404);
-        }
-
-        $runtime = $activeRuntimes->get($runtimeName);
-
-        $response
-            ->setStatusCode(Response::STATUS_CODE_OK)
-            ->json($runtime);
+        $response->setStatusCode(Response::STATUS_CODE_OK)->json($runner->getRuntime($runtimeName));
     });
 
 Http::delete('/v1/runtimes/:runtimeId')
     ->desc('Delete a runtime')
-    ->param('runtimeId', '', new Text(64), 'Runtime unique ID.', false)
-    ->inject('activeRuntimes')
+    ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->inject('response')
     ->inject('log')
     ->inject('runner')
-    ->action(function (string $runtimeId, Table $activeRuntimes, Response $response, Log $log, Runner $runner) {
-        $runner->deleteRuntime($runtimeId, $activeRuntimes, $log);
-        $response
-            ->setStatusCode(Response::STATUS_CODE_OK)
-            ->send();
+    ->action(function (string $runtimeId, Response $response, Log $log, Runner $runner) {
+        $runner->deleteRuntime($runtimeId, $log);
+        $response->setStatusCode(Response::STATUS_CODE_OK)->send();
     });
 
 Http::post('/v1/runtimes/:runtimeId/executions')
@@ -321,7 +254,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->param('runtimeEntrypoint', '', new Text(1024, 0), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('logging', true, new Boolean(true), 'Whether executions will be logged.', true)
     ->param('restartPolicy', DockerAPI::RESTART_NO, new WhiteList([DockerAPI::RESTART_NO, DockerAPI::RESTART_ALWAYS, DockerAPI::RESTART_ON_FAILURE, DockerAPI::RESTART_UNLESS_STOPPED], true), 'Define restart policy once exit code is returned by command. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)
-    ->inject('activeRuntimes')
     ->inject('response')
     ->inject('request')
     ->inject('log')
@@ -344,7 +276,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             string $runtimeEntrypoint,
             bool $logging,
             string $restartPolicy,
-            Table $activeRuntimes,
             Response $response,
             Request $request,
             Log $log,
@@ -418,7 +349,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 $runtimeEntrypoint,
                 $logging,
                 $restartPolicy,
-                $activeRuntimes,
                 $log
             );
 
@@ -460,26 +390,16 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
 Http::get('/v1/health')
     ->desc("Get health status of host machine and runtimes.")
-    ->inject('statsHost')
-    ->inject('statsContainers')
+    ->inject('runner')
     ->inject('response')
-    ->action(function (Table $statsHost, Table $statsContainers, Response $response) {
+    ->action(function (Runner $runner, Response $response) {
+        $stats = $runner->getStats();
         $output = [
             'status' => 'pass',
-            'runtimes' => [],
-            'usage' => $statsHost->get('host', 'usage') ?? null
+            'usage' => $stats->getHostUsage(),
+            'runtimes' => $stats->getContainerUsage(),
         ];
-
-        foreach ($statsContainers as $hostname => $stat) {
-            $output['runtimes'][$hostname] = [
-                'status' => 'pass',
-                'usage' => $stat['usage'] ?? null
-            ];
-        }
-
-        $response
-            ->setStatusCode(Response::STATUS_CODE_OK)
-            ->json($output);
+        $response->setStatusCode(Response::STATUS_CODE_OK)->json($output);
     });
 
 /** Set callbacks */

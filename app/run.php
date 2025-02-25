@@ -1,8 +1,6 @@
 <?php
 
 require_once __DIR__ . '/../vendor/autoload.php';
-
-/** @var Registry $register - http defines Registry */
 require_once __DIR__ . '/http.php';
 
 use OpenRuntimes\Executor\Runner\Docker;
@@ -10,24 +8,16 @@ use Utopia\CLI\Console;
 use Utopia\Http\Http;
 use Utopia\Orchestration\Adapter\DockerAPI;
 use Utopia\Orchestration\Orchestration;
-use Utopia\Registry\Registry;
 use Utopia\Http\Adapter\Swoole\Server;
 
 use function Swoole\Coroutine\run;
 
-run(function () use ($register) {
+run(function () {
     $dockerUser = (string) Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', '');
     $dockerPass = (string) Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '');
     $orchestration = new Orchestration(new DockerAPI($dockerUser, $dockerPass));
-
-    $statsContainers = $register->get('statsContainers');
-    $activeRuntimes = $register->get('activeRuntimes');
-    $statsHost = $register->get('statsHost');
-
     $networks = explode(',', Http::getEnv('OPR_EXECUTOR_NETWORK') ?: 'openruntimes-runtimes');
-
-    $runner = new Docker($orchestration);
-    $runner->init($activeRuntimes, $networks, $statsHost, $statsContainers);
+    $runner = new Docker($orchestration, $networks);
     Http::setResource('runner', fn () => $runner);
 
     $payloadSize = 22 * (1024 * 1024);

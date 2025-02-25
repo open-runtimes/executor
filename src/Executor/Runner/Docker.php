@@ -4,6 +4,7 @@ namespace OpenRuntimes\Executor\Runner;
 
 use Appwrite\Runtimes\Runtimes;
 use Exception;
+use OpenRuntimes\Executor\Stats;
 use OpenRuntimes\Executor\Usage;
 use OpenRuntimes\Executor\Validator\TCP;
 use Swoole\Process;
@@ -22,24 +23,48 @@ use function Swoole\Coroutine\batch;
 
 class Docker extends Adapter
 {
-    public function __construct(private readonly Orchestration $orchestration)
+    private Table $activeRuntimes;
+    private Stats $stats;
+    /**
+     * @var string[]
+     */
+    private array $networks;
+
+    /**
+     * @param Orchestration $orchestration
+     * @param string[] $networks
+     */
+    public function __construct(private readonly Orchestration $orchestration, array $networks)
     {
+        $this->activeRuntimes = new Table(4096);
+
+        $this->activeRuntimes->column('created', Table::TYPE_FLOAT);
+        $this->activeRuntimes->column('updated', Table::TYPE_FLOAT);
+        $this->activeRuntimes->column('name', Table::TYPE_STRING, 1024);
+        $this->activeRuntimes->column('hostname', Table::TYPE_STRING, 1024);
+        $this->activeRuntimes->column('status', Table::TYPE_STRING, 256);
+        $this->activeRuntimes->column('key', Table::TYPE_STRING, 1024);
+        $this->activeRuntimes->column('listening', Table::TYPE_INT, 1);
+        $this->activeRuntimes->column('image', Table::TYPE_STRING, 1024);
+        $this->activeRuntimes->create();
+
+        $this->stats = new Stats();
+
+        $this->init($networks);
     }
 
     /**
-     * @param Table $activeRuntimes
      * @param string[] $networks
-     * @param Table $statsHost
-     * @param Table $statsContainers
      * @return void
+     * @throws \Utopia\Http\Exception
      */
-    public function init(Table $activeRuntimes, array $networks, Table $statsHost, Table $statsContainers): void
+    private function init(array $networks): void
     {
         /*
          * Remove residual runtimes and networks
          */
         Console::info('Removing orphan runtimes and networks...');
-        $this->cleanUp($activeRuntimes);
+        $this->cleanUp();
         Console::success("Orphan runtimes and networks removal finished.");
 
         /**
@@ -47,7 +72,7 @@ class Docker extends Adapter
          */
         Console::info('Creating networks...');
         $createdNetworks = $this->createNetworks($networks);
-        Http::setResource('networks', fn () => $createdNetworks);
+        $this->networks = $createdNetworks;
 
         /**
          * Warmup: make sure images are ready to run fast 🚀
@@ -87,20 +112,20 @@ class Docker extends Adapter
          */
         Console::info('Starting maintenance interval...');
         $interval = (int)Http::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
-        Timer::tick($interval * 1000, function () use ($activeRuntimes) {
+        Timer::tick($interval * 1000, function () {
             Console::info("Running maintenance task ...");
             // Stop idling runtimes
-            foreach ($activeRuntimes as $runtimeName => $runtime) {
+            foreach ($this->activeRuntimes as $runtimeName => $runtime) {
                 $inactiveThreshold = \time() - \intval(Http::getEnv('OPR_EXECUTOR_INACTIVE_TRESHOLD', '60'));
                 if ($runtime['updated'] < $inactiveThreshold) {
-                    go(function () use ($runtimeName, $runtime, $activeRuntimes) {
+                    go(function () use ($runtimeName, $runtime) {
                         try {
                             $this->orchestration->remove($runtime['name'], true);
                             Console::success("Successfully removed {$runtime['name']}");
                         } catch (\Throwable $th) {
                             Console::error('Inactive Runtime deletion failed: ' . $th->getMessage());
                         } finally {
-                            $activeRuntimes->del($runtimeName);
+                            $this->activeRuntimes->del($runtimeName);
                         }
                     });
                 }
@@ -115,7 +140,7 @@ class Docker extends Adapter
                 if (\str_starts_with($entry, $prefix)) {
                     $isActive = false;
 
-                    foreach ($activeRuntimes as $runtimeName => $runtime) {
+                    foreach ($this->activeRuntimes as $runtimeName => $runtime) {
                         if (\str_ends_with($entry, $runtimeName)) {
                             $isActive = true;
                             break;
@@ -137,60 +162,25 @@ class Docker extends Adapter
          * Get usage stats every X seconds to update swoole table
          */
         Console::info('Starting stats interval...');
-        $getStats = function (Table $statsHost, Table $statsContainers): void {
+        $getStats = function (): void {
             // Get usage stats
             $usage = new Usage($this->orchestration);
             $usage->run();
-
-            // Update host usage stats
-            if ($usage->getHostUsage() !== null) {
-                $oldStat = $statsHost->get('host', 'usage') ?? null;
-
-                if ($oldStat === null) {
-                    $stat = $usage->getHostUsage();
-                } else {
-                    $stat = ($oldStat + $usage->getHostUsage()) / 2;
-                }
-
-                $statsHost->set('host', ['usage' => $stat]);
-            }
-
-            // Update runtime usage stats
-            foreach ($usage->getRuntimesUsage() as $runtime => $usageStat) {
-                $oldStat = $statsContainers->get($runtime, 'usage') ?? null;
-
-                if ($oldStat === null) {
-                    $stat = $usageStat;
-                } else {
-                    $stat = ($oldStat + $usageStat) / 2;
-                }
-
-                $statsContainers->set($runtime, ['usage' => $stat]);
-            }
-
-            // Delete gone runtimes
-            $runtimes = \array_keys($usage->getRuntimesUsage());
-            foreach ($statsContainers as $hostname => $stat) {
-                if (!(\in_array($hostname, $runtimes))) {
-                    $statsContainers->delete($hostname);
-                }
-            }
+            $this->stats->updateStats($usage);
         };
 
         // Load initial stats in blocking way
-        $getStats($statsHost, $statsContainers);
+        $getStats();
 
-        // Setup infinite recurssion in non-blocking way
-        \go(function () use ($getStats, $statsHost, $statsContainers) {
-            Timer::after(1000, fn () => $getStats($statsHost, $statsContainers));
-        });
+        // Setup infinite recursion in non-blocking way
+        \go(fn () => Timer::after(1000, fn () => $getStats()));
 
         Console::success('Stats interval started.');
 
-        Process::signal(SIGINT, fn () => $this->cleanUp($activeRuntimes, $networks));
-        Process::signal(SIGQUIT, fn () => $this->cleanUp($activeRuntimes, $networks));
-        Process::signal(SIGKILL, fn () => $this->cleanUp($activeRuntimes, $networks));
-        Process::signal(SIGTERM, fn () => $this->cleanUp($activeRuntimes, $networks));
+        Process::signal(SIGINT, fn () => $this->cleanUp($this->networks));
+        Process::signal(SIGQUIT, fn () => $this->cleanUp($this->networks));
+        Process::signal(SIGKILL, fn () => $this->cleanUp($this->networks));
+        Process::signal(SIGTERM, fn () => $this->cleanUp($this->networks));
     }
 
     /**
@@ -280,12 +270,10 @@ class Docker extends Adapter
      * @param int $memory
      * @param string $version
      * @param string $restartPolicy
-     * @param string[] $networks
-     * @param Table $activeRuntimes
      * @param Log $log
      * @return mixed
      */
-    public function createRuntime(string $runtimeId, string $secret, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, array $networks, Table $activeRuntimes, Log $log): mixed
+    public function createRuntime(string $runtimeId, string $secret, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Log $log): mixed
     {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
         $runtimeHostname = \bin2hex(\random_bytes(16));
@@ -294,8 +282,8 @@ class Docker extends Adapter
         $log->addTag('version', $version);
         $log->addTag('runtimeId', $runtimeName);
 
-        if ($activeRuntimes->exists($runtimeName)) {
-            if ($activeRuntimes->get($runtimeName)['status'] == 'pending') {
+        if ($this->activeRuntimes->exists($runtimeName)) {
+            if ($this->activeRuntimes->get($runtimeName)['status'] == 'pending') {
                 throw new \Exception('A runtime with the same ID is already being created. Attempt a execution soon.', 409);
             }
 
@@ -306,7 +294,7 @@ class Docker extends Adapter
         $output = '';
         $startTime = \microtime(true);
 
-        $activeRuntimes->set($runtimeName, [
+        $this->activeRuntimes->set($runtimeName, [
             'listening' => 0,
             'name' => $runtimeName,
             'hostname' => $runtimeHostname,
@@ -362,7 +350,7 @@ class Docker extends Adapter
             $codeMountPath = $version === 'v2' ? '/usr/code' : '/mnt/code';
             $workdir = $version === 'v2' ? '/usr/code' : '';
 
-            $network = $networks[array_rand($networks)];
+            $network = $this->networks[array_rand($this->networks)];
 
             $volumes = [
                 \dirname($tmpSource) . ':/tmp:rw',
@@ -458,10 +446,10 @@ class Docker extends Adapter
                 'duration' => $duration,
             ]);
 
-            $activeRuntime = $activeRuntimes->get($runtimeName);
+            $activeRuntime = $this->activeRuntimes->get($runtimeName);
             $activeRuntime['updated'] = \microtime(true);
             $activeRuntime['status'] = 'Up ' . \round($duration, 2) . 's';
-            $activeRuntimes->set($runtimeName, $activeRuntime);
+            $this->activeRuntimes->set($runtimeName, $activeRuntime);
         } catch (Throwable $th) {
             $message = !empty($output) ? $output : $th->getMessage();
 
@@ -494,7 +482,7 @@ class Docker extends Adapter
             } catch (Throwable $th) {
             }
 
-            $activeRuntimes->del($runtimeName);
+            $this->activeRuntimes->del($runtimeName);
 
             $message = \mb_substr($message, -1000000); // Limit to 1MB
 
@@ -513,7 +501,7 @@ class Docker extends Adapter
             } catch (Throwable $th) {
             }
 
-            $activeRuntimes->del($runtimeName);
+            $this->activeRuntimes->del($runtimeName);
         }
 
         return $container;
@@ -521,21 +509,20 @@ class Docker extends Adapter
 
     /**
      * @param string $runtimeId
-     * @param Table $activeRuntimes
      * @param Log $log
      * @return void
      */
-    public function deleteRuntime(string $runtimeId, Table $activeRuntimes, Log $log): void
+    public function deleteRuntime(string $runtimeId, Log $log): void
     {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
         $log->addTag('runtimeId', $runtimeName);
 
-        if (!$activeRuntimes->exists($runtimeName)) {
+        if (!$this->activeRuntimes->exists($runtimeName)) {
             throw new Exception('Runtime not found', 404);
         }
 
         $this->orchestration->remove($runtimeName, true);
-        $activeRuntimes->del($runtimeName);
+        $this->activeRuntimes->del($runtimeName);
     }
 
     /**
@@ -555,7 +542,6 @@ class Docker extends Adapter
      * @param string $runtimeEntrypoint
      * @param bool $logging
      * @param string $restartPolicy
-     * @param Table $activeRuntimes
      * @param Log $log
      * @return mixed
      */
@@ -576,7 +562,6 @@ class Docker extends Adapter
         string $runtimeEntrypoint,
         bool $logging,
         string $restartPolicy,
-        Table $activeRuntimes,
         Log $log
     ): mixed {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
@@ -593,7 +578,7 @@ class Docker extends Adapter
 
 
         // Prepare runtime
-        if (!$activeRuntimes->exists($runtimeName)) {
+        if (!$this->activeRuntimes->exists($runtimeName)) {
             if (empty($image) || empty($source)) {
                 throw new Exception('Runtime not found. Please start it first or provide runtime-related parameters.', 401);
             }
@@ -688,12 +673,12 @@ class Docker extends Adapter
         $timeout -= (\microtime(true) - $prepareStart);
 
         // Update swoole table
-        $runtime = $activeRuntimes->get($runtimeName) ?? [];
+        $runtime = $this->activeRuntimes->get($runtimeName) ?? [];
 
         $log->addTag('image', $runtime['image']);
 
         $runtime['updated'] = \time();
-        $activeRuntimes->set($runtimeName, $runtime);
+        $this->activeRuntimes->set($runtimeName, $runtime);
 
         // Ensure runtime started
         $launchStart = \microtime(true);
@@ -703,7 +688,7 @@ class Docker extends Adapter
                 throw new Exception('Function timed out during launch.', 400);
             }
 
-            if ($activeRuntimes->get($runtimeName)['status'] !== 'pending') {
+            if ($this->activeRuntimes->get($runtimeName)['status'] !== 'pending') {
                 break;
             }
 
@@ -715,7 +700,7 @@ class Docker extends Adapter
         $timeout -= (\microtime(true) - $launchStart);
 
         // Ensure we have secret
-        $runtime = $activeRuntimes->get($runtimeName);
+        $runtime = $this->activeRuntimes->get($runtimeName);
         $hostname = $runtime['hostname'];
         $secret = $runtime['key'];
         if (empty($secret)) {
@@ -951,9 +936,9 @@ class Docker extends Adapter
             }
 
             // Update swoole table
-            $runtime = $activeRuntimes->get($runtimeName);
+            $runtime = $this->activeRuntimes->get($runtimeName);
             $runtime['listening'] = 1;
-            $activeRuntimes->set($runtimeName, $runtime);
+            $this->activeRuntimes->set($runtimeName, $runtime);
 
             // Lower timeout by time it took to cold-start
             $timeout -= (\microtime(true) - $pingStart);
@@ -985,7 +970,7 @@ class Docker extends Adapter
 
         // Error occurred
         if ($executionResponse['errNo'] !== CURLE_OK) {
-            $log->addExtra('activeRuntime', $activeRuntimes->get($runtimeName));
+            $log->addExtra('activeRuntime', $this->activeRuntimes->get($runtimeName));
             $log->addExtra('error', $executionResponse['error']);
             $log->addTag('hostname', $hostname);
 
@@ -1019,19 +1004,18 @@ class Docker extends Adapter
         ];
 
         // Update swoole table
-        $runtime = $activeRuntimes->get($runtimeName);
+        $runtime = $this->activeRuntimes->get($runtimeName);
         $runtime['updated'] = \microtime(true);
-        $activeRuntimes->set($runtimeName, $runtime);
+        $this->activeRuntimes->set($runtimeName, $runtime);
 
         return $execution;
     }
 
     /**
-     * @param Table $activeRuntimes
      * @param string[] $networks
      * @return void
      */
-    private function cleanUp(Table $activeRuntimes, array $networks = []): void
+    private function cleanUp(array $networks = []): void
     {
         Console::log('Cleaning up containers and networks...');
 
@@ -1043,14 +1027,14 @@ class Docker extends Adapter
 
         $jobsRuntimes = [];
         foreach ($functionsToRemove as $container) {
-            $jobsRuntimes[] = function () use ($container, $activeRuntimes) {
+            $jobsRuntimes[] = function () use ($container) {
                 try {
                     $this->orchestration->remove($container->getId(), true);
 
                     $activeRuntimeId = $container->getName();
 
-                    if (!$activeRuntimes->exists($activeRuntimeId)) {
-                        $activeRuntimes->del($activeRuntimeId);
+                    if (!$this->activeRuntimes->exists($activeRuntimeId)) {
+                        $this->activeRuntimes->del($activeRuntimeId);
                     }
 
                     Console::success('Removed container ' . $container->getName());
@@ -1127,5 +1111,28 @@ class Docker extends Adapter
         }
 
         return $createdNetworks;
+    }
+
+    public function getRuntimes(): mixed
+    {
+        $runtimes = [];
+        foreach ($this->activeRuntimes as $runtime) {
+            $runtimes[] = $runtime;
+        }
+        return $runtimes;
+    }
+
+    public function getRuntime(string $name): mixed
+    {
+        if (!$this->activeRuntimes->exists($name)) {
+            throw new Exception('Runtime not found', 404);
+        }
+
+        return $this->activeRuntimes->get($name);
+    }
+
+    public function getStats(): Stats
+    {
+        return $this->stats;
     }
 }

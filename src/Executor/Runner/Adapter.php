@@ -2,7 +2,7 @@
 
 namespace OpenRuntimes\Executor\Runner;
 
-use Swoole\Table;
+use OpenRuntimes\Executor\Stats;
 use Utopia\CLI\Console;
 use Utopia\DSN\DSN;
 use Utopia\Http\Http;
@@ -19,15 +19,6 @@ use Utopia\Storage\Storage;
 
 abstract class Adapter
 {
-    /**
-     * @param Table $activeRuntimes
-     * @param string[] $networks
-     * @param Table $statsHost
-     * @param Table $statsContainers
-     * @return void
-     */
-    abstract public function init(Table $activeRuntimes, array $networks, Table $statsHost, Table $statsContainers): void;
-
     /**
      * @param string $runtimeId
      * @param int $timeout
@@ -53,20 +44,17 @@ abstract class Adapter
      * @param int $memory
      * @param string $version
      * @param string $restartPolicy
-     * @param string[] $networks
-     * @param Table $activeRuntimes
      * @param Log $log
      * @return mixed
      */
-    abstract public function createRuntime(string $runtimeId, string $secret, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, array $networks, Table $activeRuntimes, Log $log): mixed;
+    abstract public function createRuntime(string $runtimeId, string $secret, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Log $log): mixed;
 
     /**
      * @param string $runtimeId
-     * @param Table $activeRuntimes
      * @param Log $log
      * @return void
      */
-    abstract public function deleteRuntime(string $runtimeId, Table $activeRuntimes, Log $log): void;
+    abstract public function deleteRuntime(string $runtimeId, Log $log): void;
 
     /**
      * @param string $runtimeId
@@ -85,7 +73,6 @@ abstract class Adapter
      * @param string $runtimeEntrypoint
      * @param bool $logging
      * @param string $restartPolicy
-     * @param Table $activeRuntimes
      * @param Log $log
      * @return mixed
      */
@@ -106,9 +93,14 @@ abstract class Adapter
         string $runtimeEntrypoint,
         bool $logging,
         string $restartPolicy,
-        Table $activeRuntimes,
         Log $log
     ): mixed;
+
+    abstract public function getRuntimes(): mixed;
+
+    abstract public function getRuntime(string $name): mixed;
+
+    abstract public function getStats(): Stats;
 
     protected function getStorageDevice(string $root): Device
     {
