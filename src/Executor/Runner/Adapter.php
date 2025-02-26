@@ -121,7 +121,7 @@ abstract class Adapter
                 $device = $dsn->getScheme();
                 $accessKey = $dsn->getUser() ?? '';
                 $accessSecret = $dsn->getPassword() ?? '';
-                $host = $dsn->getHost() ?? '';
+                $host = $dsn->getHost();
                 $bucket = $dsn->getPath() ?? '';
                 $region = $dsn->getParam('region');
             } catch (\Exception $e) {
@@ -135,6 +135,7 @@ abstract class Adapter
                     } else {
                         return new AWS(root: $root, accessKey: $accessKey, secretKey: $accessSecret, bucket: $bucket, region: $region, acl: $acl);
                     }
+                    // no break
                 case STORAGE::DEVICE_DO_SPACES:
                     return new DOSpaces($root, $accessKey, $accessSecret, $bucket, $region, $acl);
                 case Storage::DEVICE_BACKBLAZE:
@@ -164,6 +165,7 @@ abstract class Adapter
                     } else {
                         return new AWS(root: $root, accessKey: $s3AccessKey, secretKey: $s3SecretKey, bucket: $s3Bucket, region: $s3Region, acl: $s3Acl);
                     }
+                    // no break
                 case Storage::DEVICE_DO_SPACES:
                     $doSpacesAccessKey = Http::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_ACCESS_KEY', '') ?? '';
                     $doSpacesSecretKey = Http::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_SECRET', '') ?? '';
