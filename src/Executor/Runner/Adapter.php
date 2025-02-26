@@ -9,6 +9,7 @@ use Utopia\Http\Http;
 use Utopia\Http\Response;
 use Utopia\Logger\Log;
 use Utopia\Storage\Device;
+use Utopia\Storage\Device\AWS;
 use Utopia\Storage\Device\Backblaze;
 use Utopia\Storage\Device\DOSpaces;
 use Utopia\Storage\Device\Linode;
@@ -111,6 +112,7 @@ abstract class Adapter
             $device = Storage::DEVICE_LOCAL;
             $accessKey = '';
             $accessSecret = '';
+            $host = '';
             $bucket = '';
             $region = '';
 
@@ -119,6 +121,7 @@ abstract class Adapter
                 $device = $dsn->getScheme();
                 $accessKey = $dsn->getUser() ?? '';
                 $accessSecret = $dsn->getPassword() ?? '';
+                $host = $dsn->getHost() ?? '';
                 $bucket = $dsn->getPath() ?? '';
                 $region = $dsn->getParam('region');
             } catch (\Exception $e) {
@@ -127,7 +130,11 @@ abstract class Adapter
 
             switch ($device) {
                 case Storage::DEVICE_S3:
-                    return new S3($root, $accessKey, $accessSecret, $bucket, $region, $acl);
+                    if (!empty($host)) {
+                        return new S3(root: $root, accessKey: $accessKey, secretKey: $accessSecret, host: $host, region: $region, acl: $acl);
+                    } else {
+                        return new AWS(root: $root, accessKey: $accessKey, secretKey: $accessSecret, bucket: $bucket, region: $region, acl: $acl);
+                    }
                 case STORAGE::DEVICE_DO_SPACES:
                     return new DOSpaces($root, $accessKey, $accessSecret, $bucket, $region, $acl);
                 case Storage::DEVICE_BACKBLAZE:
@@ -148,10 +155,15 @@ abstract class Adapter
                 case Storage::DEVICE_S3:
                     $s3AccessKey = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_ACCESS_KEY', '') ?? '';
                     $s3SecretKey = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_SECRET', '') ?? '';
+                    $s3Host = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_HOST', '') ?? '';
                     $s3Region = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_REGION', '') ?? '';
                     $s3Bucket = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_BUCKET', '') ?? '';
                     $s3Acl = 'private';
-                    return new S3($root, $s3AccessKey, $s3SecretKey, $s3Bucket, $s3Region, $s3Acl);
+                    if (!empty($s3Host)) {
+                        return new S3(root: $root, accessKey: $s3AccessKey, secretKey: $s3SecretKey, host: $s3Host, region: $s3Region, acl: $s3Acl);
+                    } else {
+                        return new AWS(root: $root, accessKey: $s3AccessKey, secretKey: $s3SecretKey, bucket: $s3Bucket, region: $s3Region, acl: $s3Acl);
+                    }
                 case Storage::DEVICE_DO_SPACES:
                     $doSpacesAccessKey = Http::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_ACCESS_KEY', '') ?? '';
                     $doSpacesSecretKey = Http::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_SECRET', '') ?? '';
