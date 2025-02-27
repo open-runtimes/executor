@@ -126,6 +126,7 @@ $register->set('activeRuntimes', function () {
     $table->column('key', Table::TYPE_STRING, 1024);
     $table->column('listening', Table::TYPE_INT, 1);
     $table->column('image', Table::TYPE_STRING, 1024);
+    $table->column('initialised', Table::TYPE_INT, 0);
     $table->create();
 
     return $table;
@@ -393,9 +394,10 @@ Http::get('/v1/runtimes/:runtimeId/logs')
     ->desc("Get live stream of logs of a runtime")
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->param('timeout', '600', new Text(16), 'Maximum logs timeout.', true)
+    ->inject('activeRuntimes')
     ->inject('response')
     ->inject('log')
-    ->action(function (string $runtimeId, string $timeoutStr, Response $response, Log $log) {
+    ->action(function (string $runtimeId, string $timeoutStr, Table $activeRuntimes, Response $response, Log $log) {
         $timeout = \intval($timeoutStr);
 
         $runtimeName = System::getHostname() . '-' . $runtimeId;
@@ -433,7 +435,12 @@ Http::get('/v1/runtimes/:runtimeId/logs')
         $logsProcess = null;
 
         $streamInterval = 1000; // 1 second
-        $timerId = Timer::tick($streamInterval, function () use (&$logsProcess, &$logsChunk, $response) {
+        $timerId = Timer::tick($streamInterval, function () use (&$logsProcess, &$logsChunk, $response, $activeRuntimes, $runtimeName) {
+            $runtime = $activeRuntimes->get($runtimeName);
+            if ($runtime['initialised'] === 1) {
+                \proc_terminate($logsProcess, 9);
+            }
+
             if (empty($logsChunk)) {
                 return;
             }
@@ -584,6 +591,7 @@ Http::post('/v1/runtimes')
             'status' => 'pending',
             'key' => $secret,
             'image' => $image,
+            'initialised' => 0,
         ]);
 
         /**
@@ -772,6 +780,7 @@ Http::post('/v1/runtimes')
             $activeRuntime = $activeRuntimes->get($runtimeName);
             $activeRuntime['updated'] = \microtime(true);
             $activeRuntime['status'] = 'Up ' . \round($duration, 2) . 's';
+            $activeRuntime['initialised'] = 1;
             $activeRuntimes->set($runtimeName, $activeRuntime);
         } catch (Throwable $th) {
             $message = !empty($output) ? $output : $th->getMessage();
