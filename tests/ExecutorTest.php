@@ -535,7 +535,7 @@ final class ExecutorTest extends TestCase
             'path' => '/logs'
         ];
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions', [], $params);
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-ssr-exec/executions', [], $params);
 
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(200, $response['body']['statusCode']);
@@ -547,6 +547,10 @@ final class ExecutorTest extends TestCase
 
         $this->assertNotEmpty($response['body']['errors']);
         $this->assertStringContainsString('Open runtimes error', $response['body']['errors']);
+
+        /** Delete runtime */
+        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-ssr-exec', [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
     }
 
     public function testRestartPolicy(): void
