@@ -511,7 +511,7 @@ final class ExecutorTest extends TestCase
         Console::execute('cd /app/tests/resources/sites/astro && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
 
         $params = [
-            'runtimeId' => 'test-build',
+            'runtimeId' => 'test-ssr-build',
             'source' => '/storage/sites/astro/code.tar.gz',
             'destination' => '/storage/builds/test',
             'image' => 'openruntimes/ssr:v4rc-22',
@@ -528,7 +528,7 @@ final class ExecutorTest extends TestCase
 
         $command = 'sh helpers/astro/server.sh';
         $params = [
-            'runtimeId' => 'test-site',
+            'runtimeId' => 'test-ssr-exec',
             'source' => $buildPath,
             'image' => 'openruntimes/ssr:v4rc-22',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "source /usr/local/server/helpers/astro/env.sh && ' . $command . '"',
