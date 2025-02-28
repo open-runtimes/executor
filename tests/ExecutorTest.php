@@ -60,7 +60,7 @@ final class ExecutorTest extends TestCase
                         'source' => '/storage/functions/node/code.tar.gz',
                         'destination' => '/storage/builds/test-logs',
                         'entrypoint' => 'index.js',
-                        'image' => 'openruntimes/node:v4-18.0',
+                        'image' => 'openruntimes/node:v4rc-18.0',
                         'workdir' => '/usr/code',
                         'remove' => true,
                         'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm install && npm run build"'
@@ -191,7 +191,7 @@ final class ExecutorTest extends TestCase
             'source' => '/storage/functions/php/code.tar.gz',
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "composer install"',
         ];
 
@@ -255,7 +255,7 @@ final class ExecutorTest extends TestCase
             'source' => '/storage/functions/php/code.tar.gz',
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'command' => 'cp doesnotexist.js doesnotexist2.js',
             'remove' => true
         ];
@@ -269,7 +269,7 @@ final class ExecutorTest extends TestCase
             'source' => '/storage/fake_path/code.tar.gz',
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "composer install"',
             'remove' => true
         ];
@@ -288,7 +288,7 @@ final class ExecutorTest extends TestCase
             'runtimeId' => 'test-build-site',
             'source' => '/storage/functions/static/code.tar.gz',
             'destination' => '/storage/builds/test',
-            'image' => 'openruntimes/static:v4-1',
+            'image' => 'openruntimes/static:v4rc-1',
             'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "sh build.sh"',
             'outputDirectory' => './dist'
         ];
@@ -313,7 +313,7 @@ final class ExecutorTest extends TestCase
         $params = [
             'runtimeId' => 'test-exec-site',
             'source' => $buildPath,
-            'image' => 'openruntimes/static:v4-1',
+            'image' => 'openruntimes/static:v4rc-1',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
         ];
 
@@ -339,7 +339,7 @@ final class ExecutorTest extends TestCase
             'source' => '/storage/functions/php/code.tar.gz',
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "composer install"',
         ];
 
@@ -355,7 +355,7 @@ final class ExecutorTest extends TestCase
             'runtimeId' => 'test-exec',
             'source' => $buildPath,
             'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
         ];
 
@@ -390,7 +390,7 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [], [
             'source' => $buildPath,
             'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
         ]);
 
@@ -401,7 +401,7 @@ final class ExecutorTest extends TestCase
             'source' => $buildPath,
             'entrypoint' => 'index.php',
             'path' => 'v1/users',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
         ]);
 
@@ -413,7 +413,7 @@ final class ExecutorTest extends TestCase
             'source' => $buildPath,
             'entrypoint' => 'index.php',
             'path' => '/v1/users',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
         ]);
 
@@ -427,7 +427,7 @@ final class ExecutorTest extends TestCase
             'source' => $buildPath,
             'entrypoint' => 'index.php',
             'path' => '/v1/users',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
         ]);
 
@@ -440,7 +440,7 @@ final class ExecutorTest extends TestCase
             'source' => $buildPath,
             'entrypoint' => 'index.php',
             'path' => '/v1/users',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
         ]);
 
@@ -453,7 +453,7 @@ final class ExecutorTest extends TestCase
             'source' => $buildPath,
             'entrypoint' => 'index.php',
             'path' => '/v1/users',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
         ]);
 
@@ -466,7 +466,7 @@ final class ExecutorTest extends TestCase
             'source' => $buildPath,
             'entrypoint' => 'index.php',
             'path' => '/v1/users',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
         ]);
 
@@ -479,7 +479,7 @@ final class ExecutorTest extends TestCase
             'source' => $buildPath,
             'entrypoint' => 'index.php',
             'path' => '/v1/users',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
         ]);
 
@@ -492,7 +492,7 @@ final class ExecutorTest extends TestCase
             'source' => $buildPath,
             'entrypoint' => 'index.php',
             'path' => '/v1/users',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
         ]);
 
@@ -502,6 +502,51 @@ final class ExecutorTest extends TestCase
         /** Delete runtime */
         $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-coldstart', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
+    }
+
+    public function testSSRLogs(): void
+    {
+         /** Prepare function */
+         $output = '';
+         Console::execute('cd /app/tests/resources/sites/astro && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+ 
+         $params = [
+             'runtimeId' => 'test-build',
+             'source' => '/storage/sites/astro/code.tar.gz',
+             'destination' => '/storage/builds/test',
+             'image' => 'openruntimes/ssr:v4rc-22',
+             'outputDirectory' => './dist',
+             'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "source /usr/local/server/helpers/astro/env.sh && npm install && npm run build && sh /usr/local/server/helpers/astro/bundle.sh"',
+             'remove' => true
+         ];
+ 
+         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+         $this->assertEquals(201, $response['headers']['status-code']);
+         $this->assertNotEmpty(201, $response['body']['path']);
+ 
+         $buildPath = $response['body']['path'];
+ 
+         $command = 'sh helpers/astro/server.sh';
+         $params = [
+             'runtimeId' => 'test-site',
+             'source' => $buildPath,
+             'image' => 'openruntimes/ssr:v4rc-22',
+             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "source /usr/local/server/helpers/astro/env.sh && ' . $command . '"',
+             'path' => '/logs'
+         ];
+ 
+         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions', [], $params);
+
+         $this->assertEquals(200, $response['headers']['status-code']);
+         $this->assertEquals(200, $response['body']['statusCode']);
+         $this->assertStringContainsString('<p>OK</p>', $response['body']['body']);
+
+         $this->assertNotEmpty($response['body']['logs']);
+         $this->assertStringContainsString('Open runtimes log', $response['body']['logs']);
+         $this->assertStringContainsString('A developer log', $response['body']['logs']);
+
+         $this->assertNotEmpty($response['body']['errors']);
+         $this->assertStringContainsString('Open runtimes error', $response['body']['errors']);
     }
 
     public function testRestartPolicy(): void
@@ -518,7 +563,7 @@ final class ExecutorTest extends TestCase
             'source' => '/storage/functions/php-exit/code.tar.gz',
             'destination' => '/storage/builds/test-restart-policy',
             'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh ""'
         ];
 
@@ -532,7 +577,7 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-restart-policy/executions', [], [
             'source' => $buildPath,
             'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"',
             'restartPolicy' => 'always'
         ]);
@@ -543,7 +588,7 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-restart-policy/executions', [], [
             'source' => $buildPath,
             'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
         ]);
         $this->assertEquals(500, $response['headers']['status-code']);
@@ -576,7 +621,7 @@ final class ExecutorTest extends TestCase
             'source' => '/storage/functions/php-build-logs/code.tar.gz',
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "sh logs_failure.sh"',
             'remove' => true
         ];
@@ -597,7 +642,7 @@ final class ExecutorTest extends TestCase
             'source' => '/storage/functions/php-build-logs/code.tar.gz',
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "sh logs_success.sh"',
             'remove' => true
         ];
@@ -615,7 +660,7 @@ final class ExecutorTest extends TestCase
             'source' => '/storage/functions/php-build-logs/code.tar.gz',
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "sh logs_failure_large.sh"',
             'remove' => true
         ];
@@ -636,7 +681,7 @@ final class ExecutorTest extends TestCase
             'source' => '/storage/functions/php-build-logs/code.tar.gz',
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "sh logs_success_large.sh"',
             'remove' => true
         ];
@@ -672,11 +717,11 @@ final class ExecutorTest extends TestCase
                 }
             ],
             [
-                'image' => 'openruntimes/node:v4-18.0',
+                'image' => 'openruntimes/node:v4rc-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-empty-object',
                 'version' => 'v4',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
@@ -687,11 +732,11 @@ final class ExecutorTest extends TestCase
                 }
             ],
             [
-                'image' => 'openruntimes/node:v4-18.0',
+                'image' => 'openruntimes/node:v4rc-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-empty-array',
                 'version' => 'v4',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
@@ -702,11 +747,11 @@ final class ExecutorTest extends TestCase
                 }
             ],
             [
-                'image' => 'openruntimes/node:v4-18.0',
+                'image' => 'openruntimes/node:v4rc-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-timeout',
                 'version' => 'v4',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
@@ -716,11 +761,11 @@ final class ExecutorTest extends TestCase
                 }
             ],
             [
-                'image' => 'openruntimes/node:v4-18.0',
+                'image' => 'openruntimes/node:v4rc-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-logs',
                 'version' => 'v4',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
@@ -733,11 +778,11 @@ final class ExecutorTest extends TestCase
                 },
             ],
             [
-                'image' => 'openruntimes/node:v4-18.0',
+                'image' => 'openruntimes/node:v4rc-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-logs',
                 'version' => 'v4',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
@@ -750,11 +795,11 @@ final class ExecutorTest extends TestCase
                 },
             ],
             [
-                'image' => 'openruntimes/node:v4-18.0',
+                'image' => 'openruntimes/node:v4rc-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-logs',
                 'version' => 'v4',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
@@ -769,11 +814,11 @@ final class ExecutorTest extends TestCase
                 },
             ],
             [
-                'image' => 'openruntimes/node:v4-18.0',
+                'image' => 'openruntimes/node:v4rc-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-logs',
                 'version' => 'v4',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
@@ -787,11 +832,11 @@ final class ExecutorTest extends TestCase
                 'logging' => false,
             ],
             [
-                'image' => 'openruntimes/node:v4-18.0',
+                'image' => 'openruntimes/node:v4rc-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-long-coldstart',
                 'version' => 'v4',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
@@ -803,11 +848,11 @@ final class ExecutorTest extends TestCase
                 }
             ],
             [
-                'image' => 'openruntimes/node:v4-21.0',
+                'image' => 'openruntimes/node:v4rc-21.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-binary-response',
                 'version' => 'v4',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
@@ -828,11 +873,11 @@ final class ExecutorTest extends TestCase
                 'mimeType' => 'multipart/form-data'
             ],
             [
-                'image' => 'openruntimes/node:v4-21.0',
+                'image' => 'openruntimes/node:v4rc-21.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-binary-response',
                 'version' => 'v4',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(400, $response['headers']['status-code']);
@@ -843,11 +888,11 @@ final class ExecutorTest extends TestCase
                 'mimeType' => 'application/json'
             ],
             [
-                'image' => 'openruntimes/node:v4-21.0',
+                'image' => 'openruntimes/node:v4rc-21.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-binary-request',
                 'version' => 'v4',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
@@ -870,11 +915,11 @@ final class ExecutorTest extends TestCase
                 'mimeType' => 'multipart/form-data'
             ],
             [
-                'image' => 'openruntimes/node:v4-18.0',
+                'image' => 'openruntimes/node:v4rc-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-specs',
                 'version' => 'v4',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "pm2 start src/server.js --no-daemon"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i && npm run build"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
@@ -983,14 +1028,14 @@ final class ExecutorTest extends TestCase
     public function provideCustomRuntimes(): array
     {
         return [
-            [ 'folder' => 'php', 'image' => 'openruntimes/php:v4-8.1', 'entrypoint' => 'index.php', 'buildCommand' => 'composer install' ],
-            [ 'folder' => 'node', 'image' => 'openruntimes/node:v4-18.0', 'entrypoint' => 'index.js', 'buildCommand' => 'npm i'],
-            // [ 'folder' => 'deno', 'image' => 'openruntimes/deno:v4-1.24', 'entrypoint' => 'index.ts', 'buildCommand' => 'deno cache index.ts', 'startCommand' => 'denon start' ],
-            [ 'folder' => 'python', 'image' => 'openruntimes/python:v4-3.10', 'entrypoint' => 'index.py', 'buildCommand' => 'pip install -r requirements.txt'],
-            [ 'folder' => 'ruby', 'image' => 'openruntimes/ruby:v4-3.1', 'entrypoint' => 'index.rb', 'buildCommand' => ''],
-            [ 'folder' => 'cpp', 'image' => 'openruntimes/cpp:v4-17', 'entrypoint' => 'index.cc', 'buildCommand' => ''],
-            [ 'folder' => 'dart', 'image' => 'openruntimes/dart:v4-2.18', 'entrypoint' => 'lib/index.dart', 'buildCommand' => 'dart pub get'],
-            [ 'folder' => 'dotnet', 'image' => 'openruntimes/dotnet:v4-6.0', 'entrypoint' => 'Index.cs', 'buildCommand' => ''],
+            [ 'folder' => 'php', 'image' => 'openruntimes/php:v4rc-8.1', 'entrypoint' => 'index.php', 'buildCommand' => 'composer install' ],
+            [ 'folder' => 'node', 'image' => 'openruntimes/node:v4rc-18.0', 'entrypoint' => 'index.js', 'buildCommand' => 'npm i'],
+            // [ 'folder' => 'deno', 'image' => 'openruntimes/deno:v4rc-1.24', 'entrypoint' => 'index.ts', 'buildCommand' => 'deno cache index.ts', 'startCommand' => 'denon start' ],
+            [ 'folder' => 'python', 'image' => 'openruntimes/python:v4rc-3.10', 'entrypoint' => 'index.py', 'buildCommand' => 'pip install -r requirements.txt'],
+            [ 'folder' => 'ruby', 'image' => 'openruntimes/ruby:v4rc-3.1', 'entrypoint' => 'index.rb', 'buildCommand' => ''],
+            [ 'folder' => 'cpp', 'image' => 'openruntimes/cpp:v4rc-17', 'entrypoint' => 'index.cc', 'buildCommand' => ''],
+            [ 'folder' => 'dart', 'image' => 'openruntimes/dart:v4rc-2.18', 'entrypoint' => 'lib/index.dart', 'buildCommand' => 'dart pub get'],
+            [ 'folder' => 'dotnet', 'image' => 'openruntimes/dotnet:v4rc-6.0', 'entrypoint' => 'Index.cs', 'buildCommand' => ''],
             // C++, Swift, Kotlin, Java missing on purpose
         ];
     }
@@ -1081,7 +1126,7 @@ final class ExecutorTest extends TestCase
             'source' => '/storage/functions/php/code.zip',
             'destination' => '/storage/builds/test-zip',
             'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'command' => 'unzip /tmp/code.tar.gz -d /mnt/code && helpers/build.sh "composer install"',
         ];
 
@@ -1098,7 +1143,7 @@ final class ExecutorTest extends TestCase
             'runtimeId' => 'test-exec-zip',
             'source' => $buildPath,
             'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v4rc-8.1',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
         ];
 

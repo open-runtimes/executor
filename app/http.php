@@ -1242,6 +1242,21 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     $errorFile = '/tmp/' . $runtimeName . '/logs/' . $fileId . '_errors.log';
 
                     $logDevice = new Local();
+                    
+                    $lockStart = \microtime(true);
+                    while (true) {
+                        // If timeout is passed, stop and return error
+                        if (\microtime(true) - $lockStart >= $timeout) {
+                            break;
+                        }
+
+                        if (!$logDevice->exists($logFile . '.lock') && !$logDevice->exists($errorFile . '.lock')) {
+                            break;
+                        }
+
+                        // Wait 0.1s and check again
+                        \usleep(100000);
+                    }
 
                     if ($logDevice->exists($logFile)) {
                         if ($logDevice->getFileSize($logFile) > MAX_LOG_SIZE) {
