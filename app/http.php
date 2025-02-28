@@ -1242,7 +1242,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     $errorFile = '/tmp/' . $runtimeName . '/logs/' . $fileId . '_errors.log';
 
                     $logDevice = new Local();
-                    
+
                     $lockStart = \microtime(true);
                     while (true) {
                         // If timeout is passed, stop and return error

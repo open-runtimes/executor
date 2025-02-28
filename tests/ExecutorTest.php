@@ -506,47 +506,47 @@ final class ExecutorTest extends TestCase
 
     public function testSSRLogs(): void
     {
-         /** Prepare function */
-         $output = '';
-         Console::execute('cd /app/tests/resources/sites/astro && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
- 
-         $params = [
-             'runtimeId' => 'test-build',
-             'source' => '/storage/sites/astro/code.tar.gz',
-             'destination' => '/storage/builds/test',
-             'image' => 'openruntimes/ssr:v4rc-22',
-             'outputDirectory' => './dist',
-             'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "source /usr/local/server/helpers/astro/env.sh && npm install && npm run build && sh /usr/local/server/helpers/astro/bundle.sh"',
-             'remove' => true
-         ];
- 
-         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
-         $this->assertEquals(201, $response['headers']['status-code']);
-         $this->assertNotEmpty(201, $response['body']['path']);
- 
-         $buildPath = $response['body']['path'];
- 
-         $command = 'sh helpers/astro/server.sh';
-         $params = [
-             'runtimeId' => 'test-site',
-             'source' => $buildPath,
-             'image' => 'openruntimes/ssr:v4rc-22',
-             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "source /usr/local/server/helpers/astro/env.sh && ' . $command . '"',
-             'path' => '/logs'
-         ];
- 
-         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions', [], $params);
+        /** Prepare function */
+        $output = '';
+        Console::execute('cd /app/tests/resources/sites/astro && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
 
-         $this->assertEquals(200, $response['headers']['status-code']);
-         $this->assertEquals(200, $response['body']['statusCode']);
-         $this->assertStringContainsString('<p>OK</p>', $response['body']['body']);
+        $params = [
+            'runtimeId' => 'test-build',
+            'source' => '/storage/sites/astro/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'image' => 'openruntimes/ssr:v4rc-22',
+            'outputDirectory' => './dist',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "source /usr/local/server/helpers/astro/env.sh && npm install && npm run build && sh /usr/local/server/helpers/astro/bundle.sh"',
+            'remove' => true
+        ];
 
-         $this->assertNotEmpty($response['body']['logs']);
-         $this->assertStringContainsString('Open runtimes log', $response['body']['logs']);
-         $this->assertStringContainsString('A developer log', $response['body']['logs']);
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(201, $response['headers']['status-code']);
+        $this->assertNotEmpty(201, $response['body']['path']);
 
-         $this->assertNotEmpty($response['body']['errors']);
-         $this->assertStringContainsString('Open runtimes error', $response['body']['errors']);
+        $buildPath = $response['body']['path'];
+
+        $command = 'sh helpers/astro/server.sh';
+        $params = [
+            'runtimeId' => 'test-site',
+            'source' => $buildPath,
+            'image' => 'openruntimes/ssr:v4rc-22',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "source /usr/local/server/helpers/astro/env.sh && ' . $command . '"',
+            'path' => '/logs'
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions', [], $params);
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals(200, $response['body']['statusCode']);
+        $this->assertStringContainsString('<p>OK</p>', $response['body']['body']);
+
+        $this->assertNotEmpty($response['body']['logs']);
+        $this->assertStringContainsString('Open runtimes log', $response['body']['logs']);
+        $this->assertStringContainsString('A developer log', $response['body']['logs']);
+
+        $this->assertNotEmpty($response['body']['errors']);
+        $this->assertStringContainsString('Open runtimes error', $response['body']['errors']);
     }
 
     public function testRestartPolicy(): void
