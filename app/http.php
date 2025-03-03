@@ -754,7 +754,7 @@ Http::post('/v1/runtimes')
             $duration = $endTime - $startTime;
 
             if ($version !== 'v2') {
-                $output = Logs::getLogs($runtimeName);
+                $output = Logs::get($runtimeName);
             }
 
             $container = array_merge($container, [
@@ -791,7 +791,7 @@ Http::post('/v1/runtimes')
                     'content' => $message
                 ];
             } else {
-                $output = Logs::getLogs($runtimeName);
+                $output = Logs::get($runtimeName);
                 $output = \count($output) > 0 ? $output : [
                     'timestamp' => Logs::getTimestamp(),
                     'content' => $th->getMessage()
@@ -812,7 +812,6 @@ Http::post('/v1/runtimes')
             foreach ($output as $chunk) {
                 $message .= $chunk['content'];
             }
-            $message = \mb_substr($message, -1000000); // Limit to 1MB
 
             throw new Exception($message, $th->getCode() ?: 500);
         }

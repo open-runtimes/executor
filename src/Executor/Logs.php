@@ -11,7 +11,7 @@ class Logs
     /**
      * @return array<array<string, mixed>>
      */
-    public static function getLogs(string $containerId): array
+    public static function get(string $containerId): array
     {
         $output = [];
 
@@ -34,6 +34,14 @@ class Logs
         foreach ($parts as $part) {
             $timestamp = $part['timestamp'] ?? '';
             $length = \intval($part['length'] ?? '0');
+
+            if ($offset >= 1000000) {
+                $output[] = [
+                    'timestamp' => $timestamp,
+                    'content' => 'Logs truncated due to size exceeting 1MB.'
+                ];
+                break;
+            }
 
             $logContent = \substr($logs, $introOffset + $offset, \abs($length)) ?: '';
 

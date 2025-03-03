@@ -628,8 +628,8 @@ final class ExecutorTest extends TestCase
 
         $this->assertEquals(400, $response['headers']['status-code']);
         $this->assertGreaterThanOrEqual($size128Kb * 7, \strlen($response['body']['message']));
-        $this->assertStringContainsString('Preparing for build ...', $response['body']['message']);
-        $this->assertStringContainsString('Build exited.', $response['body']['message']);
+        $this->assertStringContainsString('First log', $response['body']['message']);
+        $this->assertStringContainsString('Last log', $response['body']['message']);
 
         $output = '';
         Console::execute('cd /app/tests/resources/functions/php-build-logs && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
@@ -647,10 +647,15 @@ final class ExecutorTest extends TestCase
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
 
+        $output = '';
+        foreach ($response['body']['output'] as $outputItem) {
+            $output .= $outputItem['content'];
+        }
+
         $this->assertEquals(201, $response['headers']['status-code']);
-        $this->assertGreaterThanOrEqual($size128Kb * 7, \strlen($response['body']['output']));
-        $this->assertStringContainsString('Preparing for build ...', $response['body']['output']);
-        $this->assertStringContainsString('Build finished.', $response['body']['output']);
+        $this->assertGreaterThanOrEqual($size128Kb * 7, \strlen($output));
+        $this->assertStringContainsString('First log', $output);
+        $this->assertStringContainsString('Last log', $output);
 
         /** Build runtime */
         $params = [
@@ -666,9 +671,9 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
 
         $this->assertEquals(400, $response['headers']['status-code']);
-        $this->assertEquals(1000000, \strlen($response['body']['message']));
-        $this->assertStringNotContainsString('Preparing for build ...', $response['body']['message']);
-        $this->assertStringContainsString('Build exited.', $response['body']['message']);
+        $this->assertGreaterThanOrEqual(1000000, \strlen($response['body']['message']));
+        $this->assertStringNotContainsString('Last log', $response['body']['message']);
+        $this->assertStringContainsString('First log', $response['body']['message']);
 
         $output = '';
         Console::execute('cd /app/tests/resources/functions/php-build-logs && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
@@ -686,10 +691,15 @@ final class ExecutorTest extends TestCase
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
 
+        $output = '';
+        foreach ($response['body']['output'] as $outputItem) {
+            $output .= $outputItem['content'];
+        }
+
         $this->assertEquals(201, $response['headers']['status-code']);
-        $this->assertEquals(1000000, \strlen($response['body']['output']));
-        $this->assertStringNotContainsString('Preparing for build ...', $response['body']['output']);
-        $this->assertStringContainsString('Build finished.', $response['body']['output']);
+        $this->assertGreaterThanOrEqual(1000000, \strlen($output));
+        $this->assertStringNotContainsString('Last log', $output);
+        $this->assertStringContainsString('First log', $output);
     }
 
     /**
