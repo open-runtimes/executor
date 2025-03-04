@@ -396,7 +396,6 @@ Http::get('/v1/runtimes/:runtimeId/logs')
     ->desc("Get live stream of logs of a runtime")
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->param('timeout', '600', new Text(16), 'Maximum logs timeout.', true)
-    ->inject('activeRuntimes')
     ->inject('response')
     ->inject('log')
     ->inject('activeRuntimes')
@@ -470,7 +469,13 @@ Http::get('/v1/runtimes/:runtimeId/logs')
         $timerId = Timer::tick($streamInterval, function () use (&$logsProcess, &$logsChunk, $response, $activeRuntimes, $runtimeName) {
             $runtime = $activeRuntimes->get($runtimeName);
             if ($runtime['initialised'] === 1) {
+                if (!empty($logsChunk)) {
+                    $write = $response->write($logsChunk);
+                    $logsChunk = '';
+                }
+
                 \proc_terminate($logsProcess, 9);
+                return;
             }
 
             if (empty($logsChunk)) {
