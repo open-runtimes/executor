@@ -1168,4 +1168,89 @@ final class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(200, $response['body']['statusCode']);
     }
+
+    public function testCommands(): void
+    {
+        $runtime = $this->client->call(Client::METHOD_POST, '/runtimes', [], [
+            'runtimeId' => 'test-commands',
+            'remove' => false,
+            'image' => 'openruntimes/php:v4-8.1',
+            'entrypoint' => 'tail -f /dev/null',
+        ]);
+        $this->assertEquals(201, $runtime['headers']['status-code']);
+
+        $command = $this->client->call(Client::METHOD_POST, '/runtimes/test-commands/commands', [], [
+            'command' => 'echo "Hello, World!"'
+        ]);
+        $this->assertEquals(200, $command['headers']['status-code']);
+        $this->assertStringContainsString('Hello, World!', $command['body']['output']); // not equals, because echo adds a newline
+
+        $command = $this->client->call(Client::METHOD_POST, '/runtimes/test-commands/commands', [], [
+            'command' => 'sleep 5 && echo "Ok"',
+            'timeout' => 1
+        ]);
+        $this->assertEquals(500, $command['headers']['status-code']);
+        $this->assertStringContainsString('Operation timed out', $command['body']['message']);
+
+        $command = $this->client->call(Client::METHOD_POST, '/runtimes/test-commands/commands', [], [
+            'command' => 'exit 1'
+        ]);
+        $this->assertEquals(500, $command['headers']['status-code']);
+        $this->assertStringContainsString('Failed to execute command', $command['body']['message']);
+
+        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/test-commands", [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
+
+        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/test-commands", [], []);
+        $this->assertEquals(404, $response['headers']['status-code']);
+
+        $command = $this->client->call(Client::METHOD_POST, '/runtimes/test-commands/commands', [], [
+            'command' => 'echo 123'
+        ]);
+        $this->assertEquals(404, $command['headers']['status-code']);
+    }
+
+    public function testLogStreamPersitstant(): void
+    {
+        $output = '';
+        Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+
+        $runtimeEnd = 0;
+        $realtimeEnd = 0;
+
+        Co\run(function () use (&$runtimeEnd, &$realtimeEnd) {
+            Co::join([
+                /** Watch logs */
+                Co\go(function () use (&$realtimeEnd) {
+                    $this->client->call(Client::METHOD_GET, '/runtimes/test-log-stream-persistant/logs', [], [], true);
+
+                    $realtimeEnd = \microtime(true);
+                }),
+                /** Start runtime */
+                Co\go(function () use (&$runtimeEnd) {
+                    $params = [
+                        'runtimeId' => 'test-log-stream-persistant',
+                        'source' => '/storage/functions/node/code.tar.gz',
+                        'destination' => '/storage/builds/test-logs',
+                        'entrypoint' => 'index.js',
+                        'image' => 'openruntimes/node:v4rc-18.0',
+                        'workdir' => '/usr/code',
+                        'remove' => false,
+                        'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm install && npm run build"'
+                    ];
+
+                    $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+                    $this->assertEquals(201, $response['headers']['status-code']);
+
+                    $runtimeEnd = \microtime(true);
+                }),
+            ]);
+        });
+
+        $diff = \abs($runtimeEnd - $realtimeEnd);
+        $this->assertLessThanOrEqual(1, $diff);
+
+        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/test-log-stream-persistant", [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
+    }
 }

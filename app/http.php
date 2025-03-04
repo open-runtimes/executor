@@ -128,6 +128,7 @@ $register->set('activeRuntimes', function () {
     $table->column('key', Table::TYPE_STRING, 1024);
     $table->column('listening', Table::TYPE_INT, 1);
     $table->column('image', Table::TYPE_STRING, 1024);
+    $table->column('initialised', Table::TYPE_INT, 0);
     $table->create();
 
     return $table;
@@ -465,7 +466,18 @@ Http::get('/v1/runtimes/:runtimeId/logs')
         $logsProcess = null;
 
         $streamInterval = 1000; // 1 second
-        $timerId = Timer::tick($streamInterval, function () use (&$logsProcess, &$logsChunk, $response) {
+        $timerId = Timer::tick($streamInterval, function () use (&$logsProcess, &$logsChunk, $response, $activeRuntimes, $runtimeName) {
+            $runtime = $activeRuntimes->get($runtimeName);
+            if ($runtime['initialised'] === 1) {
+                if (!empty($logsChunk)) {
+                    $write = $response->write($logsChunk);
+                    $logsChunk = '';
+                }
+
+                \proc_terminate($logsProcess, 9);
+                return;
+            }
+
             if (empty($logsChunk)) {
                 return;
             }
@@ -516,6 +528,35 @@ Http::get('/v1/runtimes/:runtimeId/logs')
 
         Timer::clear($timerId);
         $response->end();
+    });
+
+Http::post('/v1/runtimes/:runtimeId/commands')
+    ->desc('Execute a command inside an existing runtime')
+    ->param('runtimeId', '', new Text(64), 'Unique runtime ID.')
+    ->param('command', '', new Text(1024), 'Command to execute.')
+    ->param('timeout', 600, new Integer(), 'Commands execution time in seconds.', true)
+    ->inject('orchestration')
+    ->inject('activeRuntimes')
+    ->inject('response')
+    ->action(function (string $runtimeId, string $command, int $timeout, Orchestration $orchestration, Table $activeRuntimes, Response $response) {
+        $runtimeName = System::getHostname() . '-' . $runtimeId;
+
+        if (!$activeRuntimes->exists($runtimeName)) {
+            throw new Exception('Runtime not found', 404);
+        }
+
+        $commands = [
+            'sh',
+            '-c',
+            $command
+        ];
+
+        $output = '';
+        $orchestration->execute($runtimeName, $commands, $output, [], $timeout);
+
+        $response
+            ->setStatusCode(Response::STATUS_CODE_OK)
+            ->json([ 'output' => $output ]);
     });
 
 Http::post('/v1/runtimes')
@@ -573,6 +614,7 @@ Http::post('/v1/runtimes')
             'status' => 'pending',
             'key' => $secret,
             'image' => $image,
+            'initialised' => 0,
         ]);
 
         /**
@@ -766,6 +808,7 @@ Http::post('/v1/runtimes')
             $activeRuntime = $activeRuntimes->get($runtimeName);
             $activeRuntime['updated'] = \microtime(true);
             $activeRuntime['status'] = 'Up ' . \round($duration, 2) . 's';
+            $activeRuntime['initialised'] = 1;
             $activeRuntimes->set($runtimeName, $activeRuntime);
         } catch (Throwable $th) {
             if ($version === 'v2') {

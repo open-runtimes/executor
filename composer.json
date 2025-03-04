@@ -19,7 +19,7 @@
         "check": "./vendor/bin/phpstan analyse --level 8 -c phpstan.neon app src tests",
         "test": [
             "Composer\\Config::disableProcessTimeout",
-            "./vendor/bin/phpunit --configuration phpunit.xml --debug --filter='testBuildLogLimit'"
+            "./vendor/bin/phpunit --configuration phpunit.xml --debug"
         ]
     },
     "require": {
