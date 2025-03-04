@@ -4,6 +4,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use Appwrite\Runtimes\Runtimes;
 use OpenRuntimes\Executor\BodyMultipart;
+use OpenRuntimes\Executor\Logs;
 use OpenRuntimes\Executor\Validator\TCP;
 use OpenRuntimes\Executor\Usage;
 use Swoole\Process;
@@ -118,6 +119,7 @@ $register->set('orchestration', function () {
 $register->set('activeRuntimes', function () {
     $table = new Table(4096);
 
+    $table->column('version', Table::TYPE_STRING, 32);
     $table->column('created', Table::TYPE_FLOAT);
     $table->column('updated', Table::TYPE_FLOAT);
     $table->column('name', Table::TYPE_STRING, 1024);
@@ -397,7 +399,8 @@ Http::get('/v1/runtimes/:runtimeId/logs')
     ->inject('activeRuntimes')
     ->inject('response')
     ->inject('log')
-    ->action(function (string $runtimeId, string $timeoutStr, Table $activeRuntimes, Response $response, Log $log) {
+    ->inject('activeRuntimes')
+    ->action(function (string $runtimeId, string $timeoutStr, Response $response, Log $log, Table $activeRuntimes) {
         $timeout = \intval($timeoutStr);
 
         $runtimeName = System::getHostname() . '-' . $runtimeId;
@@ -410,6 +413,28 @@ Http::get('/v1/runtimes/:runtimeId/logs')
         $tmpFolder = "tmp/$runtimeName/";
         $tmpLogging = "/{$tmpFolder}logging"; // Build logs
 
+        $version = null;
+        $checkStart = \microtime(true);
+        while (true) {
+            if (\microtime(true) - $checkStart >= 10) { // Enforced timeout of 10s
+                throw new Exception('Runtime was not created in time.', 400);
+            }
+
+            $runtime = $activeRuntimes->get($runtimeName);
+            if (!empty($runtime)) {
+                $version = $runtime['version'];
+                break;
+            }
+
+            // Wait 0.5s and check again
+            \usleep(500000);
+        }
+
+        if ($version === 'v2') {
+            $response->end();
+            return;
+        }
+
         $checkStart = \microtime(true);
         while (true) {
             if (\microtime(true) - $checkStart >= $timeout) {
@@ -418,6 +443,13 @@ Http::get('/v1/runtimes/:runtimeId/logs')
 
             if (\file_exists($tmpLogging . '/logs.txt') && file_exists($tmpLogging . '/timings.txt')) {
                 break;
+            }
+
+            // Ensure runtime is still present
+            $runtime = $activeRuntimes->get($runtimeName);
+            if (empty($runtime)) {
+                $response->end();
+                return;
             }
 
             // Wait 0.5s and check again
@@ -456,15 +488,13 @@ Http::get('/v1/runtimes/:runtimeId/logs')
         });
 
         $offset = 0; // Current offset from timing for reading logs content
+        $tempLogsContent = \file_get_contents($tmpLogging . '/logs.txt') ?: '';
+        $introOffset = Logs::getLogOffset($tempLogsContent);
+
         $datetime = new DateTime("now", new DateTimeZone("UTC")); // Date used for tracking absolute log timing
 
-        $tempLogsContent = \file_get_contents($tmpLogging . '/logs.txt') ?: '';
-        $tempLogsContentSplit = \explode("\n", $tempLogsContent, 2); // Find first linebreak to identify prefix
-        $introOffset = \strlen($tempLogsContentSplit[0]); // Ignore script addition "Script started on..."
-        $introOffset += 1; // Consider linebreak an intro too
-
         $output = ''; // Unused, just a refference for stdout
-        Console::execute('tail -F ' . $tmpLogging . '/timings.txt', '', $output, $timeout, function (string $timingChunk, mixed $process) use ($tmpLogging, &$logsChunk, &$logsProcess, &$offset, &$datetime, $introOffset) {
+        Console::execute('tail -F ' . $tmpLogging . '/timings.txt', '', $output, $timeout, function (string $timingChunk, mixed $process) use ($tmpLogging, &$logsChunk, &$logsProcess, &$datetime, &$offset, $introOffset) {
             $logsProcess = $process;
 
             if (!\file_exists($tmpLogging . '/logs.txt')) {
@@ -474,30 +504,17 @@ Http::get('/v1/runtimes/:runtimeId/logs')
                 return;
             }
 
-            if (empty($timingChunk)) {
-                return;
-            }
+            $parts = Logs::parseTiming($timingChunk, $datetime);
 
-            $rows = \explode("\n", $timingChunk);
-            foreach ($rows as $row) {
-                if (empty($row)) {
-                    continue;
-                }
+            foreach ($parts as $part) {
+                $timestamp = $part['timestamp'] ?? '';
+                $length = \intval($part['length'] ?? '0');
 
-                [$timing, $length] = \explode(' ', $row, 2);
-                $timing = \floatval($timing);
-                $timing = \ceil($timing * 1000000); // Convert to microseconds
-                $length = \intval($length);
-
-                $di = DateInterval::createFromDateString($timing . ' microseconds');
-                $datetime->add($di);
-
-                $timingContent = $datetime->format('Y-m-d\TH:i:s.vP');
                 $logContent = \file_get_contents($tmpLogging . '/logs.txt', false, null, $introOffset + $offset, \abs($length)) ?: '';
 
                 $logContent = \str_replace("\n", "\\n", $logContent);
 
-                $output = $timingContent . " " . $logContent . "\n";
+                $output = $timestamp . " " . $logContent . "\n";
 
                 $logsChunk .= $output;
                 $offset += $length;
@@ -577,12 +594,13 @@ Http::post('/v1/runtimes')
         }
 
         $container = [];
-        $output = '';
+        $output = [];
         $startTime = \microtime(true);
 
         $secret = \bin2hex(\random_bytes(16));
 
         $activeRuntimes->set($runtimeName, [
+            'version' => $version,
             'listening' => 0,
             'name' => $runtimeName,
             'hostname' => $runtimeHostname,
@@ -724,15 +742,23 @@ Http::post('/v1/runtimes')
                 }
 
                 try {
+                    $statusOutput = '';
                     $status = $orchestration->execute(
                         name: $runtimeName,
                         command: $commands,
-                        output: $output,
+                        output: $statusOutput,
                         timeout: $timeout
                     );
 
                     if (!$status) {
-                        throw new Exception('Failed to create runtime: ' . $output, 400);
+                        throw new Exception('Failed to create runtime: ' . $statusOutput, 400);
+                    }
+
+                    if ($version === 'v2') {
+                        $output[] = [
+                            'timestamp' => Logs::getTimestamp(),
+                            'content' => $statusOutput
+                        ];
                     }
                 } catch (Throwable $err) {
                     throw new Exception($err->getMessage(), 400);
@@ -754,7 +780,6 @@ Http::post('/v1/runtimes')
                 $destinationDevice = getStorageDevice($destination);
                 $path = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo('code.tar.gz', PATHINFO_EXTENSION));
 
-
                 if (!$localDevice->transfer($tmpBuild, $path, $destinationDevice)) {
                     throw new Exception('Failed to move built code to storage', 500);
                 };
@@ -762,14 +787,12 @@ Http::post('/v1/runtimes')
                 $container['path'] = $path;
             }
 
-            if ($output === '') {
-                $output = 'Runtime created successfully!';
-            }
-
             $endTime = \microtime(true);
             $duration = $endTime - $startTime;
 
-            $output = \mb_substr($output, -1000000); // Limit to 1MB
+            if ($version !== 'v2') {
+                $output = Logs::get($runtimeName);
+            }
 
             $container = array_merge($container, [
                 'output' => $output,
@@ -783,27 +806,34 @@ Http::post('/v1/runtimes')
             $activeRuntime['initialised'] = 1;
             $activeRuntimes->set($runtimeName, $activeRuntime);
         } catch (Throwable $th) {
-            $message = !empty($output) ? $output : $th->getMessage();
+            if ($version === 'v2') {
+                $message = !empty($output) ? $output : $th->getMessage();
+                try {
+                    $logs = '';
+                    $status = $orchestration->execute(
+                        name: $runtimeName,
+                        command: ['sh', '-c', 'cat /var/tmp/logs.txt'],
+                        output: $logs,
+                        timeout: 15
+                    );
 
-            // Extract as much logs as we can
-            try {
-                $logs = '';
-                $status = $orchestration->execute(
-                    name: $runtimeName,
-                    command: ['sh', '-c', 'cat /var/tmp/logs.txt'],
-                    output: $logs,
-                    timeout: 15
-                );
-
-                if (!empty($logs)) {
-                    $message = $logs;
+                    if (!empty($logs)) {
+                        $message = $logs;
+                    }
+                } catch (Throwable $err) {
+                    // Ignore, use fallback error message
                 }
-            } catch (Throwable $err) {
-                // Ignore, use fallback error message
-            }
 
-            if ($remove) {
-                \sleep(2); // Allow time to read logs
+                $output = [
+                    'timestamp' => Logs::getTimestamp(),
+                    'content' => $message
+                ];
+            } else {
+                $output = Logs::get($runtimeName);
+                $output = \count($output) > 0 ? $output : [
+                    'timestamp' => Logs::getTimestamp(),
+                    'content' => $th->getMessage()
+                ];
             }
 
             $localDevice->deletePath($tmpFolder);
@@ -816,15 +846,16 @@ Http::post('/v1/runtimes')
 
             $activeRuntimes->del($runtimeName);
 
-            $message = \mb_substr($message, -1000000); // Limit to 1MB
+            $message = '';
+            foreach ($output as $chunk) {
+                $message .= $chunk['content'];
+            }
 
             throw new Exception($message, $th->getCode() ?: 500);
         }
 
         // Container cleanup
         if ($remove) {
-            \sleep(2); // Allow time to read logs
-
             $localDevice->deletePath($tmpFolder);
 
             // Silently try to kill container
@@ -1280,6 +1311,21 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     $errorFile = '/tmp/' . $runtimeName . '/logs/' . $fileId . '_errors.log';
 
                     $logDevice = new Local();
+
+                    $lockStart = \microtime(true);
+                    while (true) {
+                        // If timeout is passed, stop and return error
+                        if (\microtime(true) - $lockStart >= $timeout) {
+                            break;
+                        }
+
+                        if (!$logDevice->exists($logFile . '.lock') && !$logDevice->exists($errorFile . '.lock')) {
+                            break;
+                        }
+
+                        // Wait 0.1s and check again
+                        \usleep(100000);
+                    }
 
                     if ($logDevice->exists($logFile)) {
                         if ($logDevice->getFileSize($logFile) > MAX_LOG_SIZE) {
