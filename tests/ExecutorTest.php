@@ -508,7 +508,7 @@ final class ExecutorTest extends TestCase
             'runtimeId' => 'test-ssr-build',
             'source' => '/storage/sites/astro/code.tar.gz',
             'destination' => '/storage/builds/test',
-            'image' => 'openruntimes/ssr:v4rc-22',
+            'image' => 'openruntimes/node:v4rc-22',
             'outputDirectory' => './dist',
             'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "source /usr/local/server/helpers/astro/env.sh && npm install && npm run build && sh /usr/local/server/helpers/astro/bundle.sh"',
             'remove' => true
@@ -524,7 +524,7 @@ final class ExecutorTest extends TestCase
         $params = [
             'runtimeId' => 'test-ssr-exec',
             'source' => $buildPath,
-            'image' => 'openruntimes/ssr:v4rc-22',
+            'image' => 'openruntimes/node:v4rc-22',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "source /usr/local/server/helpers/astro/env.sh && ' . $command . '"',
             'path' => '/logs'
         ];

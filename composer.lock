@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6b8f92ac75f385c9388b758730c0748f",
+    "content-hash": "04d54838ae541f70c2f760706cfc547c",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
-            "version": "0.17.0",
+            "version": "0.18.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/appwrite/runtimes.git",
-                "reference": "9a9e20d1f5c28caf539ad4cb52164dc283f99797"
+                "reference": "f1ddcc567325659ad79506bc9684a4fc2009dc42"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/appwrite/runtimes/zipball/9a9e20d1f5c28caf539ad4cb52164dc283f99797",
-                "reference": "9a9e20d1f5c28caf539ad4cb52164dc283f99797",
+                "url": "https://api.github.com/repos/appwrite/runtimes/zipball/f1ddcc567325659ad79506bc9684a4fc2009dc42",
+                "reference": "f1ddcc567325659ad79506bc9684a4fc2009dc42",
                 "shasum": ""
             },
             "require": {
@@ -57,9 +57,9 @@
             ],
             "support": {
                 "issues": "https://github.com/appwrite/runtimes/issues",
-                "source": "https://github.com/appwrite/runtimes/tree/0.17.0"
+                "source": "https://github.com/appwrite/runtimes/tree/0.18.0"
             },
-            "time": "2025-01-10T13:36:30+00:00"
+            "time": "2025-03-07T14:30:31+00:00"
         },
         {
             "name": "utopia-php/cli",
@@ -417,22 +417,24 @@
         },
         {
             "name": "utopia-php/storage",
-            "version": "0.18.8",
+            "version": "0.18.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/storage.git",
-                "reference": "84737afa634e6a833fc4f8b0c967553234d3f215"
+                "reference": "76f31158f4251abb207f7a9b16f7cb0bfdb3b39e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/storage/zipball/84737afa634e6a833fc4f8b0c967553234d3f215",
-                "reference": "84737afa634e6a833fc4f8b0c967553234d3f215",
+                "url": "https://api.github.com/repos/utopia-php/storage/zipball/76f31158f4251abb207f7a9b16f7cb0bfdb3b39e",
+                "reference": "76f31158f4251abb207f7a9b16f7cb0bfdb3b39e",
                 "shasum": ""
             },
             "require": {
                 "ext-brotli": "*",
+                "ext-curl": "*",
                 "ext-fileinfo": "*",
                 "ext-lz4": "*",
+                "ext-simplexml": "*",
                 "ext-snappy": "*",
                 "ext-xz": "*",
                 "ext-zlib": "*",
@@ -466,9 +468,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/storage/issues",
-                "source": "https://github.com/utopia-php/storage/tree/0.18.8"
+                "source": "https://github.com/utopia-php/storage/tree/0.18.10"
             },
-            "time": "2024-12-04T08:30:35+00:00"
+            "time": "2025-03-03T10:47:54+00:00"
         },
         {
             "name": "utopia-php/system",
@@ -666,16 +668,16 @@
         },
         {
             "name": "myclabs/deep-copy",
-            "version": "1.12.1",
+            "version": "1.13.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/myclabs/DeepCopy.git",
-                "reference": "123267b2c49fbf30d78a7b2d333f6be754b94845"
+                "reference": "024473a478be9df5fdaca2c793f2232fe788e414"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/myclabs/DeepCopy/zipball/123267b2c49fbf30d78a7b2d333f6be754b94845",
-                "reference": "123267b2c49fbf30d78a7b2d333f6be754b94845",
+                "url": "https://api.github.com/repos/myclabs/DeepCopy/zipball/024473a478be9df5fdaca2c793f2232fe788e414",
+                "reference": "024473a478be9df5fdaca2c793f2232fe788e414",
                 "shasum": ""
             },
             "require": {
@@ -714,7 +716,7 @@
             ],
             "support": {
                 "issues": "https://github.com/myclabs/DeepCopy/issues",
-                "source": "https://github.com/myclabs/DeepCopy/tree/1.12.1"
+                "source": "https://github.com/myclabs/DeepCopy/tree/1.13.0"
             },
             "funding": [
                 {
@@ -722,7 +724,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2024-11-08T17:47:46+00:00"
+            "time": "2025-02-12T12:17:51+00:00"
         },
         {
             "name": "nikic/php-parser",
