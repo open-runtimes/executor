@@ -8,16 +8,16 @@
     "packages": [
         {
             "name": "appwrite/php-runtimes",
-            "version": "0.18.0",
+            "version": "0.18.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/appwrite/runtimes.git",
-                "reference": "f1ddcc567325659ad79506bc9684a4fc2009dc42"
+                "reference": "97b5d97ae2c0fc9a2a374769eadff024f95783aa"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/appwrite/runtimes/zipball/f1ddcc567325659ad79506bc9684a4fc2009dc42",
-                "reference": "f1ddcc567325659ad79506bc9684a4fc2009dc42",
+                "url": "https://api.github.com/repos/appwrite/runtimes/zipball/97b5d97ae2c0fc9a2a374769eadff024f95783aa",
+                "reference": "97b5d97ae2c0fc9a2a374769eadff024f95783aa",
                 "shasum": ""
             },
             "require": {
@@ -57,9 +57,9 @@
             ],
             "support": {
                 "issues": "https://github.com/appwrite/runtimes/issues",
-                "source": "https://github.com/appwrite/runtimes/tree/0.18.0"
+                "source": "https://github.com/appwrite/runtimes/tree/0.18.1"
             },
-            "time": "2025-03-07T14:30:31+00:00"
+            "time": "2025-03-11T14:05:46+00:00"
         },
         {
             "name": "utopia-php/cli",
