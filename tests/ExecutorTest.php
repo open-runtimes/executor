@@ -728,7 +728,7 @@ final class ExecutorTest extends TestCase
                 'image' => 'openruntimes/node:v5-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-empty-object',
-                'version' => 'v4',
+                'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
@@ -743,7 +743,7 @@ final class ExecutorTest extends TestCase
                 'image' => 'openruntimes/node:v5-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-empty-array',
-                'version' => 'v4',
+                'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
@@ -758,7 +758,7 @@ final class ExecutorTest extends TestCase
                 'image' => 'openruntimes/node:v5-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-timeout',
-                'version' => 'v4',
+                'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
@@ -772,7 +772,7 @@ final class ExecutorTest extends TestCase
                 'image' => 'openruntimes/node:v5-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-logs',
-                'version' => 'v4',
+                'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
@@ -789,7 +789,7 @@ final class ExecutorTest extends TestCase
                 'image' => 'openruntimes/node:v5-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-logs',
-                'version' => 'v4',
+                'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
@@ -806,7 +806,7 @@ final class ExecutorTest extends TestCase
                 'image' => 'openruntimes/node:v5-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-logs',
-                'version' => 'v4',
+                'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
@@ -825,7 +825,7 @@ final class ExecutorTest extends TestCase
                 'image' => 'openruntimes/node:v5-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-logs',
-                'version' => 'v4',
+                'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
@@ -843,7 +843,7 @@ final class ExecutorTest extends TestCase
                 'image' => 'openruntimes/node:v5-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-long-coldstart',
-                'version' => 'v4',
+                'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
@@ -859,7 +859,7 @@ final class ExecutorTest extends TestCase
                 'image' => 'openruntimes/node:v5-21.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-binary-response',
-                'version' => 'v4',
+                'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
@@ -884,7 +884,7 @@ final class ExecutorTest extends TestCase
                 'image' => 'openruntimes/node:v5-21.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-binary-response',
-                'version' => 'v4',
+                'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
@@ -899,7 +899,7 @@ final class ExecutorTest extends TestCase
                 'image' => 'openruntimes/node:v5-21.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-binary-request',
-                'version' => 'v4',
+                'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
@@ -926,7 +926,7 @@ final class ExecutorTest extends TestCase
                 'image' => 'openruntimes/node:v5-18.0',
                 'entrypoint' => 'index.js',
                 'folder' => 'node-specs',
-                'version' => 'v4',
+                'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i && npm run build"',
                 'assertions' => function ($response) {

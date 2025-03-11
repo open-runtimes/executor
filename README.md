@@ -90,7 +90,7 @@ OPR_EXECUTOR_LOGGING_PROVIDER=
 OPR_EXECUTOR_LOGGING_CONFIG=
 OPR_EXECUTOR_DOCKER_HUB_USERNAME=
 OPR_EXECUTOR_DOCKER_HUB_PASSWORD=
-OPR_EXECUTOR_RUNTIME_VERSIONS=v4
+OPR_EXECUTOR_RUNTIME_VERSIONS=v5
 OPR_EXECUTOR_RETRY_ATTEMPTS=5
 OPR_EXECUTOR_RETRY_DELAY_MS=500
 ```
@@ -161,7 +161,7 @@ docker compose down
 | `remove` | `boolean` | Remove a runtime after execution |  | false |
 | `cpus` | `float` | Maximum CPU cores runtime can utilize |  | 1 |
 | `memory` | `integer` | Container RAM memory in MBs |  | 512 |
-| `version` | `string` | Runtime Open Runtime version (allowed values: 'v2', 'v4') |  | 'v4' |
+| `version` | `string` | Runtime Open Runtime version (allowed values: 'v2', 'v5') |  | 'v5' |
 
 #### /v1/runtimes/{runtimeId}
 | Param | Type | Description | Required | Default |
@@ -183,7 +183,7 @@ docker compose down
 | `variables` | `json` | Environment variables passed into runtime |  | [ ] |
 | `cpus` | `floats` | Maximum CPU cores runtime can utilize |  | 1 |
 | `memory` | `integer` | Container RAM memory in MBs |  | 512 |
-| `version` | `string` | Runtime Open Runtime version (allowed values: 'v2', 'v4') |  | 'v4' |
+| `version` | `string` | Runtime Open Runtime version (allowed values: 'v2', 'v5') |  | 'v5' |
 | `runtimeEntrypoint` | `string` | Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long. |  | ' ' |
 
 ## Environment variables
@@ -201,7 +201,7 @@ docker compose down
 | OPR_EXECUTOR_LOGGING_CONFIG       | External logging provider DSN used by the executor, ex: `sentry://PROJECT_ID:SENTRY_API_KEY@SENTRY_HOST/`                                  |
 | OPR_EXECUTOR_DOCKER_HUB_USERNAME | Username for Docker Hub authentication (if applicable)                                                                                        |
 | OPR_EXECUTOR_DOCKER_HUB_PASSWORD | Password for Docker Hub authentication (if applicable)                                                                                        |
-| OPR_EXECUTOR_RUNTIME_VERSIONS    | Version tag for runtime environments, ex: `v4`                                                                                                |
+| OPR_EXECUTOR_RUNTIME_VERSIONS    | Version tag for runtime environments, ex: `v5`                                                                                                |
 | OPR_EXECUTOR_RETRY_ATTEMPTS      | Number of retry attempts for failed executions, ex: `5`                                                                                       |
 | OPR_EXECUTOR_RETRY_DELAY_MS      | Delay (in milliseconds) between retry attempts, ex: `500`                                                                                    |
 | OPR_EXECUTOR_IMAGE_PULL      | Pull open runtimes images before executor starts. Takes `disabled` and `enabled` |
