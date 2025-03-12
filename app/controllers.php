@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/init.php';
+
 use OpenRuntimes\Executor\BodyMultipart;
 use OpenRuntimes\Executor\Runner\Adapter as Runner;
 use Utopia\CLI\Console;

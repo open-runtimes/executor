@@ -18,9 +18,17 @@ const MAX_LOG_SIZE = 5 * 1024 * 1024;
 // Setup Registry
 $register = new Registry();
 
-/**
- * Create logger for cloud logging
- */
+$register->set('runner', function () {
+    $orchestration = new Orchestration(new DockerAPI(
+        Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', ''),
+        Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '')
+    ));
+
+    $networks = explode(',', Http::getEnv('OPR_EXECUTOR_NETWORK') ?: 'openruntimes-runtimes');
+
+    return new Docker($orchestration, $networks);
+});
+
 $register->set('logger', function () {
     $providerName = Http::getEnv('OPR_EXECUTOR_LOGGING_PROVIDER', '');
     $providerConfig = Http::getEnv('OPR_EXECUTOR_LOGGING_CONFIG', '');
@@ -69,13 +77,4 @@ Http::setResource('register', fn () => $register);
 
 Http::setResource('logger', fn (Registry $register) => $register->get('logger'), ['register']);
 
-Http::setResource('runner', function () {
-    $orchestration = new Orchestration(new DockerAPI(
-        Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', ''),
-        Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '')
-    ));
-
-    $networks = explode(',', Http::getEnv('OPR_EXECUTOR_NETWORK') ?: 'openruntimes-runtimes');
-
-    return new Docker($orchestration, $networks);
-});
+Http::setResource('runner', fn (Registry $register) => $register->get('runner'), ['register']);
