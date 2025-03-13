@@ -421,12 +421,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/storage.git",
-                "reference": "4077dd43f166b7213fd3b47622054db3d495d1f0"
+                "reference": "6d232fadd07090ea18df5ad5459d433ee1f1433c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/storage/zipball/4077dd43f166b7213fd3b47622054db3d495d1f0",
-                "reference": "4077dd43f166b7213fd3b47622054db3d495d1f0",
+                "url": "https://api.github.com/repos/utopia-php/storage/zipball/6d232fadd07090ea18df5ad5459d433ee1f1433c",
+                "reference": "6d232fadd07090ea18df5ad5459d433ee1f1433c",
                 "shasum": ""
             },
             "require": {
@@ -470,7 +470,7 @@
                 "issues": "https://github.com/utopia-php/storage/issues",
                 "source": "https://github.com/utopia-php/storage/tree/generic-s3-device"
             },
-            "time": "2025-02-26T09:43:51+00:00"
+            "time": "2025-03-03T10:32:05+00:00"
         },
         {
             "name": "utopia-php/system",
@@ -2459,7 +2459,7 @@
         "ext-json": "*",
         "ext-swoole": "*"
     },
-    "platform-dev": [],
+    "platform-dev": {},
     "platform-overrides": {
         "php": "8.3"
     },
