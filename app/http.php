@@ -6,10 +6,13 @@ if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
 
 require_once __DIR__ . '/controllers.php';
 
+use OpenRuntimes\Executor\Runner\Docker;
 use Swoole\Runtime;
 use Utopia\CLI\Console;
 use Utopia\Http\Http;
 use Utopia\Http\Adapter\Swoole\Server;
+use Utopia\Orchestration\Adapter\DockerAPI;
+use Utopia\Orchestration\Orchestration;
 
 use function Swoole\Coroutine\run;
 
@@ -21,6 +24,15 @@ Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
 Http::setMode((string)Http::getEnv('OPR_EXECUTOR_ENV', Http::MODE_TYPE_PRODUCTION));
 
 run(function () {
+    $orchestration = new Orchestration(new DockerAPI(
+        Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', ''),
+        Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '')
+    ));
+    $networks = explode(',', Http::getEnv('OPR_EXECUTOR_NETWORK') ?: 'openruntimes-runtimes');
+    $runner = new Docker($orchestration, $networks);
+
+    Http::setResource('runner', fn () => $runner);
+
     $payloadSize = 22 * (1024 * 1024);
     $settings = [
         'package_max_length' => $payloadSize,

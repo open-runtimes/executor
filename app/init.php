@@ -9,25 +9,11 @@ use Utopia\Logger\Adapter\Sentry;
 use Utopia\DSN\DSN;
 use Utopia\Http\Http;
 use Utopia\Registry\Registry;
-use OpenRuntimes\Executor\Runner\Docker;
-use Utopia\Orchestration\Adapter\DockerAPI;
-use Utopia\Orchestration\Orchestration;
 
 const MAX_LOG_SIZE = 5 * 1024 * 1024;
 
 // Setup Registry
 $register = new Registry();
-
-$register->set('runner', function () {
-    $orchestration = new Orchestration(new DockerAPI(
-        Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', ''),
-        Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '')
-    ));
-
-    $networks = explode(',', Http::getEnv('OPR_EXECUTOR_NETWORK') ?: 'openruntimes-runtimes');
-
-    return new Docker($orchestration, $networks);
-});
 
 $register->set('logger', function () {
     $providerName = Http::getEnv('OPR_EXECUTOR_LOGGING_PROVIDER', '');
@@ -76,5 +62,3 @@ Http::setResource('log', fn () => new Log());
 Http::setResource('register', fn () => $register);
 
 Http::setResource('logger', fn (Registry $register) => $register->get('logger'), ['register']);
-
-Http::setResource('runner', fn (Registry $register) => $register->get('runner'), ['register']);
