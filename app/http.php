@@ -776,7 +776,6 @@ Http::post('/v1/runtimes')
              * Move built code to expected build directory
              */
             if (empty($localDevice->getFiles($tmpBuildOutput))) {
-                $localDevice->deletePath($tmpLogging . '/logs.txt');
                 throw new RuntimeException('Output directory is empty. Please check your configuration settings.', 500);
             }
 
@@ -818,36 +817,36 @@ Http::post('/v1/runtimes')
             $activeRuntime['initialised'] = 1;
             $activeRuntimes->set($runtimeName, $activeRuntime);
         } catch (Throwable $th) {
-            if (!($th instanceof \RuntimeException)) {
-                if ($version === 'v2') {
-                    $message = !empty($output) ? $output : $th->getMessage();
-                    try {
-                        $logs = '';
-                        $status = $orchestration->execute(
-                            name: $runtimeName,
-                            command: ['sh', '-c', 'cat /var/tmp/logs.txt'],
-                            output: $logs,
-                            timeout: 15
-                        );
+            if ($th instanceof \RuntimeException) {
+                $message = $th->getMessage();
+            } elseif ($version === 'v2') {
+                $message = !empty($output) ? $output : $th->getMessage();
+                try {
+                    $logs = '';
+                    $status = $orchestration->execute(
+                        name: $runtimeName,
+                        command: ['sh', '-c', 'cat /var/tmp/logs.txt'],
+                        output: $logs,
+                        timeout: 15
+                    );
 
-                        if (!empty($logs)) {
-                            $message = $logs;
-                        }
-                    } catch (Throwable $err) {
-                        // Ignore, use fallback error message
+                    if (!empty($logs)) {
+                        $message = $logs;
                     }
-
-                    $output = [
-                        'timestamp' => Logs::getTimestamp(),
-                        'content' => $message
-                    ];
-                } else {
-                    $output = Logs::get($runtimeName);
-                    $output = \count($output) > 0 ? $output : [
-                        'timestamp' => Logs::getTimestamp(),
-                        'content' => $th->getMessage()
-                    ];
+                } catch (Throwable $err) {
+                    // Ignore, use fallback error message
                 }
+
+                $output = [
+                    'timestamp' => Logs::getTimestamp(),
+                    'content' => $message
+                ];
+            } else {
+                $output = Logs::get($runtimeName);
+                $output = \count($output) > 0 ? $output : [
+                    'timestamp' => Logs::getTimestamp(),
+                    'content' => $th->getMessage()
+                ];
             }
 
             $localDevice->deletePath($tmpFolder);
@@ -860,13 +859,11 @@ Http::post('/v1/runtimes')
 
             $activeRuntimes->del($runtimeName);
 
-            if ($th instanceof \RuntimeException) {
-                throw $th;
-            }
-
-            $message = '';
-            foreach ($output as $chunk) {
-                $message .= $chunk['content'];
+            if (!($th instanceof \RuntimeException)) {
+                $message = '';
+                foreach ($output as $chunk) {
+                    $message .= $chunk['content'];
+                }
             }
 
             throw new Exception($message, $th->getCode() ?: 500);
