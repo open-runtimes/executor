@@ -625,6 +625,7 @@ Http::post('/v1/runtimes')
         $tmpBuild = "/{$tmpFolder}builds/code.tar.gz";
         $tmpLogging = "/{$tmpFolder}logging"; // Build logs
         $tmpLogs = "/{$tmpFolder}logs"; // Runtime logs
+        $tmpBuildOutput = "/{$tmpFolder}buildsOutput";
 
         $sourceDevice = getStorageDevice("/");
         $localDevice = new Local();
@@ -701,9 +702,10 @@ Http::post('/v1/runtimes')
                 \dirname($tmpBuild) . ':' . $codeMountPath . ':rw',
             ];
 
-            if ($version === 'v5') {
+            if ($version !== 'v2') {
                 $volumes[] = \dirname($tmpLogs . '/logs') . ':/mnt/logs:rw';
                 $volumes[] = \dirname($tmpLogging . '/logging') . ':/tmp/logging:rw';
+                $volumes[] = \dirname($tmpBuildOutput) . ':/usr/local/build:rw';
             }
 
             /** Keep the container alive if we have commands to be executed */
@@ -773,6 +775,11 @@ Http::post('/v1/runtimes')
             /**
              * Move built code to expected build directory
              */
+            if (empty($localDevice->getFiles($tmpBuildOutput))) {
+                $localDevice->deletePath($tmpLogging . '/logs.txt');
+                throw new RuntimeException('Output directory is empty. Please check your configuration settings.', 500);
+            }
+
             if (!empty($destination)) {
                 // Check if the build was successful by checking if file exists
                 if (!$localDevice->exists($tmpBuild)) {
@@ -811,34 +818,36 @@ Http::post('/v1/runtimes')
             $activeRuntime['initialised'] = 1;
             $activeRuntimes->set($runtimeName, $activeRuntime);
         } catch (Throwable $th) {
-            if ($version === 'v2') {
-                $message = !empty($output) ? $output : $th->getMessage();
-                try {
-                    $logs = '';
-                    $status = $orchestration->execute(
-                        name: $runtimeName,
-                        command: ['sh', '-c', 'cat /var/tmp/logs.txt'],
-                        output: $logs,
-                        timeout: 15
-                    );
+            if (!($th instanceof \RuntimeException)) {
+                if ($version === 'v2') {
+                    $message = !empty($output) ? $output : $th->getMessage();
+                    try {
+                        $logs = '';
+                        $status = $orchestration->execute(
+                            name: $runtimeName,
+                            command: ['sh', '-c', 'cat /var/tmp/logs.txt'],
+                            output: $logs,
+                            timeout: 15
+                        );
 
-                    if (!empty($logs)) {
-                        $message = $logs;
+                        if (!empty($logs)) {
+                            $message = $logs;
+                        }
+                    } catch (Throwable $err) {
+                        // Ignore, use fallback error message
                     }
-                } catch (Throwable $err) {
-                    // Ignore, use fallback error message
-                }
 
-                $output = [
-                    'timestamp' => Logs::getTimestamp(),
-                    'content' => $message
-                ];
-            } else {
-                $output = Logs::get($runtimeName);
-                $output = \count($output) > 0 ? $output : [
-                    'timestamp' => Logs::getTimestamp(),
-                    'content' => $th->getMessage()
-                ];
+                    $output = [
+                        'timestamp' => Logs::getTimestamp(),
+                        'content' => $message
+                    ];
+                } else {
+                    $output = Logs::get($runtimeName);
+                    $output = \count($output) > 0 ? $output : [
+                        'timestamp' => Logs::getTimestamp(),
+                        'content' => $th->getMessage()
+                    ];
+                }
             }
 
             $localDevice->deletePath($tmpFolder);
@@ -850,6 +859,10 @@ Http::post('/v1/runtimes')
             }
 
             $activeRuntimes->del($runtimeName);
+
+            if ($th instanceof \RuntimeException) {
+                throw $th;
+            }
 
             $message = '';
             foreach ($output as $chunk) {
