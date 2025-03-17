@@ -818,7 +818,10 @@ Http::post('/v1/runtimes')
             $activeRuntimes->set($runtimeName, $activeRuntime);
         } catch (Throwable $th) {
             if ($th instanceof \RuntimeException) {
-                $message = $th->getMessage();
+                $output = [
+                    'timestamp' => Logs::getTimestamp(),
+                    'content' => $th->getMessage()
+                ];
             } elseif ($version === 'v2') {
                 $message = !empty($output) ? $output : $th->getMessage();
                 try {
@@ -859,11 +862,9 @@ Http::post('/v1/runtimes')
 
             $activeRuntimes->del($runtimeName);
 
-            if (!($th instanceof \RuntimeException)) {
-                $message = '';
-                foreach ($output as $chunk) {
-                    $message .= $chunk['content'];
-                }
+            $message = '';
+            foreach ($output as $chunk) {
+                $message .= $chunk['content'];
             }
 
             throw new Exception($message, $th->getCode() ?: 500);
