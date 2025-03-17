@@ -625,7 +625,7 @@ Http::post('/v1/runtimes')
         $tmpBuild = "/{$tmpFolder}builds/code.tar.gz";
         $tmpLogging = "/{$tmpFolder}logging"; // Build logs
         $tmpLogs = "/{$tmpFolder}logs"; // Runtime logs
-        $tmpBuildOutput = "/{$tmpFolder}buildsOutput";
+        $tmpBuildOutput = "/{$tmpFolder}buildOutput";
 
         $sourceDevice = getStorageDevice("/");
         $localDevice = new Local();
