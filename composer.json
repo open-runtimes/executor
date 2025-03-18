@@ -36,7 +36,7 @@
         "utopia-php/preloader": "0.2.*",
         "utopia-php/system": "0.9.*",
         "utopia-php/orchestration": "0.14.*",
-        "appwrite/php-runtimes": "0.17.*"
+        "appwrite/php-runtimes": "0.18.*"
     },
     "require-dev": {
         "swoole/ide-helper": "4.8.5",

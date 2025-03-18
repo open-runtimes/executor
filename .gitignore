@@ -3,3 +3,5 @@
 .phpunit.result.cache
 /tests/resources/functions/**/code.tar.gz
 /tests/resources/functions/**/code.zip
+/tests/resources/sites/**/code.tar.gz
+/tests/resources/sites/**/code.zip

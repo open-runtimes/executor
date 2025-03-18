@@ -4,6 +4,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use Appwrite\Runtimes\Runtimes;
 use OpenRuntimes\Executor\BodyMultipart;
+use OpenRuntimes\Executor\Logs;
 use OpenRuntimes\Executor\Validator\TCP;
 use OpenRuntimes\Executor\Usage;
 use Swoole\Process;
@@ -118,6 +119,7 @@ $register->set('orchestration', function () {
 $register->set('activeRuntimes', function () {
     $table = new Table(4096);
 
+    $table->column('version', Table::TYPE_STRING, 32);
     $table->column('created', Table::TYPE_FLOAT);
     $table->column('updated', Table::TYPE_FLOAT);
     $table->column('name', Table::TYPE_STRING, 1024);
@@ -126,6 +128,7 @@ $register->set('activeRuntimes', function () {
     $table->column('key', Table::TYPE_STRING, 1024);
     $table->column('listening', Table::TYPE_INT, 1);
     $table->column('image', Table::TYPE_STRING, 1024);
+    $table->column('initialised', Table::TYPE_INT, 0);
     $table->create();
 
     return $table;
@@ -395,33 +398,60 @@ Http::get('/v1/runtimes/:runtimeId/logs')
     ->param('timeout', '600', new Text(16), 'Maximum logs timeout.', true)
     ->inject('response')
     ->inject('log')
-    ->action(function (string $runtimeId, string $timeoutStr, Response $response, Log $log) {
+    ->inject('activeRuntimes')
+    ->action(function (string $runtimeId, string $timeoutStr, Response $response, Log $log, Table $activeRuntimes) {
         $timeout = \intval($timeoutStr);
 
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
+        $log->addTag('runtimeId', $runtimeName);
+
         $response->sendHeader('Content-Type', 'text/event-stream');
         $response->sendHeader('Cache-Control', 'no-cache');
 
-        // Wait for runtime
-        for ($i = 0; $i < 10; $i++) {
-            $output = '';
-            $code = Console::execute('docker container inspect ' . \escapeshellarg($runtimeName), '', $output);
-            if ($code === 0) {
+        $tmpFolder = "tmp/$runtimeName/";
+        $tmpLogging = "/{$tmpFolder}logging"; // Build logs
+
+        $version = null;
+        $checkStart = \microtime(true);
+        while (true) {
+            if (\microtime(true) - $checkStart >= 10) { // Enforced timeout of 10s
+                throw new Exception('Runtime was not created in time.', 400);
+            }
+
+            $runtime = $activeRuntimes->get($runtimeName);
+            if (!empty($runtime)) {
+                $version = $runtime['version'];
                 break;
             }
 
-            if ($i === 9) {
-                $runtimeIdTokens = explode("-", $runtimeName);
-                $executorId = $runtimeIdTokens[0];
-                $functionId = $runtimeIdTokens[1];
-                $deploymentId = $runtimeIdTokens[2];
-                $log->addTag('executorId', $executorId);
-                $log->addTag('functionId', $functionId);
-                $log->addTag('deploymentId', $deploymentId);
-                throw new Exception('Runtime not ready. Container not found.', 500);
+            // Wait 0.5s and check again
+            \usleep(500000);
+        }
+
+        if ($version === 'v2') {
+            $response->end();
+            return;
+        }
+
+        $checkStart = \microtime(true);
+        while (true) {
+            if (\microtime(true) - $checkStart >= $timeout) {
+                throw new Exception('Log file was not created in time.', 400);
             }
 
+            if (\file_exists($tmpLogging . '/logs.txt') && file_exists($tmpLogging . '/timings.txt')) {
+                break;
+            }
+
+            // Ensure runtime is still present
+            $runtime = $activeRuntimes->get($runtimeName);
+            if (empty($runtime)) {
+                $response->end();
+                return;
+            }
+
+            // Wait 0.5s and check again
             \usleep(500000);
         }
 
@@ -436,7 +466,18 @@ Http::get('/v1/runtimes/:runtimeId/logs')
         $logsProcess = null;
 
         $streamInterval = 1000; // 1 second
-        $timerId = Timer::tick($streamInterval, function () use (&$logsProcess, &$logsChunk, $response) {
+        $timerId = Timer::tick($streamInterval, function () use (&$logsProcess, &$logsChunk, $response, $activeRuntimes, $runtimeName) {
+            $runtime = $activeRuntimes->get($runtimeName);
+            if ($runtime['initialised'] === 1) {
+                if (!empty($logsChunk)) {
+                    $write = $response->write($logsChunk);
+                    $logsChunk = '';
+                }
+
+                \proc_terminate($logsProcess, 9);
+                return;
+            }
+
             if (empty($logsChunk)) {
                 return;
             }
@@ -451,18 +492,71 @@ Http::get('/v1/runtimes/:runtimeId/logs')
             }
         });
 
-        $output = '';
-        Console::execute('docker exec ' . \escapeshellarg($runtimeName) . ' tail -F /var/tmp/logs.txt', '', $output, $timeout, function (string $outputChunk, mixed $process) use (&$logsChunk, &$logsProcess) {
+        $offset = 0; // Current offset from timing for reading logs content
+        $tempLogsContent = \file_get_contents($tmpLogging . '/logs.txt') ?: '';
+        $introOffset = Logs::getLogOffset($tempLogsContent);
+
+        $datetime = new DateTime("now", new DateTimeZone("UTC")); // Date used for tracking absolute log timing
+
+        $output = ''; // Unused, just a refference for stdout
+        Console::execute('tail -F ' . $tmpLogging . '/timings.txt', '', $output, $timeout, function (string $timingChunk, mixed $process) use ($tmpLogging, &$logsChunk, &$logsProcess, &$datetime, &$offset, $introOffset) {
             $logsProcess = $process;
 
-            if (!empty($outputChunk)) {
-                $logsChunk .= $outputChunk;
+            if (!\file_exists($tmpLogging . '/logs.txt')) {
+                if (!empty($logsProcess)) {
+                    \proc_terminate($logsProcess, 9);
+                }
+                return;
+            }
+
+            $parts = Logs::parseTiming($timingChunk, $datetime);
+
+            foreach ($parts as $part) {
+                $timestamp = $part['timestamp'] ?? '';
+                $length = \intval($part['length'] ?? '0');
+
+                $logContent = \file_get_contents($tmpLogging . '/logs.txt', false, null, $introOffset + $offset, \abs($length)) ?: '';
+
+                $logContent = \str_replace("\n", "\\n", $logContent);
+
+                $output = $timestamp . " " . $logContent . "\n";
+
+                $logsChunk .= $output;
+                $offset += $length;
             }
         });
 
         Timer::clear($timerId);
-
         $response->end();
+    });
+
+Http::post('/v1/runtimes/:runtimeId/commands')
+    ->desc('Execute a command inside an existing runtime')
+    ->param('runtimeId', '', new Text(64), 'Unique runtime ID.')
+    ->param('command', '', new Text(1024), 'Command to execute.')
+    ->param('timeout', 600, new Integer(), 'Commands execution time in seconds.', true)
+    ->inject('orchestration')
+    ->inject('activeRuntimes')
+    ->inject('response')
+    ->action(function (string $runtimeId, string $command, int $timeout, Orchestration $orchestration, Table $activeRuntimes, Response $response) {
+        $runtimeName = System::getHostname() . '-' . $runtimeId;
+
+        if (!$activeRuntimes->exists($runtimeName)) {
+            throw new Exception('Runtime not found', 404);
+        }
+
+        $commands = [
+            'sh',
+            '-c',
+            $command
+        ];
+
+        $output = '';
+        $orchestration->execute($runtimeName, $commands, $output, [], $timeout);
+
+        $response
+            ->setStatusCode(Response::STATUS_CODE_OK)
+            ->json([ 'output' => $output ]);
     });
 
 Http::post('/v1/runtimes')
@@ -480,7 +574,7 @@ Http::post('/v1/runtimes')
     ->param('remove', false, new Boolean(), 'Remove a runtime after execution.', true)
     ->param('cpus', 1, new FloatValidator(true), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Container RAM memory.', true)
-    ->param('version', 'v4', new WhiteList(['v2', 'v4']), 'Runtime Open Runtime version.', true)
+    ->param('version', 'v5', new WhiteList(['v2', 'v5']), 'Runtime Open Runtime version.', true)
     ->param('restartPolicy', DockerAPI::RESTART_NO, new WhiteList([DockerAPI::RESTART_NO, DockerAPI::RESTART_ALWAYS, DockerAPI::RESTART_ON_FAILURE, DockerAPI::RESTART_UNLESS_STOPPED], true), 'Define restart policy for the runtime once an exit code is returned. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)
     ->inject('networks')
     ->inject('orchestration')
@@ -505,12 +599,13 @@ Http::post('/v1/runtimes')
         }
 
         $container = [];
-        $output = '';
+        $output = [];
         $startTime = \microtime(true);
 
         $secret = \bin2hex(\random_bytes(16));
 
         $activeRuntimes->set($runtimeName, [
+            'version' => $version,
             'listening' => 0,
             'name' => $runtimeName,
             'hostname' => $runtimeHostname,
@@ -519,6 +614,7 @@ Http::post('/v1/runtimes')
             'status' => 'pending',
             'key' => $secret,
             'image' => $image,
+            'initialised' => 0,
         ]);
 
         /**
@@ -527,7 +623,8 @@ Http::post('/v1/runtimes')
         $tmpFolder = "tmp/$runtimeName/";
         $tmpSource = "/{$tmpFolder}src/code.tar.gz";
         $tmpBuild = "/{$tmpFolder}builds/code.tar.gz";
-        $tmpLogs = "/{$tmpFolder}logs";
+        $tmpLogging = "/{$tmpFolder}logging"; // Build logs
+        $tmpLogs = "/{$tmpFolder}logs"; // Runtime logs
 
         $sourceDevice = getStorageDevice("/");
         $localDevice = new Local();
@@ -558,7 +655,7 @@ Http::post('/v1/runtimes')
                     'INTERNAL_RUNTIME_ENTRYPOINT' => $entrypoint,
                     'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
                 ],
-                'v4' => [
+                'v5' => [
                     'OPEN_RUNTIMES_SECRET' => $secret,
                     'OPEN_RUNTIMES_ENTRYPOINT' => $entrypoint,
                     'OPEN_RUNTIMES_HOSTNAME' => System::getHostname(),
@@ -572,6 +669,10 @@ Http::post('/v1/runtimes')
                     'OPEN_RUNTIMES_OUTPUT_DIRECTORY' => $outputDirectory
                 ]);
             }
+
+            $variables = \array_merge($variables, [
+                'CI' => 'true'
+            ]);
 
             $variables = array_map(fn ($v) => strval($v), $variables);
             $orchestration
@@ -600,8 +701,9 @@ Http::post('/v1/runtimes')
                 \dirname($tmpBuild) . ':' . $codeMountPath . ':rw',
             ];
 
-            if ($version === 'v4') {
+            if ($version === 'v5') {
                 $volumes[] = \dirname($tmpLogs . '/logs') . ':/mnt/logs:rw';
+                $volumes[] = \dirname($tmpLogging . '/logging') . ':/tmp/logging:rw';
             }
 
             /** Keep the container alive if we have commands to be executed */
@@ -629,22 +731,39 @@ Http::post('/v1/runtimes')
              * Execute any commands if they were provided
              */
             if (!empty($command)) {
-                $commands = [
-                    'sh',
-                    '-c',
-                    'touch /var/tmp/logs.txt && (' . $command . ') >> /var/tmp/logs.txt 2>&1 && cat /var/tmp/logs.txt'
-                ];
+                if ($version === 'v2') {
+                    // TODO: Remove this, release v2 images with script installed
+                    $commands = [
+                        'sh',
+                        '-c',
+                        'touch /var/tmp/logs.txt && (' . $command . ') >> /var/tmp/logs.txt 2>&1 && cat /var/tmp/logs.txt'
+                    ];
+                } else {
+                    $commands = [
+                        'sh',
+                        '-c',
+                        'mkdir -p /tmp/logging && touch /tmp/logging/timings.txt && touch /tmp/logging/logs.txt && script --log-out /tmp/logging/logs.txt --flush --log-timing /tmp/logging/timings.txt --return --quiet --command "' . \str_replace('"', '\"', $command) . '"'
+                    ];
+                }
 
                 try {
+                    $statusOutput = '';
                     $status = $orchestration->execute(
                         name: $runtimeName,
                         command: $commands,
-                        output: $output,
+                        output: $statusOutput,
                         timeout: $timeout
                     );
 
                     if (!$status) {
-                        throw new Exception('Failed to create runtime: ' . $output, 400);
+                        throw new Exception('Failed to create runtime: ' . $statusOutput, 400);
+                    }
+
+                    if ($version === 'v2') {
+                        $output[] = [
+                            'timestamp' => Logs::getTimestamp(),
+                            'content' => $statusOutput
+                        ];
                     }
                 } catch (Throwable $err) {
                     throw new Exception($err->getMessage(), 400);
@@ -666,7 +785,6 @@ Http::post('/v1/runtimes')
                 $destinationDevice = getStorageDevice($destination);
                 $path = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo('code.tar.gz', PATHINFO_EXTENSION));
 
-
                 if (!$localDevice->transfer($tmpBuild, $path, $destinationDevice)) {
                     throw new Exception('Failed to move built code to storage', 500);
                 };
@@ -674,14 +792,12 @@ Http::post('/v1/runtimes')
                 $container['path'] = $path;
             }
 
-            if ($output === '') {
-                $output = 'Runtime created successfully!';
-            }
-
             $endTime = \microtime(true);
             $duration = $endTime - $startTime;
 
-            $output = \mb_substr($output, -1000000); // Limit to 1MB
+            if ($version !== 'v2') {
+                $output = Logs::get($runtimeName);
+            }
 
             $container = array_merge($container, [
                 'output' => $output,
@@ -692,29 +808,37 @@ Http::post('/v1/runtimes')
             $activeRuntime = $activeRuntimes->get($runtimeName);
             $activeRuntime['updated'] = \microtime(true);
             $activeRuntime['status'] = 'Up ' . \round($duration, 2) . 's';
+            $activeRuntime['initialised'] = 1;
             $activeRuntimes->set($runtimeName, $activeRuntime);
         } catch (Throwable $th) {
-            $message = !empty($output) ? $output : $th->getMessage();
+            if ($version === 'v2') {
+                $message = !empty($output) ? $output : $th->getMessage();
+                try {
+                    $logs = '';
+                    $status = $orchestration->execute(
+                        name: $runtimeName,
+                        command: ['sh', '-c', 'cat /var/tmp/logs.txt'],
+                        output: $logs,
+                        timeout: 15
+                    );
 
-            // Extract as much logs as we can
-            try {
-                $logs = '';
-                $status = $orchestration->execute(
-                    name: $runtimeName,
-                    command: ['sh', '-c', 'cat /var/tmp/logs.txt'],
-                    output: $logs,
-                    timeout: 15
-                );
-
-                if (!empty($logs)) {
-                    $message = $logs;
+                    if (!empty($logs)) {
+                        $message = $logs;
+                    }
+                } catch (Throwable $err) {
+                    // Ignore, use fallback error message
                 }
-            } catch (Throwable $err) {
-                // Ignore, use fallback error message
-            }
 
-            if ($remove) {
-                \sleep(2); // Allow time to read logs
+                $output = [
+                    'timestamp' => Logs::getTimestamp(),
+                    'content' => $message
+                ];
+            } else {
+                $output = Logs::get($runtimeName);
+                $output = \count($output) > 0 ? $output : [
+                    'timestamp' => Logs::getTimestamp(),
+                    'content' => $th->getMessage()
+                ];
             }
 
             $localDevice->deletePath($tmpFolder);
@@ -727,15 +851,16 @@ Http::post('/v1/runtimes')
 
             $activeRuntimes->del($runtimeName);
 
-            $message = \mb_substr($message, -1000000); // Limit to 1MB
+            $message = '';
+            foreach ($output as $chunk) {
+                $message .= $chunk['content'];
+            }
 
             throw new Exception($message, $th->getCode() ?: 500);
         }
 
         // Container cleanup
         if ($remove) {
-            \sleep(2); // Allow time to read logs
-
             $localDevice->deletePath($tmpFolder);
 
             // Silently try to kill container
@@ -831,7 +956,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->param('variables', [], new AnyOf([new Text(65535), new Assoc()], AnyOf::TYPE_MIXED), 'Environment variables passed into runtime.', true)
     ->param('cpus', 1, new FloatValidator(true), 'Container CPU.', true)
     ->param('memory', 512, new Integer(true), 'Container RAM memory.', true)
-    ->param('version', 'v4', new WhiteList(['v2', 'v4']), 'Runtime Open Runtime version.', true)
+    ->param('version', 'v5', new WhiteList(['v2', 'v5']), 'Runtime Open Runtime version.', true)
     ->param('runtimeEntrypoint', '', new Text(1024, 0), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('logging', true, new Boolean(true), 'Whether executions will be logged.', true)
     ->param('restartPolicy', DockerAPI::RESTART_NO, new WhiteList([DockerAPI::RESTART_NO, DockerAPI::RESTART_ALWAYS, DockerAPI::RESTART_ON_FAILURE, DockerAPI::RESTART_UNLESS_STOPPED], true), 'Define restart policy once exit code is returned by command. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)
@@ -1106,7 +1231,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 ];
             };
 
-            $executeV4 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName, $logging): array {
+            $executeV5 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName, $logging): array {
                 $statusCode = 0;
                 $errNo = -1;
                 $executorResponse = '';
@@ -1192,6 +1317,21 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                     $logDevice = new Local();
 
+                    $lockStart = \microtime(true);
+                    while (true) {
+                        // If timeout is passed, stop and return error
+                        if (\microtime(true) - $lockStart >= $timeout) {
+                            break;
+                        }
+
+                        if (!$logDevice->exists($logFile . '.lock') && !$logDevice->exists($errorFile . '.lock')) {
+                            break;
+                        }
+
+                        // Wait 0.1s and check again
+                        \usleep(100000);
+                    }
+
                     if ($logDevice->exists($logFile)) {
                         if ($logDevice->getFileSize($logFile) > MAX_LOG_SIZE) {
                             $maxToRead = MAX_LOG_SIZE;
@@ -1271,7 +1411,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             }
 
             // Execute function
-            $executionRequest = $version === 'v4' ? $executeV4 : $executeV2;
+            $executionRequest = $version === 'v5' ? $executeV5 : $executeV2;
 
             $retryDelayMs = \intval(Http::getEnv('OPR_EXECUTOR_RETRY_DELAY_MS', '500'));
             $retryAttempts = \intval(Http::getEnv('OPR_EXECUTOR_RETRY_ATTEMPTS', '5'));
@@ -1497,7 +1637,7 @@ run(function () use ($register) {
         // Useful to prevent auto-pulling from remote when testing local images
         Console::info("Skipping image pulling");
     } else {
-        $runtimeVersions = \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v4') ?? 'v4');
+        $runtimeVersions = \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v5') ?? 'v5');
         foreach ($runtimeVersions as $runtimeVersion) {
             Console::success("Pulling $runtimeVersion images...");
             $runtimes = new Runtimes($runtimeVersion); // TODO: @Meldiron Make part of open runtimes
