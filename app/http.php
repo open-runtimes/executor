@@ -1379,12 +1379,14 @@ Http::get('/v1/health')
     ->inject('response')
     ->action(function (Table $statsHost, Table $statsContainers, Response $response) {
         $output = [
+            'status' => 'pass',
             'runtimes' => [],
             'usage' => $statsHost->get('host', 'usage') ?? null
         ];
 
         foreach ($statsContainers as $hostname => $stat) {
             $output['runtimes'][$hostname] = [
+                'status' => 'pass',
                 'usage' => $stat['usage'] ?? null
             ];
         }
