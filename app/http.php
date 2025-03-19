@@ -776,10 +776,6 @@ Http::post('/v1/runtimes')
                 }
             }
 
-            if ($version !== 'v2' && empty($localDevice->getFiles($tmpBuildOutput))) {
-                throw new Exception('Output directory is empty. Please check your configuration settings.', 500);
-            }
-
             /**
              * Move built code to expected build directory
              */
