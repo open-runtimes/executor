@@ -625,6 +625,7 @@ Http::post('/v1/runtimes')
         $tmpBuild = "/{$tmpFolder}builds/code.tar.gz";
         $tmpLogging = "/{$tmpFolder}logging"; // Build logs
         $tmpLogs = "/{$tmpFolder}logs"; // Runtime logs
+        $tmpBuildOutput = "/{$tmpFolder}buildOutput"; // Build output
 
         $sourceDevice = getStorageDevice("/");
         $localDevice = new Local();
@@ -704,6 +705,7 @@ Http::post('/v1/runtimes')
             if ($version === 'v5') {
                 $volumes[] = \dirname($tmpLogs . '/logs') . ':/mnt/logs:rw';
                 $volumes[] = \dirname($tmpLogging . '/logging') . ':/tmp/logging:rw';
+                $volumes[] = \dirname($tmpBuildOutput) . ':/usr/local/build:rw';
             }
 
             /** Keep the container alive if we have commands to be executed */
@@ -772,6 +774,10 @@ Http::post('/v1/runtimes')
 
                     throw new Exception($err->getMessage(), 400);
                 }
+            }
+
+            if (empty($localDevice->getFiles($tmpBuildOutput))) {
+                throw new Exception('Output directory is empty. Please check your configuration settings.', 500);
             }
 
             /**
