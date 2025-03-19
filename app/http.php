@@ -766,6 +766,10 @@ Http::post('/v1/runtimes')
                         ];
                     }
                 } catch (Throwable $err) {
+                    if ($version !== 'v2') {
+                        $output = Logs::get($runtimeName);
+                    }
+
                     throw new Exception($err->getMessage(), 400);
                 }
             }
@@ -832,12 +836,6 @@ Http::post('/v1/runtimes')
                 $output = [
                     'timestamp' => Logs::getTimestamp(),
                     'content' => $message
-                ];
-            } else {
-                $output = Logs::get($runtimeName);
-                $output = \count($output) > 0 ? $output : [
-                    'timestamp' => Logs::getTimestamp(),
-                    'content' => $th->getMessage()
                 ];
             }
 
