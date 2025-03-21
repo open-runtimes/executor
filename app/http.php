@@ -875,6 +875,13 @@ Http::post('/v1/runtimes')
             $activeRuntimes->del($runtimeName);
         }
 
+        // Remove UTF-8 characters (for example from Next.js)
+        if (\is_array($container['output'])) {
+            foreach ($container['output'] as $index => &$chunk) {
+                $chunk['content'] = \mb_convert_encoding($chunk['content'] ?? '', 'UTF-8', 'UTF-8');
+            }
+        }
+
         $response
             ->setStatusCode(Response::STATUS_CODE_CREATED)
             ->json($container);
