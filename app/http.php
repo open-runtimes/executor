@@ -440,8 +440,11 @@ Http::get('/v1/runtimes/:runtimeId/logs')
                 throw new Exception('Log file was not created in time.', 400);
             }
 
-            if (\file_exists($tmpLogging . '/logs.txt') && file_exists($tmpLogging . '/timings.txt')) {
-                break;
+            if (\file_exists($tmpLogging . '/logs.txt') && \file_exists($tmpLogging . '/timings.txt')) {
+                $timings = \file_get_contents($tmpLogging . '/timings.txt') ?: '';
+                if (\strlen($timings) > 0) {
+                    break;
+                }
             }
 
             // Ensure runtime is still present
