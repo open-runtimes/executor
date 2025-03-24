@@ -32,7 +32,10 @@ class Stats
     {
         $data = [];
         foreach ($this->containers as $hostname => $stat) {
-            $data[$hostname] = ['usage' => $stat['usage'] ?? null];
+            $data[$hostname] = [
+                'status' => 'pass',
+                'usage'  => $stat['usage'] ?? null
+            ];
         }
         return $data;
     }
