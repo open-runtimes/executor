@@ -549,7 +549,7 @@ Http::post('/v1/runtimes/:runtimeId/commands')
         }
 
         $commands = [
-            'sh',
+            'bash',
             '-c',
             $command
         ];
@@ -691,7 +691,7 @@ Http::post('/v1/runtimes')
                     $runtimeEntrypointCommands = ['tail', '-f', '/dev/null'];
                 }
             } else {
-                $runtimeEntrypointCommands = ['sh', '-c', $runtimeEntrypoint];
+                $runtimeEntrypointCommands = ['bash', '-c', $runtimeEntrypoint];
             }
 
             $codeMountPath = $version === 'v2' ? '/usr/code' : '/mnt/code';
@@ -735,7 +735,6 @@ Http::post('/v1/runtimes')
              */
             if (!empty($command)) {
                 if ($version === 'v2') {
-                    // TODO: Remove this, release v2 images with script installed
                     $commands = [
                         'sh',
                         '-c',
@@ -743,7 +742,7 @@ Http::post('/v1/runtimes')
                     ];
                 } else {
                     $commands = [
-                        'sh',
+                        'bash',
                         '-c',
                         'mkdir -p /tmp/logging && touch /tmp/logging/timings.txt && touch /tmp/logging/logs.txt && script --log-out /tmp/logging/logs.txt --flush --log-timing /tmp/logging/timings.txt --return --quiet --command "' . \str_replace('"', '\"', $command) . '"'
                     ];
