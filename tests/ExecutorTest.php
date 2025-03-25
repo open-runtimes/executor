@@ -1174,7 +1174,7 @@ final class ExecutorTest extends TestCase
         $runtime = $this->client->call(Client::METHOD_POST, '/runtimes', [], [
             'runtimeId' => 'test-commands',
             'remove' => false,
-            'image' => 'openruntimes/php:v4-8.1',
+            'image' => 'openruntimes/php:v5-8.1',
             'entrypoint' => 'tail -f /dev/null',
         ]);
         $this->assertEquals(201, $runtime['headers']['status-code']);
