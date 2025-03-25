@@ -283,7 +283,7 @@ final class ExecutorTest extends TestCase
             'source' => '/storage/functions/static/code.tar.gz',
             'destination' => '/storage/builds/test',
             'image' => 'openruntimes/static:v5-1',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "sh build.sh"',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "bash build.sh"',
             'outputDirectory' => './dist'
         ];
 
@@ -303,7 +303,7 @@ final class ExecutorTest extends TestCase
         $buildPath = $response['body']['path'];
 
         /** Test executions */
-        $command = 'sh helpers/server.sh';
+        $command = 'bash helpers/server.sh';
         $params = [
             'runtimeId' => 'test-exec-site',
             'source' => $buildPath,
@@ -520,7 +520,7 @@ final class ExecutorTest extends TestCase
 
         $buildPath = $response['body']['path'];
 
-        $command = 'sh helpers/astro/server.sh';
+        $command = 'bash helpers/astro/server.sh';
         $params = [
             'runtimeId' => 'test-ssr-exec',
             'source' => $buildPath,
@@ -620,7 +620,7 @@ final class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v5-8.1',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "sh logs_failure.sh"',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "bash logs_failure.sh"',
             'remove' => true
         ];
 
@@ -641,7 +641,7 @@ final class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v5-8.1',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "sh logs_success.sh"',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "bash logs_success.sh"',
             'remove' => true
         ];
 
@@ -664,7 +664,7 @@ final class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v5-8.1',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "sh logs_failure_large.sh"',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "bash logs_failure_large.sh"',
             'remove' => true
         ];
 
@@ -685,7 +685,7 @@ final class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v5-8.1',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "sh logs_success_large.sh"',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "bash logs_success_large.sh"',
             'remove' => true
         ];
 
@@ -729,7 +729,7 @@ final class ExecutorTest extends TestCase
                 'entrypoint' => 'index.js',
                 'folder' => 'node-empty-object',
                 'version' => 'v5',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
@@ -744,7 +744,7 @@ final class ExecutorTest extends TestCase
                 'entrypoint' => 'index.js',
                 'folder' => 'node-empty-array',
                 'version' => 'v5',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
@@ -759,7 +759,7 @@ final class ExecutorTest extends TestCase
                 'entrypoint' => 'index.js',
                 'folder' => 'node-timeout',
                 'version' => 'v5',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
@@ -773,7 +773,7 @@ final class ExecutorTest extends TestCase
                 'entrypoint' => 'index.js',
                 'folder' => 'node-logs',
                 'version' => 'v5',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
@@ -790,7 +790,7 @@ final class ExecutorTest extends TestCase
                 'entrypoint' => 'index.js',
                 'folder' => 'node-logs',
                 'version' => 'v5',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
@@ -807,7 +807,7 @@ final class ExecutorTest extends TestCase
                 'entrypoint' => 'index.js',
                 'folder' => 'node-logs',
                 'version' => 'v5',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
@@ -826,7 +826,7 @@ final class ExecutorTest extends TestCase
                 'entrypoint' => 'index.js',
                 'folder' => 'node-logs',
                 'version' => 'v5',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
@@ -844,7 +844,7 @@ final class ExecutorTest extends TestCase
                 'entrypoint' => 'index.js',
                 'folder' => 'node-long-coldstart',
                 'version' => 'v5',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
@@ -860,7 +860,7 @@ final class ExecutorTest extends TestCase
                 'entrypoint' => 'index.js',
                 'folder' => 'node-binary-response',
                 'version' => 'v5',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
@@ -885,7 +885,7 @@ final class ExecutorTest extends TestCase
                 'entrypoint' => 'index.js',
                 'folder' => 'node-binary-response',
                 'version' => 'v5',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(400, $response['headers']['status-code']);
@@ -900,7 +900,7 @@ final class ExecutorTest extends TestCase
                 'entrypoint' => 'index.js',
                 'folder' => 'node-binary-request',
                 'version' => 'v5',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
@@ -927,7 +927,7 @@ final class ExecutorTest extends TestCase
                 'entrypoint' => 'index.js',
                 'folder' => 'node-specs',
                 'version' => 'v5',
-                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "sh helpers/server.sh"',
+                'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
                 'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i && npm run build"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);

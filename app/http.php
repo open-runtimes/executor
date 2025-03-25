@@ -549,7 +549,7 @@ Http::post('/v1/runtimes/:runtimeId/commands')
         }
 
         $commands = [
-            'sh',
+            'bash',
             '-c',
             $command
         ];
@@ -691,7 +691,7 @@ Http::post('/v1/runtimes')
                     $runtimeEntrypointCommands = ['tail', '-f', '/dev/null'];
                 }
             } else {
-                $runtimeEntrypointCommands = ['sh', '-c', $runtimeEntrypoint];
+                $runtimeEntrypointCommands = ['bash', '-c', $runtimeEntrypoint];
             }
 
             $codeMountPath = $version === 'v2' ? '/usr/code' : '/mnt/code';
@@ -737,13 +737,13 @@ Http::post('/v1/runtimes')
                 if ($version === 'v2') {
                     // TODO: Remove this, release v2 images with script installed
                     $commands = [
-                        'sh',
+                        'bash',
                         '-c',
                         'touch /var/tmp/logs.txt && (' . $command . ') >> /var/tmp/logs.txt 2>&1 && cat /var/tmp/logs.txt'
                     ];
                 } else {
                     $commands = [
-                        'sh',
+                        'bash',
                         '-c',
                         'mkdir -p /tmp/logging && touch /tmp/logging/timings.txt && touch /tmp/logging/logs.txt && script --log-out /tmp/logging/logs.txt --flush --log-timing /tmp/logging/timings.txt --return --quiet --command "' . \str_replace('"', '\"', $command) . '"'
                     ];
@@ -820,7 +820,7 @@ Http::post('/v1/runtimes')
                     $logs = '';
                     $status = $orchestration->execute(
                         name: $runtimeName,
-                        command: ['sh', '-c', 'cat /var/tmp/logs.txt'],
+                        command: ['bash', '-c', 'cat /var/tmp/logs.txt'],
                         output: $logs,
                         timeout: 15
                     );
