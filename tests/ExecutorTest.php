@@ -1049,7 +1049,7 @@ final class ExecutorTest extends TestCase
             [ 'folder' => 'cpp', 'image' => 'openruntimes/cpp:v5-17', 'entrypoint' => 'index.cc', 'buildCommand' => ''],
             [ 'folder' => 'dart', 'image' => 'openruntimes/dart:v5-2.18', 'entrypoint' => 'lib/index.dart', 'buildCommand' => 'dart pub get'],
             [ 'folder' => 'dotnet', 'image' => 'openruntimes/dotnet:v5-6.0', 'entrypoint' => 'Index.cs', 'buildCommand' => ''],
-            // C++, Swift, Kotlin, Java missing on purpose
+            // Swift, Kotlin, Java missing on purpose
         ];
     }
 
