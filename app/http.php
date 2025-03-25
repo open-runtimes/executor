@@ -735,9 +735,8 @@ Http::post('/v1/runtimes')
              */
             if (!empty($command)) {
                 if ($version === 'v2') {
-                    // TODO: Remove this, release v2 images with script installed
                     $commands = [
-                        'bash',
+                        'sh',
                         '-c',
                         'touch /var/tmp/logs.txt && (' . $command . ') >> /var/tmp/logs.txt 2>&1 && cat /var/tmp/logs.txt'
                     ];
@@ -820,7 +819,7 @@ Http::post('/v1/runtimes')
                     $logs = '';
                     $status = $orchestration->execute(
                         name: $runtimeName,
-                        command: ['bash', '-c', 'cat /var/tmp/logs.txt'],
+                        command: ['sh', '-c', 'cat /var/tmp/logs.txt'],
                         output: $logs,
                         timeout: 15
                     );
