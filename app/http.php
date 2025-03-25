@@ -628,6 +628,7 @@ Http::post('/v1/runtimes')
         $tmpBuild = "/{$tmpFolder}builds/code.tar.gz";
         $tmpLogging = "/{$tmpFolder}logging"; // Build logs
         $tmpLogs = "/{$tmpFolder}logs"; // Runtime logs
+        $tmpBuildOutput = "/{$tmpFolder}buildOutput";
 
         $sourceDevice = getStorageDevice("/");
         $localDevice = new Local();
@@ -704,9 +705,10 @@ Http::post('/v1/runtimes')
                 \dirname($tmpBuild) . ':' . $codeMountPath . ':rw',
             ];
 
-            if ($version === 'v5') {
+            if ($version !== 'v2') {
                 $volumes[] = \dirname($tmpLogs . '/logs') . ':/mnt/logs:rw';
                 $volumes[] = \dirname($tmpLogging . '/logging') . ':/tmp/logging:rw';
+                $volumes[] = \dirname($tmpBuildOutput) . ':/usr/local/build:rw';
             }
 
             /** Keep the container alive if we have commands to be executed */
@@ -776,6 +778,10 @@ Http::post('/v1/runtimes')
             /**
              * Move built code to expected build directory
              */
+            if (empty($localDevice->getFiles($tmpBuildOutput))) {
+                throw new RuntimeException('Output directory is empty. Please check your configuration settings.', 500);
+            }
+
             if (!empty($destination)) {
                 // Check if the build was successful by checking if file exists
                 if (!$localDevice->exists($tmpBuild)) {
@@ -814,7 +820,12 @@ Http::post('/v1/runtimes')
             $activeRuntime['initialised'] = 1;
             $activeRuntimes->set($runtimeName, $activeRuntime);
         } catch (Throwable $th) {
-            if ($version === 'v2') {
+            if ($th instanceof \RuntimeException) {
+                $output = [
+                    'timestamp' => Logs::getTimestamp(),
+                    'content' => $th->getMessage()
+                ];
+            } elseif ($version === 'v2') {
                 $message = !empty($output) ? $output : $th->getMessage();
                 try {
                     $logs = '';
