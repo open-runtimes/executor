@@ -74,7 +74,7 @@ final class ExecutorTest extends TestCase
                         'image' => 'openruntimes/node:v5-18.0',
                         'workdir' => '/usr/code',
                         'remove' => true,
-                        'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm install && npm run build"'
+                        'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm install && npm run build"'
                     ];
 
                     $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
@@ -186,7 +186,7 @@ final class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v5-8.1',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "composer install"',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "composer install"',
         ];
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
@@ -264,7 +264,7 @@ final class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v5-8.1',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "composer install"',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "composer install"',
             'remove' => true
         ];
 
@@ -283,7 +283,7 @@ final class ExecutorTest extends TestCase
             'source' => '/storage/functions/static/code.tar.gz',
             'destination' => '/storage/builds/test',
             'image' => 'openruntimes/static:v5-1',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "bash build.sh"',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "bash build.sh"',
             'outputDirectory' => './dist'
         ];
 
@@ -334,7 +334,7 @@ final class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v5-8.1',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "composer install"',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "composer install"',
         ];
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
@@ -510,7 +510,7 @@ final class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test',
             'image' => 'openruntimes/node:v5-22',
             'outputDirectory' => './dist',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "source /usr/local/server/helpers/astro/env.sh && npm install && npm run build && sh /usr/local/server/helpers/astro/bundle.sh"',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "source /usr/local/server/helpers/astro/env.sh && npm install && npm run build && bash /usr/local/server/helpers/astro/bundle.sh"',
             'remove' => true
         ];
 
@@ -562,7 +562,7 @@ final class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test-restart-policy',
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v5-8.1',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh ""'
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh ""'
         ];
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
@@ -620,7 +620,7 @@ final class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v5-8.1',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "bash logs_failure.sh"',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "bash logs_failure.sh"',
             'remove' => true
         ];
 
@@ -641,7 +641,7 @@ final class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v5-8.1',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "bash logs_success.sh"',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "bash logs_success.sh"',
             'remove' => true
         ];
 
@@ -664,7 +664,7 @@ final class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v5-8.1',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "bash logs_failure_large.sh"',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "bash logs_failure_large.sh"',
             'remove' => true
         ];
 
@@ -685,7 +685,7 @@ final class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v5-8.1',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "bash logs_success_large.sh"',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "bash logs_success_large.sh"',
             'remove' => true
         ];
 
@@ -730,7 +730,7 @@ final class ExecutorTest extends TestCase
                 'folder' => 'node-empty-object',
                 'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
-                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals(200, $response['body']['statusCode']);
@@ -745,7 +745,7 @@ final class ExecutorTest extends TestCase
                 'folder' => 'node-empty-array',
                 'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
-                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals(200, $response['body']['statusCode']);
@@ -760,7 +760,7 @@ final class ExecutorTest extends TestCase
                 'folder' => 'node-timeout',
                 'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
-                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals(500, $response['body']['statusCode']);
@@ -774,7 +774,7 @@ final class ExecutorTest extends TestCase
                 'folder' => 'node-logs',
                 'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
-                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals("OK", $response['body']['body']);
@@ -791,7 +791,7 @@ final class ExecutorTest extends TestCase
                 'folder' => 'node-logs',
                 'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
-                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals("OK", $response['body']['body']);
@@ -808,7 +808,7 @@ final class ExecutorTest extends TestCase
                 'folder' => 'node-logs',
                 'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
-                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals("OK", $response['body']['body']);
@@ -827,7 +827,7 @@ final class ExecutorTest extends TestCase
                 'folder' => 'node-logs',
                 'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
-                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals("OK", $response['body']['body']);
@@ -845,7 +845,7 @@ final class ExecutorTest extends TestCase
                 'folder' => 'node-long-coldstart',
                 'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
-                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals(200, $response['body']['statusCode']);
@@ -861,7 +861,7 @@ final class ExecutorTest extends TestCase
                 'folder' => 'node-binary-response',
                 'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
-                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals(200, $response['body']['statusCode']);
@@ -886,7 +886,7 @@ final class ExecutorTest extends TestCase
                 'folder' => 'node-binary-response',
                 'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
-                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(400, $response['headers']['status-code']);
                     $this->assertStringContainsString("JSON response does not allow binaries", $response['body']['message']);
@@ -901,7 +901,7 @@ final class ExecutorTest extends TestCase
                 'folder' => 'node-binary-request',
                 'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
-                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals(200, $response['body']['statusCode']);
@@ -928,7 +928,7 @@ final class ExecutorTest extends TestCase
                 'folder' => 'node-specs',
                 'version' => 'v5',
                 'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
-                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm i && npm run build"',
+                'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i && npm run build"',
                 'assertions' => function ($response) {
                     $this->assertEquals(200, $response['headers']['status-code']);
                     $this->assertEquals(200, $response['body']['statusCode']);
@@ -1074,7 +1074,7 @@ final class ExecutorTest extends TestCase
             'entrypoint' => $entrypoint,
             'image' => $image,
             'timeout' => 120,
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "' . $buildCommand . '"',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "' . $buildCommand . '"',
             'remove' => true
         ];
 
@@ -1140,7 +1140,7 @@ final class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test-zip',
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v5-8.1',
-            'command' => 'unzip /tmp/code.tar.gz -d /mnt/code && helpers/build.sh "composer install"',
+            'command' => 'unzip /tmp/code.tar.gz -d /mnt/code && bash helpers/build.sh "composer install"',
         ];
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
@@ -1236,7 +1236,7 @@ final class ExecutorTest extends TestCase
                         'image' => 'openruntimes/node:v5-18.0',
                         'workdir' => '/usr/code',
                         'remove' => false,
-                        'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && helpers/build.sh "npm install && npm run build"'
+                        'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm install && npm run build"'
                     ];
 
                     $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
