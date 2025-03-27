@@ -115,6 +115,7 @@ abstract class Adapter
             $host = '';
             $bucket = '';
             $region = '';
+            $insecure = false;
 
             try {
                 $dsn = new DSN($connection);
@@ -124,6 +125,7 @@ abstract class Adapter
                 $host = $dsn->getHost();
                 $bucket = $dsn->getPath() ?? '';
                 $region = $dsn->getParam('region');
+                $insecure = $dsn->getParam('insecure', 'false') === 'true';
             } catch (\Exception $e) {
                 Console::warning($e->getMessage() . 'Invalid DSN. Defaulting to Local device.');
             }
@@ -131,6 +133,7 @@ abstract class Adapter
             switch ($device) {
                 case Storage::DEVICE_S3:
                     if (!empty($host)) {
+                        $host = $insecure ? 'http://' . $host : $host;
                         return new S3(root: $root, accessKey: $accessKey, secretKey: $accessSecret, host: $host, region: $region, acl: $acl);
                     } else {
                         return new AWS(root: $root, accessKey: $accessKey, secretKey: $accessSecret, bucket: $bucket, region: $region, acl: $acl);
