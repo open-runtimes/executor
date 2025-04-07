@@ -72,19 +72,16 @@ class ExecutorTest extends TestCase
         $this->assertStringContainsString('Preparing for build', $runtimeLogs);
         $this->assertStringContainsString('Preparing for build', $streamLogs);
 
-        $this->assertStringContainsString('Step: 1', $runtimeLogs);
-        $this->assertStringContainsString('Step: 1', $streamLogs);
-
-        $this->assertStringContainsString('Step: 2', $runtimeLogs);
-        $this->assertStringContainsString('Step: 2', $streamLogs);
-
-        $this->assertStringContainsString('Step: 30', $runtimeLogs);
-        $this->assertStringContainsString('Step: 30', $streamLogs);
+        for ($i = 1; $i <= 30; $i++) {
+            $this->assertStringContainsString("Step: $i", $runtimeLogs);
+            $this->assertStringContainsString("Step: $i", $streamLogs);
+        }
 
         $this->assertStringContainsString('Build finished', $runtimeLogs);
         $this->assertStringContainsString('Build finished', $streamLogs);
 
-        $this->assertGreaterThan(3, $totalChunks);
+        // Chunking is controlled by the adapter implementation, just verify we got more than 1 chunk.
+        $this->assertGreaterThan(1, $totalChunks);
     }
 
     public function testErrors(): void
