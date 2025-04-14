@@ -628,6 +628,7 @@ Http::post('/v1/runtimes')
         $tmpBuild = "/{$tmpFolder}builds/code.tar.gz";
         $tmpLogging = "/{$tmpFolder}logging"; // Build logs
         $tmpLogs = "/{$tmpFolder}logs"; // Runtime logs
+        $tmpBuildOutput = "/{$tmpFolder}buildOutput"; // Build output
 
         $sourceDevice = getStorageDevice("/");
         $localDevice = new Local();
@@ -707,6 +708,7 @@ Http::post('/v1/runtimes')
             if ($version === 'v5') {
                 $volumes[] = \dirname($tmpLogs . '/logs') . ':/mnt/logs:rw';
                 $volumes[] = \dirname($tmpLogging . '/logging') . ':/tmp/logging:rw';
+                $volumes[] = \dirname($tmpBuildOutput) . ':/usr/local/build:rw';
             }
 
             /** Keep the container alive if we have commands to be executed */
@@ -768,6 +770,10 @@ Http::post('/v1/runtimes')
                         ];
                     }
                 } catch (Throwable $err) {
+                    if ($version !== 'v2') {
+                        $output = Logs::get($runtimeName);
+                    }
+
                     throw new Exception($err->getMessage(), 400);
                 }
             }
@@ -834,12 +840,6 @@ Http::post('/v1/runtimes')
                 $output = [
                     'timestamp' => Logs::getTimestamp(),
                     'content' => $message
-                ];
-            } else {
-                $output = Logs::get($runtimeName);
-                $output = \count($output) > 0 ? $output : [
-                    'timestamp' => Logs::getTimestamp(),
-                    'content' => $th->getMessage()
                 ];
             }
 
