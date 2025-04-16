@@ -65,6 +65,7 @@ function logError(Log $log, Throwable $error, string $action, Logger $logger = n
 
 
 Http::get('/v1/runtimes/:runtimeId/logs')
+    ->groups(['executor'])
     ->desc("Get live stream of logs of a runtime")
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->param('timeout', '600', new Text(16), 'Maximum logs timeout.', true)
@@ -83,6 +84,7 @@ Http::get('/v1/runtimes/:runtimeId/logs')
     });
 
 Http::post('/v1/runtimes')
+    ->groups(['executor'])
     ->desc("Create a new runtime server")
     ->param('runtimeId', '', new Text(64), 'Unique runtime ID.')
     ->param('image', '', new Text(128), 'Base image name of the runtime.')
@@ -137,6 +139,7 @@ Http::post('/v1/runtimes')
     });
 
 Http::get('/v1/runtimes')
+    ->groups(['executor'])
     ->desc("List currently active runtimes")
     ->inject('runner')
     ->inject('response')
@@ -145,6 +148,7 @@ Http::get('/v1/runtimes')
     });
 
 Http::get('/v1/runtimes/:runtimeId')
+    ->groups(['executor'])
     ->desc("Get a runtime by its ID")
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->inject('runner')
@@ -157,6 +161,7 @@ Http::get('/v1/runtimes/:runtimeId')
     });
 
 Http::delete('/v1/runtimes/:runtimeId')
+    ->groups(['executor'])
     ->desc('Delete a runtime')
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->inject('response')
@@ -168,6 +173,7 @@ Http::delete('/v1/runtimes/:runtimeId')
     });
 
 Http::post('/v1/runtimes/:runtimeId/executions')
+    ->groups(['executor'])
     ->alias('/v1/runtimes/:runtimeId/execution')
     ->desc('Create an execution')
     // Execution-related
@@ -323,6 +329,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     );
 
 Http::get('/v1/health')
+    ->groups(['executor'])
     ->desc("Get health status of host machine and runtimes.")
     ->inject('runner')
     ->inject('response')
@@ -337,6 +344,7 @@ Http::get('/v1/health')
 
 /** Set callbacks */
 Http::error()
+    ->groups(['executor'])
     ->inject('route')
     ->inject('error')
     ->inject('logger')
@@ -397,6 +405,7 @@ Http::error()
     });
 
 Http::init()
+    ->groups(['executor'])
     ->inject('request')
     ->action(function (Request $request) {
         $secretKey = \explode(' ', $request->getHeader('authorization', ''))[1] ?? '';
