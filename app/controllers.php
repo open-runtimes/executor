@@ -344,7 +344,6 @@ Http::get('/v1/health')
 
 /** Set callbacks */
 Http::error()
-    ->groups(['executor'])
     ->inject('route')
     ->inject('error')
     ->inject('logger')
