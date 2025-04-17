@@ -1098,7 +1098,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 while (true) {
                     // If timeout is passed, stop and return error
                     if (\microtime(true) - $prepareStart >= $timeout) {
-                        throw new Exception('Function timed out during preparation.', 400);
+                        throw new Exception('Cold start timeout exceeded during server initialisation.', 400);
                     }
 
                     ['errNo' => $errNo, 'error' => $error, 'statusCode' => $statusCode, 'executorResponse' => $executorResponse] = \call_user_func($sendCreateRuntimeRequest);
@@ -1145,7 +1145,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             while (true) {
                 // If timeout is passed, stop and return error
                 if (\microtime(true) - $launchStart >= $timeout) {
-                    throw new Exception('Function timed out during launch.', 400);
+                    throw new Exception('Cold start timeout exceeded while starting the server.', 400);
                 }
 
                 if ($activeRuntimes->get($runtimeName)['status'] !== 'pending') {
@@ -1398,7 +1398,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 while (true) {
                     // If timeout is passed, stop and return error
                     if (\microtime(true) - $pingStart >= $timeout) {
-                        throw new Exception('Function timed out during cold start.', 400);
+                        throw new Exception('Cold start timeout exceeded.', 400);
                     }
 
                     $online = $validator->isValid($hostname . ':' . 3000);

@@ -92,7 +92,7 @@ final class ExecutorTest extends TestCase
                 $content .= $log['content'];
             }
 
-            $this->assertStringContainsString('Preparing for build', $content);
+            $this->assertStringContainsString('Environment preparation started', $content);
             $this->assertStringContainsString('Step: 1', $content);
             $this->assertStringContainsString('Step: 2', $content);
             $this->assertStringContainsString('Step: 9', $content);
