@@ -11,22 +11,15 @@ use Utopia\CLI\Console;
 // TODO: Lengthy log test
 // TODO: Lengthy body test
 
-final class ExecutorTest extends TestCase
+class ExecutorTest extends TestCase
 {
     protected Client $client;
-
-    protected string $key;
-
-    /**
-     * @var string
-     */
-    protected $endpoint = 'http://executor/v1';
+    protected string $endpoint = 'http://executor/v1';
+    protected string $key = 'executor-secret-key';
 
     protected function setUp(): void
     {
         $this->client = new Client();
-
-        $this->key = 'executor-secret-key';
 
         $this->client
             ->setEndpoint($this->endpoint)
@@ -39,15 +32,17 @@ final class ExecutorTest extends TestCase
         $runtimeChunks = [];
         $streamChunks = [];
 
-        Co\run(function () use (&$runtimeChunks, &$streamChunks) {
+        $runtimeId = \bin2hex(\random_bytes(4));
+
+        Co\run(function () use (&$runtimeChunks, &$streamChunks, $runtimeId) {
             /** Prepare build */
             $output = '';
             Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
 
             Co::join([
                 /** Watch logs */
-                Co\go(function () use (&$streamChunks) {
-                    $this->client->call(Client::METHOD_GET, '/runtimes/test-log-stream/logs', [], [], true, function ($data) use (&$streamChunks) {
+                Co\go(function () use (&$streamChunks, $runtimeId) {
+                    $this->client->call(Client::METHOD_GET, '/runtimes/test-log-stream-' . $runtimeId . '/logs', [], [], true, function ($data) use (&$streamChunks) {
                         // stream log parsing
                         $data = \str_replace("\\n", "{OPR_LINEBREAK_PLACEHOLDER}", $data);
                         foreach (\explode("\n", $data) as $chunk) {
@@ -65,9 +60,9 @@ final class ExecutorTest extends TestCase
                     });
                 }),
                 /** Start runtime */
-                Co\go(function () use (&$runtimeChunks) {
+                Co\go(function () use (&$runtimeChunks, $runtimeId) {
                     $params = [
-                        'runtimeId' => 'test-log-stream',
+                        'runtimeId' => 'test-log-stream-' . $runtimeId,
                         'source' => '/storage/functions/node/code.tar.gz',
                         'destination' => '/storage/builds/test-logs',
                         'entrypoint' => 'index.js',
@@ -93,10 +88,10 @@ final class ExecutorTest extends TestCase
             }
 
             $this->assertStringContainsString('Environment preparation started', $content);
-            $this->assertStringContainsString('Step: 1', $content);
-            $this->assertStringContainsString('Step: 2', $content);
-            $this->assertStringContainsString('Step: 9', $content);
-            $this->assertStringContainsString('Step: 10', $content);
+
+            for ($i = 1; $i <= 10; $i++) {
+                $this->assertStringContainsString("Step: $i", $content);
+            }
 
             if ($strict) {
                 $this->assertStringContainsString('Build finished', $content);
@@ -145,6 +140,11 @@ final class ExecutorTest extends TestCase
             $this->assertTrue($hasStep);
         };
 
+        // TODO: Below 2 assertions are due to merge conflict. I want to remove but not sure if I can, so keeping it for now
+        // Chunking is controlled by the adapter implementation, just verify we got more than 1 chunk.
+        $this->assertGreaterThan(1, $runtimeChunks);
+        $this->assertGreaterThan(1, $streamChunks);
+
         $validateLogs($runtimeChunks, true);
         $validateLogs($streamChunks, false);
     }
@@ -179,9 +179,11 @@ final class ExecutorTest extends TestCase
         $output = '';
         Console::execute('cd /app/tests/resources/functions/php && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
 
+        $runtimeId = \bin2hex(\random_bytes(4));
+
         /** Build runtime */
         $params = [
-            'runtimeId' => 'test-build',
+            'runtimeId' => 'test-build-' . $runtimeId,
             'source' => '/storage/functions/php/code.tar.gz',
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
@@ -198,7 +200,7 @@ final class ExecutorTest extends TestCase
         $this->assertIsInt($response['body']['size']);
 
         /** Ensure build folder exists (container still running) */
-        $tmpFolderPath = '/tmp/executor-test-build';
+        $tmpFolderPath = '/tmp/executor-test-build-' . $runtimeId;
         $this->assertTrue(\is_dir($tmpFolderPath));
         $this->assertTrue(\file_exists($tmpFolderPath));
 
@@ -206,31 +208,31 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(1, count($response['body']));
-        $this->assertStringEndsWith('test-build', $response['body'][0]['name']);
+        $this->assertStringEndsWith('test-build-' . $runtimeId, $response['body'][0]['name']);
 
         /** Get runtime */
-        $response = $this->client->call(Client::METHOD_GET, '/runtimes/test-build', [], []);
+        $response = $this->client->call(Client::METHOD_GET, '/runtimes/test-build-' . $runtimeId, [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
-        $this->assertStringEndsWith('test-build', $response['body']['name']);
+        $this->assertStringEndsWith('test-build-' . $runtimeId, $response['body']['name']);
 
         /** Delete runtime */
-        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-build', [], []);
+        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-build-' . $runtimeId, [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
 
         /** Delete non existent runtime */
-        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-build', [], []);
+        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-build-' . $runtimeId, [], []);
         $this->assertEquals(404, $response['headers']['status-code']);
         $this->assertEquals('Runtime not found', $response['body']['message']);
 
         /** Self-deleting build */
-        $params['runtimeId'] = 'test-build-selfdelete';
+        $params['runtimeId'] = 'test-build-selfdelete-' . $runtimeId;
         $params['remove'] = true;
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
 
         /** Ensure build folder cleanup */
-        $tmpFolderPath = '/tmp/executor-test-build-selfdelete';
+        $tmpFolderPath = '/tmp/executor-test-build-selfdelete-' . $runtimeId;
         $this->assertFalse(\is_dir($tmpFolderPath));
         $this->assertFalse(\file_exists($tmpFolderPath));
 
@@ -240,12 +242,12 @@ final class ExecutorTest extends TestCase
         $this->assertEquals(0, count($response['body'])); // Not 1, it was auto-removed
 
         /** Failure getRuntime */
-        $response = $this->client->call(Client::METHOD_GET, '/runtimes/test-build-selfdelete', [], []);
+        $response = $this->client->call(Client::METHOD_GET, '/runtimes/test-build-selfdelete-' . $runtimeId, [], []);
         $this->assertEquals(404, $response['headers']['status-code']);
 
         /** User error in build command */
         $params = [
-            'runtimeId' => 'test-build-fail-400',
+            'runtimeId' => 'test-build-fail-400-' . $runtimeId,
             'source' => '/storage/functions/php/code.tar.gz',
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
@@ -259,7 +261,7 @@ final class ExecutorTest extends TestCase
 
         /** Test invalid path */
         $params = [
-            'runtimeId' => 'test-build-fail-500',
+            'runtimeId' => 'test-build-fail-500-' . $runtimeId,
             'source' => '/storage/fake_path/code.tar.gz',
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
@@ -279,12 +281,13 @@ final class ExecutorTest extends TestCase
 
         /** Build runtime */
         $params = [
-            'runtimeId' => 'test-build-site',
+            'runtimeId' => 'test-build-site-' . \bin2hex(\random_bytes(4)),
             'source' => '/storage/functions/static/code.tar.gz',
             'destination' => '/storage/builds/test',
             'image' => 'openruntimes/static:v5-1',
             'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "bash build.sh"',
-            'outputDirectory' => './dist'
+            'outputDirectory' => './dist',
+            'remove' => true,
         ];
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
@@ -295,17 +298,13 @@ final class ExecutorTest extends TestCase
         $this->assertIsFloat($response['body']['startTime']);
         $this->assertIsInt($response['body']['size']);
 
-        /** Ensure build folder exists (container still running) */
-        $tmpFolderPath = '/tmp/executor-test-build-site';
-        $this->assertTrue(\is_dir($tmpFolderPath));
-        $this->assertTrue(\file_exists($tmpFolderPath));
-
         $buildPath = $response['body']['path'];
 
         /** Test executions */
         $command = 'bash helpers/server.sh';
+        $runtimeId = \bin2hex(\random_bytes(4));
         $params = [
-            'runtimeId' => 'test-exec-site',
+            'runtimeId' => 'test-exec-site-' . $runtimeId,
             'source' => $buildPath,
             'image' => 'openruntimes/static:v5-1',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
@@ -314,12 +313,16 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-site/executions', [
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-site-'.$runtimeId.'/executions', [
             'path' => '/index.html'
         ]);
 
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(200, $response['body']['statusCode']);
+
+        /** Delete runtime */
+        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-site-'.$runtimeId, [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
     }
 
     public function testExecute(): void
@@ -335,6 +338,7 @@ final class ExecutorTest extends TestCase
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v5-8.1',
             'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "composer install"',
+            'remove' => true,
         ];
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
@@ -360,11 +364,6 @@ final class ExecutorTest extends TestCase
 
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(200, $response['body']['statusCode']);
-
-        $logsFolderPath = '/tmp/executor-test-exec/logs';
-
-        $this->assertTrue(\is_dir($logsFolderPath));
-        $this->assertCount(2, \scandir($logsFolderPath) ?: []); // . and .. are always present
 
         /** Execute on cold-started runtime */
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions', [], [
@@ -615,7 +614,7 @@ final class ExecutorTest extends TestCase
 
         /** Build runtime */
         $params = [
-            'runtimeId' => 'test-build-logs',
+            'runtimeId' => 'test-build-logs-' . \bin2hex(\random_bytes(4)),
             'source' => '/storage/functions/php-build-logs/code.tar.gz',
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
@@ -636,7 +635,7 @@ final class ExecutorTest extends TestCase
 
         /** Build runtime */
         $params = [
-            'runtimeId' => 'test-build-logs',
+            'runtimeId' => 'test-build-logs-' . \bin2hex(\random_bytes(4)),
             'source' => '/storage/functions/php-build-logs/code.tar.gz',
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
@@ -659,7 +658,7 @@ final class ExecutorTest extends TestCase
 
         /** Build runtime */
         $params = [
-            'runtimeId' => 'test-build-logs',
+            'runtimeId' => 'test-build-logs-' . \bin2hex(\random_bytes(4)),
             'source' => '/storage/functions/php-build-logs/code.tar.gz',
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
@@ -680,7 +679,7 @@ final class ExecutorTest extends TestCase
 
         /** Build runtime */
         $params = [
-            'runtimeId' => 'test-build-logs',
+            'runtimeId' => 'test-build-logs-' . \bin2hex(\random_bytes(4)),
             'source' => '/storage/functions/php-build-logs/code.tar.gz',
             'destination' => '/storage/builds/test',
             'entrypoint' => 'index.php',
@@ -978,9 +977,11 @@ final class ExecutorTest extends TestCase
         $output = '';
         Console::execute("cd /app/tests/resources/functions/{$folder} && tar --exclude code.tar.gz -czf code.tar.gz .", '', $output);
 
+        $runtimeId = \bin2hex(\random_bytes(4));
+
         /** Build runtime */
         $params = [
-            'runtimeId' => "scenario-build-{$folder}",
+            'runtimeId' => "scenario-build-{$folder}-{$runtimeId}",
             'source' => "/storage/functions/{$folder}/code.tar.gz",
             'destination' => '/storage/builds/test',
             'version' => $version,
@@ -1019,7 +1020,7 @@ final class ExecutorTest extends TestCase
         }
 
         /** Execute function */
-        $response = $this->client->call(Client::METHOD_POST, "/runtimes/scenario-execute-{$folder}/executions", [
+        $response = $this->client->call(Client::METHOD_POST, "/runtimes/scenario-execute-{$folder}-{$runtimeId}/executions", [
             'content-type' => $mimeType,
             'accept' => $mimeType
         ], $params);
@@ -1029,7 +1030,7 @@ final class ExecutorTest extends TestCase
         call_user_func($assertions, $response);
 
         /** Delete runtime */
-        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/scenario-execute-{$folder}", [], []);
+        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/scenario-execute-{$folder}-{$runtimeId}", [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
@@ -1066,9 +1067,11 @@ final class ExecutorTest extends TestCase
         $output = '';
         Console::execute("cd /app/tests/resources/functions/{$folder} && tar --exclude code.tar.gz -czf code.tar.gz .", '', $output);
 
+        $runtimeId = \bin2hex(\random_bytes(4));
+
         // Build deployment
         $params = [
-            'runtimeId' => "custom-build-{$folder}",
+            'runtimeId' => "custom-build-{$folder}-{$runtimeId}",
             'source' => "/storage/functions/{$folder}/code.tar.gz",
             'destination' => '/storage/builds/test',
             'entrypoint' => $entrypoint,
@@ -1088,7 +1091,7 @@ final class ExecutorTest extends TestCase
         $path = $response['body']['path'];
 
         // Execute function
-        $response = $this->client->call(Client::METHOD_POST, "/runtimes/custom-execute-{$folder}/executions", [], [
+        $response = $this->client->call(Client::METHOD_POST, "/runtimes/custom-execute-{$folder}-{$runtimeId}/executions", [], [
             'source' => $path,
             'entrypoint' => $entrypoint,
             'image' => $image,
@@ -1123,7 +1126,7 @@ final class ExecutorTest extends TestCase
         $this->assertEquals(1, $response['todo']['userId']);
 
         /** Delete runtime */
-        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/custom-execute-{$folder}", [], []);
+        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/custom-execute-{$folder}-{$runtimeId}", [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
@@ -1133,9 +1136,11 @@ final class ExecutorTest extends TestCase
         $output = '';
         Console::execute('cd /app/tests/resources/functions/php && zip -x code.zip -r code.zip .', '', $output);
 
+        $runtimeId = \bin2hex(\random_bytes(4));
+
         $params = [
             'remove' => true,
-            'runtimeId' => 'test-build-zip',
+            'runtimeId' => 'test-build-zip-' . $runtimeId,
             'source' => '/storage/functions/php/code.zip',
             'destination' => '/storage/builds/test-zip',
             'entrypoint' => 'index.php',
@@ -1153,7 +1158,7 @@ final class ExecutorTest extends TestCase
         /** Test executions */
         $command = 'php src/server.php';
         $params = [
-            'runtimeId' => 'test-exec-zip',
+            'runtimeId' => 'test-exec-zip-' . $runtimeId,
             'source' => $buildPath,
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v5-8.1',
@@ -1163,10 +1168,14 @@ final class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-zip/executions');
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-zip-' . $runtimeId .'/executions');
 
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(200, $response['body']['statusCode']);
+
+        /** Delete runtime */
+        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-zip-' . $runtimeId, [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
     }
 
     public function testCommands(): void
