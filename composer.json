@@ -1,52 +1,48 @@
 {
-    "name": "open-runtimes/executor",
-    "description": "Serverless runtimes executor for container based environments ⚡️",
-    "type": "project",
-    "license": "MIT",
-    "autoload": {
-        "psr-4": {
-            "OpenRuntimes\\": "src/"
-        }
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "Tests\\": "tests"
-        }
-    },
-    "scripts": {
-        "lint": "./vendor/bin/pint --test --config pint.json",
-        "format": "./vendor/bin/pint --config pint.json",
-        "check": "./vendor/bin/phpstan analyse --level 8 -c phpstan.neon app src tests",
-        "test": [
-            "Composer\\Config::disableProcessTimeout",
-            "./vendor/bin/phpunit --configuration phpunit.xml --debug"
-        ]
-    },
-    "require": {
-        "php": ">=8.3.0",
-        "ext-curl": "*",
-        "ext-json": "*",
-        "ext-swoole": "*",
-        "utopia-php/framework": "0.34.*",
-        "utopia-php/logger": "0.6.*",
-        "utopia-php/cli": "0.16.*",
-        "utopia-php/storage": "0.18.*",
-        "utopia-php/dsn": "0.1.*",
-        "utopia-php/registry": "0.5.*",
-        "utopia-php/preloader": "0.2.*",
-        "utopia-php/system": "0.9.*",
-        "utopia-php/orchestration": "0.14.*",
-        "appwrite/php-runtimes": "0.17.*"
-    },
-    "require-dev": {
-        "swoole/ide-helper": "4.8.5",
-        "phpunit/phpunit": "^9.3",
-        "laravel/pint": "1.2.*",
-        "phpstan/phpstan": "1.8.*"
-    },
-    "config": {
-        "platform": {
-            "php": "8.3"
-        }
+  "name": "open-runtimes/executor",
+  "description": "Serverless runtimes executor for container based environments ⚡️",
+  "type": "project",
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "OpenRuntimes\\": "src/",
+      "Tests\\": "tests"
     }
+  },
+  "scripts": {
+    "lint": "./vendor/bin/pint --test --config pint.json",
+    "format": "./vendor/bin/pint --config pint.json",
+    "check": "./vendor/bin/phpstan analyse --level 8 -c phpstan.neon app src tests",
+    "test": [
+      "Composer\\Config::disableProcessTimeout",
+      "./vendor/bin/phpunit --configuration phpunit.xml --debug"
+    ]
+  },
+  "require": {
+    "php": ">=8.3.0",
+    "ext-curl": "*",
+    "ext-json": "*",
+    "ext-swoole": "*",
+    "utopia-php/framework": "0.34.*",
+    "utopia-php/logger": "0.6.*",
+    "utopia-php/cli": "0.16.*",
+    "utopia-php/storage": "0.18.*",
+    "utopia-php/dsn": "0.1.*",
+    "utopia-php/registry": "0.5.*",
+    "utopia-php/preloader": "0.2.*",
+    "utopia-php/system": "0.9.*",
+    "utopia-php/orchestration": "0.14.*",
+    "appwrite/php-runtimes": "0.17.*"
+  },
+  "require-dev": {
+    "swoole/ide-helper": "4.8.5",
+    "phpunit/phpunit": "^9.3",
+    "laravel/pint": "1.2.*",
+    "phpstan/phpstan": "1.8.*"
+  },
+  "config": {
+    "platform": {
+      "php": "8.3"
+    }
+  }
 }
