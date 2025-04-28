@@ -132,16 +132,14 @@ class BodyMultipart
 
             if ($value instanceof \CURLFile) {
                 $filename = $value->getPostFilename() ?: \basename($value->getFilename());
-                $mime     = $value->getMimeType()      ?: 'application/octet-stream';
+                $mime     = $value->getMimeType() ?: 'application/octet-stream';
 
                 $query .= '; filename="' . $filename . '"' . $eol;
                 $query .= 'Content-Type: ' . $mime . $eol . $eol;
                 $query .= \file_get_contents($value->getFilename()) . $eol;
-
             } elseif (\is_array($value)) {
                 $query .= $eol . 'Content-Type: application/json' . $eol . $eol;
                 $query .= \json_encode($value) . $eol;
-
             } else {
                 $query .= $eol . $eol . $value . $eol;
             }
