@@ -627,8 +627,12 @@ class Docker extends Adapter
             $this->activeRuntimes->del($runtimeName);
 
             $message = '';
-            foreach ($output as $chunk) {
-                $message .= $chunk['content'];
+            if (isset($output['timestamp']) && isset($output['content']) && !isset($output[0])) {
+                $message = $output['content'];
+            } else {
+                foreach ($output as $chunk) {
+                    $message .= $chunk['content'];
+                }
             }
 
             throw new Exception($message, $th->getCode() ?: 500);
