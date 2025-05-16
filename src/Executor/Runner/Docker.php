@@ -1108,7 +1108,7 @@ class Docker extends Adapter
         }
 
         // Execute function
-        $executionRequest = $version === 'v5' ? $executeV5 : $executeV2;
+        $executionRequest = $version === 'v2' ? $executeV2 : $executeV5;
 
         $retryDelayMs = \intval(Http::getEnv('OPR_EXECUTOR_RETRY_DELAY_MS', '500'));
         $retryAttempts = \intval(Http::getEnv('OPR_EXECUTOR_RETRY_ATTEMPTS', '5'));
