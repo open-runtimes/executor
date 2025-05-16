@@ -65,6 +65,7 @@ function logError(Log $log, Throwable $error, string $action, Logger $logger = n
 
 
 Http::get('/v1/runtimes/:runtimeId/logs')
+    ->groups(['api'])
     ->desc("Get live stream of logs of a runtime")
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->param('timeout', '600', new Text(16), 'Maximum logs timeout.', true)
@@ -95,6 +96,7 @@ Http::post('/v1/runtimes/:runtimeId/commands')
     });
 
 Http::post('/v1/runtimes')
+    ->groups(['api'])
     ->desc("Create a new runtime server")
     ->param('runtimeId', '', new Text(64), 'Unique runtime ID.')
     ->param('image', '', new Text(128), 'Base image name of the runtime.')
@@ -153,6 +155,7 @@ Http::post('/v1/runtimes')
     });
 
 Http::get('/v1/runtimes')
+    ->groups(['api'])
     ->desc("List currently active runtimes")
     ->inject('runner')
     ->inject('response')
@@ -161,6 +164,7 @@ Http::get('/v1/runtimes')
     });
 
 Http::get('/v1/runtimes/:runtimeId')
+    ->groups(['api'])
     ->desc("Get a runtime by its ID")
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->inject('runner')
@@ -173,6 +177,7 @@ Http::get('/v1/runtimes/:runtimeId')
     });
 
 Http::delete('/v1/runtimes/:runtimeId')
+    ->groups(['api'])
     ->desc('Delete a runtime')
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->inject('response')
@@ -184,6 +189,7 @@ Http::delete('/v1/runtimes/:runtimeId')
     });
 
 Http::post('/v1/runtimes/:runtimeId/executions')
+    ->groups(['api'])
     ->alias('/v1/runtimes/:runtimeId/execution')
     ->desc('Create an execution')
     // Execution-related
@@ -339,6 +345,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     );
 
 Http::get('/v1/health')
+    ->groups(['api'])
     ->desc("Get health status of host machine and runtimes.")
     ->inject('runner')
     ->inject('response')
@@ -413,6 +420,7 @@ Http::error()
     });
 
 Http::init()
+    ->groups(['api'])
     ->inject('request')
     ->action(function (Request $request) {
         $secretKey = \explode(' ', $request->getHeader('authorization', ''))[1] ?? '';
