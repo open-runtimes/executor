@@ -352,6 +352,7 @@ Http::get('/v1/health')
     ->action(function (Runner $runner, Response $response) {
         $stats = $runner->getStats();
         $output = [
+            'status' => 'pass',
             'usage' => $stats->getHostUsage(),
             'runtimes' => $stats->getContainerUsage(),
         ];
