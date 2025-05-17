@@ -113,10 +113,11 @@ Http::post('/v1/runtimes')
     ->param('memory', 512, new Integer(), 'Container RAM memory.', true)
     ->param('version', 'v5', new WhiteList(\explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v5') ?? 'v5')), 'Runtime Open Runtime version.', true)
     ->param('restartPolicy', DockerAPI::RESTART_NO, new WhiteList([DockerAPI::RESTART_NO, DockerAPI::RESTART_ALWAYS, DockerAPI::RESTART_ON_FAILURE, DockerAPI::RESTART_UNLESS_STOPPED], true), 'Define restart policy for the runtime once an exit code is returned. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)
+    ->inject('request')
     ->inject('response')
     ->inject('log')
     ->inject('runner')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, string $outputDirectory, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Response $response, Log $log, Runner $runner) {
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, string $outputDirectory, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Request $request,Response $response, Log $log, Runner $runner) {
         $secret = \bin2hex(\random_bytes(16));
 
         /**
@@ -150,8 +151,22 @@ Http::post('/v1/runtimes')
 
         $variables = array_map(fn ($v) => strval($v), $variables);
 
+        $isStream = str_contains($request->getAccept(), 'text/event-stream');
+        if ($isStream) {
+            // send first byte to avoid first byte timeouts
+            $response->sendHeader('Content-Type', 'text/event-stream');
+            $response->write('\n');
+        }
+
         $container = $runner->createRuntime($runtimeId, $secret, $image, $entrypoint, $source, $destination, $variables, $runtimeEntrypoint, $command, $timeout, $remove, $cpus, $memory, $version, $restartPolicy, $log);
-        $response->setStatusCode(Response::STATUS_CODE_CREATED)->json($container);
+
+        $response->setStatusCode(Response::STATUS_CODE_CREATED);
+        if ($isStream) {
+            $response->write(json_encode($container, JSON_UNESCAPED_UNICODE));
+            $response->end();
+        } else {
+            $response->json($container);
+        }
     });
 
 Http::get('/v1/runtimes')
