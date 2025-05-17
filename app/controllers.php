@@ -117,7 +117,7 @@ Http::post('/v1/runtimes')
     ->inject('response')
     ->inject('log')
     ->inject('runner')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, string $outputDirectory, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Request $request,Response $response, Log $log, Runner $runner) {
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, string $outputDirectory, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Request $request, Response $response, Log $log, Runner $runner) {
         $secret = \bin2hex(\random_bytes(16));
 
         /**
