@@ -155,7 +155,7 @@ Http::post('/v1/runtimes')
         if ($isStream) {
             // send first byte to avoid first byte timeouts
             $response->sendHeader('Content-Type', 'text/event-stream');
-            $response->write('\n');
+            $response->write(' ');
         }
 
         $container = $runner->createRuntime($runtimeId, $secret, $image, $entrypoint, $source, $destination, $variables, $runtimeEntrypoint, $command, $timeout, $remove, $cpus, $memory, $version, $restartPolicy, $log);
