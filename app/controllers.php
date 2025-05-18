@@ -162,7 +162,11 @@ Http::post('/v1/runtimes')
 
         $response->setStatusCode(Response::STATUS_CODE_CREATED);
         if ($isStream) {
-            $response->write(json_encode($container, JSON_UNESCAPED_UNICODE));
+            $json = json_encode($container, JSON_UNESCAPED_UNICODE);
+            if ($json === false) {
+                throw new Exception('failed to encode container', 400);
+            }
+            $response->write($json);
             $response->end();
         } else {
             $response->json($container);
@@ -429,7 +433,11 @@ Http::error()
         // workaround for streaming
         $isStream = str_contains($request->getAccept(), 'text/event-stream');
         if ($isStream) {
-            $response->write(json_encode($output, JSON_UNESCAPED_UNICODE));
+            $json = json_encode($output, JSON_UNESCAPED_UNICODE);
+            if ($json === false) {
+                throw new Exception('failed to encode container', 400);
+            }
+            $response->write($json);
             $response->end();
             return;
         }

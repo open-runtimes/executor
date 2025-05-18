@@ -292,8 +292,9 @@ class ExecutorTest extends TestCase
         ];
 
         $response = '';
-        $this->client->call(Client::METHOD_POST, '/runtimes', [], $params, callback: fn ($chunk) => $response .= $chunk);
-
+        $this->client->call(Client::METHOD_POST, '/runtimes', [], $params, decode: true, callback: function ($chunk) use (&$response) {
+            $response .= $chunk;
+        });
         $body = json_decode($response, true);
         $status = $body['code'] ?? 201;
         $this->assertEquals(201, $status);
@@ -319,9 +320,10 @@ class ExecutorTest extends TestCase
             'remove' => true
         ];
 
-
         $response = '';
-        $this->client->call(Client::METHOD_POST, '/runtimes', [], $params, callback: fn ($chunk) => $response .= $chunk);
+        $this->client->call(Client::METHOD_POST, '/runtimes', params: $params, callback: function ($chunk) use (&$response) {
+            $response .= $chunk;
+        });
         $body = json_decode($response, true);
         $status = $body['code'] ?? 201;
 
@@ -339,7 +341,9 @@ class ExecutorTest extends TestCase
         ];
 
         $response = '';
-        $this->client->call(Client::METHOD_POST, '/runtimes', [], $params, callback: fn ($chunk) => $response .= $chunk);
+        $this->client->call(Client::METHOD_POST, '/runtimes', [], $params, callback: function ($chunk) use (&$response) {
+            $response .= $chunk;
+        });
         $body = json_decode($response, true);
         $status = $body['code'] ?? 201;
         $this->assertEquals(500, $status);
