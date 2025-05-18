@@ -1034,7 +1034,7 @@ class Docker extends Adapter
                     if ($logDevice->getFileSize($logFile) > MAX_LOG_SIZE) {
                         $maxToRead = MAX_LOG_SIZE;
                         $logs = $logDevice->read($logFile, 0, $maxToRead);
-                        $logs .= "\nLog file has been truncated to 5MB.";
+                        $logs .= "\nLog file has been truncated to " . number_format(MAX_LOG_SIZE / 1048576, 2) . "MB.";
                     } else {
                         $logs = $logDevice->read($logFile);
                     }
@@ -1046,7 +1046,7 @@ class Docker extends Adapter
                     if ($logDevice->getFileSize($errorFile) > MAX_LOG_SIZE) {
                         $maxToRead = MAX_LOG_SIZE;
                         $errors = $logDevice->read($errorFile, 0, $maxToRead);
-                        $errors .= "\nError file has been truncated to 5MB.";
+                        $errors .= "\nError file has been truncated to " . number_format(MAX_LOG_SIZE / 1048576, 2) . "MB.";
                     } else {
                         $errors = $logDevice->read($errorFile);
                     }

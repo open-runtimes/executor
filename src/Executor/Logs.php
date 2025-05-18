@@ -38,7 +38,7 @@ class Logs
             if ($offset >= MAX_BUILD_LOG_SIZE) {
                 $output[] = [
                     'timestamp' => $timestamp,
-                    'content' => 'Logs truncated due to size exceeting 1MB.'
+                    'content' => 'Logs truncated due to size exceeding ' . number_format(MAX_LOG_SIZE / 1048576, 2) . 'MB.',
                 ];
                 break;
             }
