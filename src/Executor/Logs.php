@@ -35,7 +35,7 @@ class Logs
             $timestamp = $part['timestamp'] ?? '';
             $length = \intval($part['length'] ?? '0');
 
-            if ($offset >= 1000000) {
+            if ($offset >= MAX_BUILD_LOG_SIZE) {
                 $output[] = [
                     'timestamp' => $timestamp,
                     'content' => 'Logs truncated due to size exceeting 1MB.'

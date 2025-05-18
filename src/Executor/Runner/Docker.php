@@ -529,7 +529,7 @@ class Docker extends Adapter
                     }
 
                     if ($version === 'v2') {
-                        $stdout = \mb_substr($stdout ?: 'Runtime created successfully!', -1000000); // Limit to 1MB
+                        $stdout = \mb_substr($stdout ?: 'Runtime created successfully!', -MAX_BUILD_LOG_SIZE); // Limit to 1MB
                         $output[] = [
                             'timestamp' => Logs::getTimestamp(),
                             'content' => $stdout
@@ -595,7 +595,7 @@ class Docker extends Adapter
                         $message = $logs;
                     }
 
-                    $message = \mb_substr($message, -1000000); // Limit to 1MB
+                    $message = \mb_substr($message, -MAX_BUILD_LOG_SIZE); // Limit to 1MB
                 } catch (Throwable $err) {
                     // Ignore, use fallback error message
                 }
@@ -1152,8 +1152,8 @@ class Docker extends Adapter
         $duration = $endTime - $startTime;
 
         if ($version === 'v2') {
-            $logs = \mb_strcut($logs, 0, 1000000);
-            $errors = \mb_strcut($errors, 0, 1000000);
+            $logs = \mb_strcut($logs, 0, MAX_BUILD_LOG_SIZE);
+            $errors = \mb_strcut($errors, 0, MAX_BUILD_LOG_SIZE);
         }
 
         $execution = [
