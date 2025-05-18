@@ -274,6 +274,77 @@ class ExecutorTest extends TestCase
         $this->assertEquals(500, $response['headers']['status-code']);
     }
 
+    public function testBuildStream(): void
+    {
+        $output = '';
+        Console::execute('cd /app/tests/resources/functions/php && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+
+        $runtimeId = \bin2hex(\random_bytes(4));
+
+        /** Build runtime */
+        $params = [
+            'runtimeId' => 'test-build-' . $runtimeId,
+            'source' => '/storage/functions/php/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v5-8.1',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "composer install"',
+        ];
+
+        $response = '';
+        $this->client->call(Client::METHOD_POST, '/runtimes', [], $params, callback: fn ($chunk) => $response .= $chunk);
+
+        $body = json_decode($response, true);
+        $status = $body['code'] ?? 201;
+        $this->assertEquals(201, $status);
+        $this->assertIsString($body['path']);
+        $this->assertIsArray($body['output']);
+        $this->assertIsFloat($body['duration']);
+        $this->assertIsFloat($body['startTime']);
+        $this->assertIsInt($body['size']);
+
+        /** Get runtime */
+        $response = $this->client->call(Client::METHOD_GET, '/runtimes/test-build-' . $runtimeId, [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertStringEndsWith('test-build-' . $runtimeId, $response['body']['name']);
+
+        /** User error in build command */
+        $params = [
+            'runtimeId' => 'test-build-fail-400-' . $runtimeId,
+            'source' => '/storage/functions/php/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v5-8.1',
+            'command' => 'cp doesnotexist.js doesnotexist2.js',
+            'remove' => true
+        ];
+
+
+        $response = '';
+        $this->client->call(Client::METHOD_POST, '/runtimes', [], $params, callback: fn ($chunk) => $response .= $chunk);
+        $body = json_decode($response, true);
+        $status = $body['code'] ?? 201;
+
+        $this->assertEquals(400, $status);
+
+        /** Test invalid path */
+        $params = [
+            'runtimeId' => 'test-build-fail-500-' . $runtimeId,
+            'source' => '/storage/fake_path/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v5-8.1',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "composer install"',
+            'remove' => true
+        ];
+
+        $response = '';
+        $this->client->call(Client::METHOD_POST, '/runtimes', [], $params, callback: fn ($chunk) => $response .= $chunk);
+        $body = json_decode($response, true);
+        $status = $body['code'] ?? 201;
+        $this->assertEquals(500, $status);
+    }
+
     public function testBuildOutputDirectory(): void
     {
         $output = '';

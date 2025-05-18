@@ -378,9 +378,10 @@ Http::error()
     ->inject('route')
     ->inject('error')
     ->inject('logger')
+    ->inject('request')
     ->inject('response')
     ->inject('log')
-    ->action(function (?Route $route, Throwable $error, ?Logger $logger, Response $response, Log $log) {
+    ->action(function (?Route $route, Throwable $error, ?Logger $logger, Request $request, Response $response, Log $log) {
         try {
             logError($log, $error, "httpError", $logger, $route);
         } catch (Throwable) {
@@ -424,6 +425,14 @@ Http::error()
             'code' => $code,
             'version' => $version
         ];
+
+        // workaround for streaming
+        $isStream = str_contains($request->getAccept(), 'text/event-stream');
+        if ($isStream) {
+            $response->write(json_encode($output, JSON_UNESCAPED_UNICODE));
+            $response->end();
+            return;
+        }
 
         $response
             ->addHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
