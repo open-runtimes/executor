@@ -670,7 +670,7 @@ class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
 
         $this->assertEquals(400, $response['headers']['status-code']);
-        $this->assertGreaterThanOrEqual(MAX_BUILD_LOG_SIZE, \strlen($response['body']['message']));
+        $this->assertGreaterThanOrEqual(1000000, \strlen($response['body']['message']));
         $this->assertStringNotContainsString('Last log', $response['body']['message']);
         $this->assertStringContainsString('First log', $response['body']['message']);
 
@@ -696,7 +696,7 @@ class ExecutorTest extends TestCase
         }
 
         $this->assertEquals(201, $response['headers']['status-code']);
-        $this->assertGreaterThanOrEqual(MAX_BUILD_LOG_SIZE, \strlen($output));
+        $this->assertGreaterThanOrEqual(1000000, \strlen($output));
         $this->assertStringNotContainsString('Last log', $output);
         $this->assertStringContainsString('First log', $output);
     }
