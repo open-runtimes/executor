@@ -31,6 +31,7 @@ services:
       - openruntimes-functions:/storage/functions:rw
       - /tmp:/tmp:rw
       - ./tests/resources/functions:/storage/functions:rw
+      - ./tests/resources/sites:/storage/sites:rw
     environment:
       - OPR_EXECUTOR_ENV
       - OPR_EXECUTOR_RUNTIMES

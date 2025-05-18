@@ -83,6 +83,18 @@ Http::get('/v1/runtimes/:runtimeId/logs')
         $response->end();
     });
 
+Http::post('/v1/runtimes/:runtimeId/commands')
+    ->desc('Execute a command inside an existing runtime')
+    ->param('runtimeId', '', new Text(64), 'Unique runtime ID.')
+    ->param('command', '', new Text(1024), 'Command to execute.')
+    ->param('timeout', 600, new Integer(), 'Commands execution time in seconds.', true)
+    ->inject('response')
+    ->inject('runner')
+    ->action(function (string $runtimeId, string $command, int $timeout, Response $response, Runner $runner) {
+        $output = $runner->executeCommand($runtimeId, $command, $timeout);
+        $response->setStatusCode(Response::STATUS_CODE_OK)->json([ 'output' => $output ]);
+    });
+
 Http::post('/v1/runtimes')
     ->groups(['api'])
     ->desc("Create a new runtime server")
@@ -99,7 +111,7 @@ Http::post('/v1/runtimes')
     ->param('remove', false, new Boolean(), 'Remove a runtime after execution.', true)
     ->param('cpus', 1, new FloatValidator(true), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Container RAM memory.', true)
-    ->param('version', 'v4', new WhiteList(['v2', 'v4']), 'Runtime Open Runtime version.', true)
+    ->param('version', 'v5', new WhiteList(\explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v5') ?? 'v5')), 'Runtime Open Runtime version.', true)
     ->param('restartPolicy', DockerAPI::RESTART_NO, new WhiteList([DockerAPI::RESTART_NO, DockerAPI::RESTART_ALWAYS, DockerAPI::RESTART_ON_FAILURE, DockerAPI::RESTART_UNLESS_STOPPED], true), 'Define restart policy for the runtime once an exit code is returned. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)
     ->inject('response')
     ->inject('log')
@@ -116,7 +128,7 @@ Http::post('/v1/runtimes')
                 'INTERNAL_RUNTIME_ENTRYPOINT' => $entrypoint,
                 'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
             ],
-            'v4' => [
+            'v4', 'v5' => [
                 'OPEN_RUNTIMES_SECRET' => $secret,
                 'OPEN_RUNTIMES_ENTRYPOINT' => $entrypoint,
                 'OPEN_RUNTIMES_HOSTNAME' => System::getHostname(),
@@ -131,6 +143,10 @@ Http::post('/v1/runtimes')
                 'OPEN_RUNTIMES_OUTPUT_DIRECTORY' => $outputDirectory
             ]);
         }
+
+        $variables = \array_merge($variables, [
+            'CI' => 'true'
+        ]);
 
         $variables = array_map(fn ($v) => strval($v), $variables);
 
@@ -190,7 +206,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->param('variables', [], new AnyOf([new Text(65535), new Assoc()], AnyOf::TYPE_MIXED), 'Environment variables passed into runtime.', true)
     ->param('cpus', 1, new FloatValidator(true), 'Container CPU.', true)
     ->param('memory', 512, new Integer(true), 'Container RAM memory.', true)
-    ->param('version', 'v4', new WhiteList(['v2', 'v4']), 'Runtime Open Runtime version.', true)
+    ->param('version', 'v5', new WhiteList(\explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v5') ?? 'v5')), 'Runtime Open Runtime version.', true)
     ->param('runtimeEntrypoint', '', new Text(1024, 0), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('logging', true, new Boolean(true), 'Whether executions will be logged.', true)
     ->param('restartPolicy', DockerAPI::RESTART_NO, new WhiteList([DockerAPI::RESTART_NO, DockerAPI::RESTART_ALWAYS, DockerAPI::RESTART_ON_FAILURE, DockerAPI::RESTART_UNLESS_STOPPED], true), 'Define restart policy once exit code is returned by command. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)

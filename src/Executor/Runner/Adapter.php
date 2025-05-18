@@ -31,6 +31,14 @@ abstract class Adapter
 
     /**
      * @param string $runtimeId
+     * @param string $command
+     * @param int $timeout
+     * @return string
+     */
+    abstract public function executeCommand(string $runtimeId, string $command, int $timeout): string;
+
+    /**
+     * @param string $runtimeId
      * @param string $secret
      * @param string $image
      * @param string $entrypoint

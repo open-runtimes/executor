@@ -2,6 +2,7 @@
 
 namespace OpenRuntimes\Executor\Runner;
 
+use OpenRuntimes\Executor\Logs;
 use Appwrite\Runtimes\Runtimes;
 use Exception;
 use OpenRuntimes\Executor\Stats;
@@ -38,6 +39,7 @@ class Docker extends Adapter
     {
         $this->activeRuntimes = new Table(4096);
 
+        $this->activeRuntimes->column('version', Table::TYPE_STRING, 32);
         $this->activeRuntimes->column('created', Table::TYPE_FLOAT);
         $this->activeRuntimes->column('updated', Table::TYPE_FLOAT);
         $this->activeRuntimes->column('name', Table::TYPE_STRING, 1024);
@@ -46,6 +48,7 @@ class Docker extends Adapter
         $this->activeRuntimes->column('key', Table::TYPE_STRING, 1024);
         $this->activeRuntimes->column('listening', Table::TYPE_INT, 1);
         $this->activeRuntimes->column('image', Table::TYPE_STRING, 1024);
+        $this->activeRuntimes->column('initialised', Table::TYPE_INT, 0);
         $this->activeRuntimes->create();
 
         $this->stats = new Stats();
@@ -83,7 +86,7 @@ class Docker extends Adapter
             // Useful to prevent auto-pulling from remote when testing local images
             Console::info("Skipping image pulling");
         } else {
-            $runtimeVersions = \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v4') ?? 'v4');
+            $runtimeVersions = \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v5') ?? 'v5');
             foreach ($runtimeVersions as $runtimeVersion) {
                 Console::success("Pulling $runtimeVersion images...");
                 $runtimes = new Runtimes($runtimeVersion); // TODO: @Meldiron Make part of open runtimes
@@ -194,6 +197,13 @@ class Docker extends Adapter
     {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
+        $log->addTag('runtimeId', $runtimeName);
+
+        $tmpFolder = "tmp/$runtimeName/";
+        $tmpLogging = "/{$tmpFolder}logging"; // Build logs
+
+        // TODO: Combine 3 checks below into one
+
         // Wait for runtime
         for ($i = 0; $i < 10; $i++) {
             $output = '';
@@ -213,7 +223,51 @@ class Docker extends Adapter
                 throw new Exception('Runtime not ready. Container not found.', 500);
             }
 
-            \usleep(500000);
+            \usleep(500000); // 0.5s
+        }
+
+        // Wait for state
+        $version = null;
+        $checkStart = \microtime(true);
+        while (true) {
+            if (\microtime(true) - $checkStart >= 10) { // Enforced timeout of 10s
+                throw new Exception('Runtime was not created in time.', 400);
+            }
+
+            $runtime = $this->activeRuntimes->get($runtimeName);
+            if (!empty($runtime)) {
+                $version = $runtime['version'];
+                break;
+            }
+
+            \usleep(500000); // 0.5s
+        }
+
+        if ($version === 'v2') {
+            return;
+        }
+
+        // Wait for logging files
+        $checkStart = \microtime(true);
+        while (true) {
+            if (\microtime(true) - $checkStart >= $timeout) {
+                throw new Exception('Log file was not created in time.', 400);
+            }
+
+            if (\file_exists($tmpLogging . '/logs.txt') && \file_exists($tmpLogging . '/timings.txt')) {
+                $timings = \file_get_contents($tmpLogging . '/timings.txt') ?: '';
+                if (\strlen($timings) > 0) {
+                    break;
+                }
+            }
+
+            // Ensure runtime is still present
+            $runtime = $this->activeRuntimes->get($runtimeName);
+            if (empty($runtime)) {
+                return;
+            }
+
+            \usleep(500000); // 0.5s
         }
 
         /**
@@ -227,7 +281,19 @@ class Docker extends Adapter
         $logsProcess = null;
 
         $streamInterval = 1000; // 1 second
-        $timerId = Timer::tick($streamInterval, function () use (&$logsProcess, &$logsChunk, $response) {
+        $activeRuntimes = $this->activeRuntimes;
+        $timerId = Timer::tick($streamInterval, function () use (&$logsProcess, &$logsChunk, $response, $activeRuntimes, $runtimeName) {
+            $runtime = $activeRuntimes->get($runtimeName);
+            if ($runtime['initialised'] === 1) {
+                if (!empty($logsChunk)) {
+                    $write = $response->write($logsChunk);
+                    $logsChunk = '';
+                }
+
+                \proc_terminate($logsProcess, 9);
+                return;
+            }
+
             if (empty($logsChunk)) {
                 return;
             }
@@ -242,16 +308,61 @@ class Docker extends Adapter
             }
         });
 
-        $output = '';
-        Console::execute('docker exec ' . \escapeshellarg($runtimeName) . ' tail -F /var/tmp/logs.txt', '', $output, $timeout, function (string $outputChunk, mixed $process) use (&$logsChunk, &$logsProcess) {
+        $offset = 0; // Current offset from timing for reading logs content
+        $tempLogsContent = \file_get_contents($tmpLogging . '/logs.txt') ?: '';
+        $introOffset = Logs::getLogOffset($tempLogsContent);
+
+        $datetime = new \DateTime("now", new \DateTimeZone("UTC")); // Date used for tracking absolute log timing
+
+        $output = ''; // Unused, just a refference for stdout
+        Console::execute('tail -F ' . $tmpLogging . '/timings.txt', '', $output, $timeout, function (string $timingChunk, mixed $process) use ($tmpLogging, &$logsChunk, &$logsProcess, &$datetime, &$offset, $introOffset) {
             $logsProcess = $process;
 
-            if (!empty($outputChunk)) {
-                $logsChunk .= $outputChunk;
+            if (!\file_exists($tmpLogging . '/logs.txt')) {
+                if (!empty($logsProcess)) {
+                    \proc_terminate($logsProcess, 9);
+                }
+                return;
+            }
+
+            $parts = Logs::parseTiming($timingChunk, $datetime);
+
+            foreach ($parts as $part) {
+                $timestamp = $part['timestamp'] ?? '';
+                $length = \intval($part['length'] ?? '0');
+
+                $logContent = \file_get_contents($tmpLogging . '/logs.txt', false, null, $introOffset + $offset, \abs($length)) ?: '';
+
+                $logContent = \str_replace("\n", "\\n", $logContent);
+
+                $output = $timestamp . " " . $logContent . "\n";
+
+                $logsChunk .= $output;
+                $offset += $length;
             }
         });
 
         Timer::clear($timerId);
+    }
+
+    public function executeCommand(string $runtimeId, string $command, int $timeout): string
+    {
+        $runtimeName = System::getHostname() . '-' . $runtimeId;
+
+        if (!$this->activeRuntimes->exists($runtimeName)) {
+            throw new Exception('Runtime not found', 404);
+        }
+
+        $commands = [
+            'bash',
+            '-c',
+            $command
+        ];
+
+        $output = '';
+        $this->orchestration->execute($runtimeName, $commands, $output, [], $timeout);
+
+        return $output;
     }
 
     /**
@@ -291,10 +402,11 @@ class Docker extends Adapter
         }
 
         $container = [];
-        $output = '';
+        $output = [];
         $startTime = \microtime(true);
 
         $this->activeRuntimes->set($runtimeName, [
+            'version' => $version,
             'listening' => 0,
             'name' => $runtimeName,
             'hostname' => $runtimeHostname,
@@ -303,6 +415,7 @@ class Docker extends Adapter
             'status' => 'pending',
             'key' => $secret,
             'image' => $image,
+            'initialised' => 0,
         ]);
 
         /**
@@ -311,7 +424,8 @@ class Docker extends Adapter
         $tmpFolder = "tmp/$runtimeName/";
         $tmpSource = "/{$tmpFolder}src/code.tar.gz";
         $tmpBuild = "/{$tmpFolder}builds/code.tar.gz";
-        $tmpLogs = "/{$tmpFolder}logs";
+        $tmpLogging = "/{$tmpFolder}logging"; // Build logs
+        $tmpLogs = "/{$tmpFolder}logs"; // Runtime logs
 
         $sourceDevice = $this->getStorageDevice("/");
         $localDevice = new Local();
@@ -344,7 +458,7 @@ class Docker extends Adapter
                     $runtimeEntrypointCommands = ['tail', '-f', '/dev/null'];
                 }
             } else {
-                $runtimeEntrypointCommands = ['sh', '-c', $runtimeEntrypoint];
+                $runtimeEntrypointCommands = ['bash', '-c', $runtimeEntrypoint];
             }
 
             $codeMountPath = $version === 'v2' ? '/usr/code' : '/mnt/code';
@@ -357,8 +471,9 @@ class Docker extends Adapter
                 \dirname($tmpBuild) . ':' . $codeMountPath . ':rw',
             ];
 
-            if ($version === 'v4') {
+            if ($version === 'v5') {
                 $volumes[] = \dirname($tmpLogs . '/logs') . ':/mnt/logs:rw';
+                $volumes[] = \dirname($tmpLogging . '/logging') . ':/tmp/logging:rw';
             }
 
             /** Keep the container alive if we have commands to be executed */
@@ -386,22 +501,41 @@ class Docker extends Adapter
              * Execute any commands if they were provided
              */
             if (!empty($command)) {
-                $commands = [
-                    'sh',
-                    '-c',
-                    'touch /var/tmp/logs.txt && (' . $command . ') >> /var/tmp/logs.txt 2>&1 && cat /var/tmp/logs.txt'
-                ];
+                if ($version === 'v2') {
+                    $commands = [
+                        'sh',
+                        '-c',
+                        'touch /var/tmp/logs.txt && (' . $command . ') >> /var/tmp/logs.txt 2>&1 && cat /var/tmp/logs.txt'
+                    ];
+                } else {
+                    $commands = [
+                        'bash',
+                        '-c',
+                        'mkdir -p /tmp/logging && touch /tmp/logging/timings.txt && touch /tmp/logging/logs.txt && script --log-out /tmp/logging/logs.txt --flush --log-timing /tmp/logging/timings.txt --return --quiet --command "' . \str_replace('"', '\"', $command) . '"'
+                    ];
+                }
 
                 try {
+                    $stdout = '';
                     $status = $this->orchestration->execute(
                         name: $runtimeName,
                         command: $commands,
-                        output: $output,
+                        output: $stdout,
                         timeout: $timeout
                     );
 
                     if (!$status) {
-                        throw new Exception('Failed to create runtime: ' . $output, 400);
+                        throw new Exception('Failed to create runtime: ' . $stdout, 400);
+                    }
+
+                    if ($version === 'v2') {
+                        $stdout = \mb_substr($stdout ?: 'Runtime created successfully!', -MAX_BUILD_LOG_SIZE); // Limit to 1MB
+                        $output[] = [
+                            'timestamp' => Logs::getTimestamp(),
+                            'content' => $stdout
+                        ];
+                    } else {
+                        $output = Logs::get($runtimeName);
                     }
                 } catch (Throwable $err) {
                     throw new Exception($err->getMessage(), 400);
@@ -431,14 +565,8 @@ class Docker extends Adapter
                 $container['path'] = $path;
             }
 
-            if ($output === '') {
-                $output = 'Runtime created successfully!';
-            }
-
             $endTime = \microtime(true);
             $duration = $endTime - $startTime;
-
-            $output = \mb_substr($output, -1000000); // Limit to 1MB
 
             $container = array_merge($container, [
                 'output' => $output,
@@ -449,25 +577,39 @@ class Docker extends Adapter
             $activeRuntime = $this->activeRuntimes->get($runtimeName);
             $activeRuntime['updated'] = \microtime(true);
             $activeRuntime['status'] = 'Up ' . \round($duration, 2) . 's';
+            $activeRuntime['initialised'] = 1;
             $this->activeRuntimes->set($runtimeName, $activeRuntime);
         } catch (Throwable $th) {
-            $message = !empty($output) ? $output : $th->getMessage();
+            if ($version === 'v2') {
+                $message = !empty($output) ? $output : $th->getMessage();
+                try {
+                    $logs = '';
+                    $status = $this->orchestration->execute(
+                        name: $runtimeName,
+                        command: ['sh', '-c', 'cat /var/tmp/logs.txt'],
+                        output: $logs,
+                        timeout: 15
+                    );
 
-            // Extract as much logs as we can
-            try {
-                $logs = '';
-                $status = $this->orchestration->execute(
-                    name: $runtimeName,
-                    command: ['sh', '-c', 'cat /var/tmp/logs.txt'],
-                    output: $logs,
-                    timeout: 15
-                );
+                    if (!empty($logs)) {
+                        $message = $logs;
+                    }
 
-                if (!empty($logs)) {
-                    $message = $logs;
+                    $message = \mb_substr($message, -MAX_BUILD_LOG_SIZE); // Limit to 1MB
+                } catch (Throwable $err) {
+                    // Ignore, use fallback error message
                 }
-            } catch (Throwable $err) {
-                // Ignore, use fallback error message
+
+                $output = [
+                    'timestamp' => Logs::getTimestamp(),
+                    'content' => $message
+                ];
+            } else {
+                $output = Logs::get($runtimeName);
+                $output = \count($output) > 0 ? $output : [[
+                    'timestamp' => Logs::getTimestamp(),
+                    'content' => $th->getMessage()
+                ]];
             }
 
             if ($remove) {
@@ -484,7 +626,10 @@ class Docker extends Adapter
 
             $this->activeRuntimes->del($runtimeName);
 
-            $message = \mb_substr($message, -1000000); // Limit to 1MB
+            $message = '';
+            foreach ($output as $chunk) {
+                $message .= $chunk['content'];
+            }
 
             throw new Exception($message, $th->getCode() ?: 500);
         }
@@ -502,6 +647,13 @@ class Docker extends Adapter
             }
 
             $this->activeRuntimes->del($runtimeName);
+        }
+
+        // Remove weird symbol characters (for example from Next.js)
+        if (\is_array($container['output'])) {
+            foreach ($container['output'] as $index => &$chunk) {
+                $chunk['content'] = \mb_convert_encoding($chunk['content'] ?? '', 'UTF-8', 'UTF-8');
+            }
         }
 
         return $container;
@@ -638,7 +790,7 @@ class Docker extends Adapter
             while (true) {
                 // If timeout is passed, stop and return error
                 if (\microtime(true) - $prepareStart >= $timeout) {
-                    throw new Exception('Function timed out during preparation.', 400);
+                    throw new Exception('Cold start timeout exceeded during server initialisation.', 400);
                 }
 
                 ['errNo' => $errNo, 'error' => $error, 'statusCode' => $statusCode, 'executorResponse' => $executorResponse] = \call_user_func($sendCreateRuntimeRequest);
@@ -664,8 +816,7 @@ class Docker extends Adapter
                     throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
                 }
 
-                // Wait 0.5s and check again
-                \usleep(500000);
+                \usleep(500000); // 0.5s
             }
         }
 
@@ -685,15 +836,14 @@ class Docker extends Adapter
         while (true) {
             // If timeout is passed, stop and return error
             if (\microtime(true) - $launchStart >= $timeout) {
-                throw new Exception('Function timed out during launch.', 400);
+                throw new Exception('Cold start timeout exceeded while starting the server.', 400);
             }
 
             if ($this->activeRuntimes->get($runtimeName)['status'] !== 'pending') {
                 break;
             }
 
-            // Wait 0.5s and check again
-            \usleep(500000);
+            \usleep(500000); // 0.5s
         }
 
         // Lower timeout by time it took to launch container
@@ -780,7 +930,7 @@ class Docker extends Adapter
             ];
         };
 
-        $executeV4 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName, $logging): array {
+        $executeV5 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName, $logging): array {
             $statusCode = 0;
             $errNo = -1;
             $executorResponse = '';
@@ -866,11 +1016,25 @@ class Docker extends Adapter
 
                 $logDevice = new Local();
 
+                $lockStart = \microtime(true);
+                while (true) {
+                    // If timeout is passed, stop and return error
+                    if (\microtime(true) - $lockStart >= $timeout) {
+                        break;
+                    }
+
+                    if (!$logDevice->exists($logFile . '.lock') && !$logDevice->exists($errorFile . '.lock')) {
+                        break;
+                    }
+
+                    \usleep(100000); // 0.1s
+                }
+
                 if ($logDevice->exists($logFile)) {
                     if ($logDevice->getFileSize($logFile) > MAX_LOG_SIZE) {
                         $maxToRead = MAX_LOG_SIZE;
                         $logs = $logDevice->read($logFile, 0, $maxToRead);
-                        $logs .= "\nLog file has been truncated to 5MB.";
+                        $logs .= "\nLog file has been truncated to " . number_format(MAX_LOG_SIZE / 1048576, 2) . "MB.";
                     } else {
                         $logs = $logDevice->read($logFile);
                     }
@@ -882,7 +1046,7 @@ class Docker extends Adapter
                     if ($logDevice->getFileSize($errorFile) > MAX_LOG_SIZE) {
                         $maxToRead = MAX_LOG_SIZE;
                         $errors = $logDevice->read($errorFile, 0, $maxToRead);
-                        $errors .= "\nError file has been truncated to 5MB.";
+                        $errors .= "\nError file has been truncated to " . number_format(MAX_LOG_SIZE / 1048576, 2) . "MB.";
                     } else {
                         $errors = $logDevice->read($errorFile);
                     }
@@ -923,7 +1087,7 @@ class Docker extends Adapter
             while (true) {
                 // If timeout is passed, stop and return error
                 if (\microtime(true) - $pingStart >= $timeout) {
-                    throw new Exception('Function timed out during cold start.', 400);
+                    throw new Exception('Cold start timeout exceeded.', 400);
                 }
 
                 $online = $validator->isValid($hostname . ':' . 3000);
@@ -931,8 +1095,7 @@ class Docker extends Adapter
                     break;
                 }
 
-                // Wait 0.5s and check again
-                \usleep(500000);
+                \usleep(500000); // 0.5s
             }
 
             // Update swoole table
@@ -945,7 +1108,7 @@ class Docker extends Adapter
         }
 
         // Execute function
-        $executionRequest = $version === 'v4' ? $executeV4 : $executeV2;
+        $executionRequest = $version === 'v2' ? $executeV2 : $executeV5;
 
         $retryDelayMs = \intval(Http::getEnv('OPR_EXECUTOR_RETRY_DELAY_MS', '500'));
         $retryAttempts = \intval(Http::getEnv('OPR_EXECUTOR_RETRY_ATTEMPTS', '5'));
@@ -989,8 +1152,8 @@ class Docker extends Adapter
         $duration = $endTime - $startTime;
 
         if ($version === 'v2') {
-            $logs = \mb_strcut($logs, 0, 1000000);
-            $errors = \mb_strcut($errors, 0, 1000000);
+            $logs = \mb_strcut($logs, 0, MAX_BUILD_LOG_SIZE);
+            $errors = \mb_strcut($errors, 0, MAX_BUILD_LOG_SIZE);
         }
 
         $execution = [

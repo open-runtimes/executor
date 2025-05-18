@@ -11,6 +11,7 @@ use Utopia\Http\Http;
 use Utopia\Registry\Registry;
 
 const MAX_LOG_SIZE = 5 * 1024 * 1024;
+const MAX_BUILD_LOG_SIZE = 1 * 1000 * 1000;
 
 // Setup Registry
 $register = new Registry();
