@@ -606,10 +606,10 @@ class Docker extends Adapter
                 ];
             } else {
                 $output = Logs::get($runtimeName);
-                $output = \count($output) > 0 ? $output : [
+                $output = \count($output) > 0 ? $output : [[
                     'timestamp' => Logs::getTimestamp(),
                     'content' => $th->getMessage()
-                ];
+                ]];
             }
 
             if ($remove) {
