@@ -113,10 +113,11 @@ Http::post('/v1/runtimes')
     ->param('memory', 512, new Integer(), 'Container RAM memory.', true)
     ->param('version', 'v5', new WhiteList(\explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v5') ?? 'v5')), 'Runtime Open Runtime version.', true)
     ->param('restartPolicy', DockerAPI::RESTART_NO, new WhiteList([DockerAPI::RESTART_NO, DockerAPI::RESTART_ALWAYS, DockerAPI::RESTART_ON_FAILURE, DockerAPI::RESTART_UNLESS_STOPPED], true), 'Define restart policy for the runtime once an exit code is returned. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)
+    ->inject('request')
     ->inject('response')
     ->inject('log')
     ->inject('runner')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, string $outputDirectory, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Response $response, Log $log, Runner $runner) {
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, string $outputDirectory, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Request $request, Response $response, Log $log, Runner $runner) {
         $secret = \bin2hex(\random_bytes(16));
 
         /**
@@ -150,8 +151,26 @@ Http::post('/v1/runtimes')
 
         $variables = array_map(fn ($v) => strval($v), $variables);
 
+        $isStream = str_contains($request->getAccept(), 'text/event-stream');
+        if ($isStream) {
+            // send first byte to avoid first byte timeouts
+            $response->sendHeader('Content-Type', 'text/event-stream');
+            $response->write(' ');
+        }
+
         $container = $runner->createRuntime($runtimeId, $secret, $image, $entrypoint, $source, $destination, $variables, $runtimeEntrypoint, $command, $timeout, $remove, $cpus, $memory, $version, $restartPolicy, $log);
-        $response->setStatusCode(Response::STATUS_CODE_CREATED)->json($container);
+
+        $response->setStatusCode(Response::STATUS_CODE_CREATED);
+        if ($isStream) {
+            $json = json_encode($container, JSON_UNESCAPED_UNICODE);
+            if ($json === false) {
+                throw new Exception('failed to encode container', 400);
+            }
+            $response->write($json);
+            $response->end();
+        } else {
+            $response->json($container);
+        }
     });
 
 Http::get('/v1/runtimes')
@@ -363,9 +382,10 @@ Http::error()
     ->inject('route')
     ->inject('error')
     ->inject('logger')
+    ->inject('request')
     ->inject('response')
     ->inject('log')
-    ->action(function (?Route $route, Throwable $error, ?Logger $logger, Response $response, Log $log) {
+    ->action(function (?Route $route, Throwable $error, ?Logger $logger, Request $request, Response $response, Log $log) {
         try {
             logError($log, $error, "httpError", $logger, $route);
         } catch (Throwable) {
@@ -409,6 +429,18 @@ Http::error()
             'code' => $code,
             'version' => $version
         ];
+
+        // workaround for streaming
+        $isStream = str_contains($request->getAccept(), 'text/event-stream');
+        if ($isStream) {
+            $json = json_encode($output, JSON_UNESCAPED_UNICODE);
+            if ($json === false) {
+                throw new Exception('failed to encode container', 400);
+            }
+            $response->write($json);
+            $response->end();
+            return;
+        }
 
         $response
             ->addHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
