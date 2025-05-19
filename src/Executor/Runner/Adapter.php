@@ -103,7 +103,8 @@ abstract class Adapter
         string $runtimeEntrypoint,
         bool $logging,
         string $restartPolicy,
-        Log $log
+        Log $log,
+        string $region = '',
     ): mixed;
 
     abstract public function getRuntimes(): mixed;
