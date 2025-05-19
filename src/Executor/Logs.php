@@ -58,11 +58,12 @@ class Logs
 
     /**
      * @return array<array<string, mixed>>
+     * @throws \Exception
      */
     public static function parseTiming(string $timing, ?DateTime $datetime = null): array
     {
         if (\is_null($datetime)) {
-            $datetime = new DateTime("now", new DateTimeZone("UTC")); // Date used for tracking absolute log timing
+            $datetime = new DateTime("now", new DateTimeZone('UTC')); // Date used for tracking absolute log timing
         }
 
         if (empty($timing)) {
@@ -82,10 +83,15 @@ class Logs
             $timing = \ceil($timing * 1000000); // Convert to microseconds
             $length = \intval($length);
 
-            $di = DateInterval::createFromDateString($timing . ' microseconds');
-            $datetime->add($di);
+            $interval = DateInterval::createFromDateString($timing . ' microseconds');
 
-            $date = $datetime->format('Y-m-d\TH:i:s.vP');
+            if (!$interval) {
+                throw new \Exception('Failed to create DateInterval from timing: ' . $timing);
+            }
+
+            $date = $datetime
+                ->add($interval)
+                ->format('Y-m-d\TH:i:s.vP');
 
             $parts[] = [
                 'timestamp' => $date,

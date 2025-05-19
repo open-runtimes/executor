@@ -37,7 +37,7 @@ class Usage
     {
         try {
             $this->hostUsage = System::getCPUUsage(2);
-        } catch(Exception $err) {
+        } catch (Exception $err) {
             Console::warning('Skipping host stats loop due to error: ' . $err->getMessage());
         }
     }
@@ -56,7 +56,7 @@ class Usage
 
                 $this->containerUsage[$hostname] = $containerUsage->getCpuUsage() * 100;
             }
-        } catch(Exception $err) {
+        } catch (Exception $err) {
             Console::warning('Skipping runtimes stats loop due to error: ' . $err->getMessage());
         }
     }

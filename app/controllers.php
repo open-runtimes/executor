@@ -29,7 +29,7 @@ function logError(Log $log, Throwable $error, string $action, Logger $logger = n
     Console::error('[Error] Line: ' . $error->getLine());
 
     if ($logger && ($error->getCode() === 500 || $error->getCode() === 0)) {
-        $version = (string)Http::getEnv('OPR_EXECUTOR_VERSION', '');
+        $version = (string)System::getEnv('OPR_EXECUTOR_VERSION', '');
         if (empty($version)) {
             $version = 'UNKNOWN';
         }
@@ -111,7 +111,7 @@ Http::post('/v1/runtimes')
     ->param('remove', false, new Boolean(), 'Remove a runtime after execution.', true)
     ->param('cpus', 1, new FloatValidator(true), 'Container CPU.', true)
     ->param('memory', 512, new Integer(), 'Container RAM memory.', true)
-    ->param('version', 'v5', new WhiteList(\explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v5') ?? 'v5')), 'Runtime Open Runtime version.', true)
+    ->param('version', 'v5', new WhiteList(\explode(',', System::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v5') ?? 'v5')), 'Runtime Open Runtime version.', true)
     ->param('restartPolicy', DockerAPI::RESTART_NO, new WhiteList([DockerAPI::RESTART_NO, DockerAPI::RESTART_ALWAYS, DockerAPI::RESTART_ON_FAILURE, DockerAPI::RESTART_UNLESS_STOPPED], true), 'Define restart policy for the runtime once an exit code is returned. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)
     ->inject('response')
     ->inject('log')
@@ -206,7 +206,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->param('variables', [], new AnyOf([new Text(65535), new Assoc()], AnyOf::TYPE_MIXED), 'Environment variables passed into runtime.', true)
     ->param('cpus', 1, new FloatValidator(true), 'Container CPU.', true)
     ->param('memory', 512, new Integer(true), 'Container RAM memory.', true)
-    ->param('version', 'v5', new WhiteList(\explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v5') ?? 'v5')), 'Runtime Open Runtime version.', true)
+    ->param('version', 'v5', new WhiteList(\explode(',', System::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v5') ?? 'v5')), 'Runtime Open Runtime version.', true)
     ->param('runtimeEntrypoint', '', new Text(1024, 0), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('logging', true, new Boolean(true), 'Whether executions will be logged.', true)
     ->param('restartPolicy', DockerAPI::RESTART_NO, new WhiteList([DockerAPI::RESTART_NO, DockerAPI::RESTART_ALWAYS, DockerAPI::RESTART_ON_FAILURE, DockerAPI::RESTART_UNLESS_STOPPED], true), 'Define restart policy once exit code is returned by command. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)
@@ -424,7 +424,7 @@ Http::init()
     ->inject('request')
     ->action(function (Request $request) {
         $secretKey = \explode(' ', $request->getHeader('authorization', ''))[1] ?? '';
-        if (empty($secretKey) || $secretKey !== Http::getEnv('OPR_EXECUTOR_SECRET', '')) {
+        if (empty($secretKey) || $secretKey !== System::getEnv('OPR_EXECUTOR_SECRET', '')) {
             throw new Exception('Missing executor key', 401);
         }
     });

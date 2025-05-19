@@ -13,7 +13,6 @@ use Swoole\Table;
 use Swoole\Timer;
 use Throwable;
 use Utopia\CLI\Console;
-use Utopia\Http\Http;
 use Utopia\Http\Response;
 use Utopia\Logger\Log;
 use Utopia\Orchestration\Orchestration;
@@ -26,6 +25,8 @@ class Docker extends Adapter
 {
     private Table $activeRuntimes;
     private Stats $stats;
+    private int $retryDelayMs;
+    private int $retryAttempts;
     /**
      * @var string[]
      */
@@ -52,6 +53,8 @@ class Docker extends Adapter
         $this->activeRuntimes->create();
 
         $this->stats = new Stats();
+        $this->retryDelayMs = (int)(System::getEnv('OPR_EXECUTOR_RETRY_DELAY_MS', '500'));
+        $this->retryAttempts = (int)(System::getEnv('OPR_EXECUTOR_RETRY_ATTEMPTS', '5'));
 
         $this->init($networks);
     }
@@ -59,7 +62,6 @@ class Docker extends Adapter
     /**
      * @param string[] $networks
      * @return void
-     * @throws \Utopia\Http\Exception
      */
     private function init(array $networks): void
     {
@@ -80,13 +82,13 @@ class Docker extends Adapter
         /**
          * Warmup: make sure images are ready to run fast 🚀
          */
-        $allowList = empty(Http::getEnv('OPR_EXECUTOR_RUNTIMES')) ? [] : \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIMES'));
+        $allowList = empty(System::getEnv('OPR_EXECUTOR_RUNTIMES')) ? [] : \explode(',', System::getEnv('OPR_EXECUTOR_RUNTIMES'));
 
-        if (Http::getEnv('OPR_EXECUTOR_IMAGE_PULL', 'enabled') === 'disabled') {
+        if (System::getEnv('OPR_EXECUTOR_IMAGE_PULL', 'enabled') === 'disabled') {
             // Useful to prevent auto-pulling from remote when testing local images
             Console::info("Skipping image pulling");
         } else {
-            $runtimeVersions = \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v5') ?? 'v5');
+            $runtimeVersions = \explode(',', System::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v5') ?? 'v5');
             foreach ($runtimeVersions as $runtimeVersion) {
                 Console::success("Pulling $runtimeVersion images...");
                 $runtimes = new Runtimes($runtimeVersion); // TODO: @Meldiron Make part of open runtimes
@@ -114,12 +116,12 @@ class Docker extends Adapter
          * Run a maintenance worker every X seconds to remove inactive runtimes
          */
         Console::info('Starting maintenance interval...');
-        $interval = (int)Http::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
+        $interval = (int)System::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
         Timer::tick($interval * 1000, function () {
             Console::info("Running maintenance task ...");
             // Stop idling runtimes
             foreach ($this->activeRuntimes as $runtimeName => $runtime) {
-                $inactiveThreshold = \time() - \intval(Http::getEnv('OPR_EXECUTOR_INACTIVE_TRESHOLD', '60'));
+                $inactiveThreshold = \time() - \intval(System::getEnv('OPR_EXECUTOR_INACTIVE_TRESHOLD', '60'));
                 if ($runtime['updated'] < $inactiveThreshold) {
                     go(function () use ($runtimeName, $runtime) {
                         try {
@@ -156,7 +158,7 @@ class Docker extends Adapter
                 }
             }
 
-            Console::success("Maintanance task finished.");
+            Console::success("Maintenance task finished.");
         });
 
         Console::success('Maintenance interval started.');
@@ -165,6 +167,7 @@ class Docker extends Adapter
          * Get usage stats every X seconds to update swoole table
          */
         Console::info('Starting stats interval...');
+
         $getStats = function (): void {
             // Get usage stats
             $usage = new Usage($this->orchestration);
@@ -240,7 +243,7 @@ class Docker extends Adapter
                 break;
             }
 
-            \usleep(500000); // 0.5s
+            \usleep(100000); // 0.1s
         }
 
         if ($version === 'v2') {
@@ -254,8 +257,13 @@ class Docker extends Adapter
                 throw new Exception('Log file was not created in time.', 400);
             }
 
+            static $timingsReader = null;
             if (\file_exists($tmpLogging . '/logs.txt') && \file_exists($tmpLogging . '/timings.txt')) {
-                $timings = \file_get_contents($tmpLogging . '/timings.txt') ?: '';
+                if ($timingsReader === null) {
+                    $timingsReader = new \SplFileObject($tmpLogging . '/timings.txt', 'r');
+                }
+                $timingsReader->rewind();
+                $timings = $timingsReader->fread($timingsReader->getSize()) ?: '';
                 if (\strlen($timings) > 0) {
                     break;
                 }
@@ -314,7 +322,7 @@ class Docker extends Adapter
 
         $datetime = new \DateTime("now", new \DateTimeZone("UTC")); // Date used for tracking absolute log timing
 
-        $output = ''; // Unused, just a refference for stdout
+        $output = ''; // Unused, just a reference for stdout
         Console::execute('tail -F ' . $tmpLogging . '/timings.txt', '', $output, $timeout, function (string $timingChunk, mixed $process) use ($tmpLogging, &$logsChunk, &$logsProcess, &$datetime, &$offset, $introOffset) {
             $logsProcess = $process;
 
@@ -331,8 +339,12 @@ class Docker extends Adapter
                 $timestamp = $part['timestamp'] ?? '';
                 $length = \intval($part['length'] ?? '0');
 
-                $logContent = \file_get_contents($tmpLogging . '/logs.txt', false, null, $introOffset + $offset, \abs($length)) ?: '';
-
+                static $tail = null;
+                if ($tail === null) {
+                    $tail = new \SplFileObject($tmpLogging . '/logs.txt', 'r');
+                }
+                $tail->fseek($introOffset + $offset);
+                $logContent = $tail->fread(\abs($length)) ?: '';
                 $logContent = \str_replace("\n", "\\n", $logContent);
 
                 $output = $timestamp . " " . $logContent . "\n";
@@ -341,6 +353,10 @@ class Docker extends Adapter
                 $offset += $length;
             }
         });
+
+        if (!$timerId) {
+            throw new Exception('Failed to create timer', 500);
+        }
 
         Timer::clear($timerId);
     }
@@ -480,16 +496,16 @@ class Docker extends Adapter
             $containerId = $this->orchestration->run(
                 image: $image,
                 name: $runtimeName,
-                hostname: $runtimeHostname,
-                vars: $variables,
                 command: $runtimeEntrypointCommands,
+                workdir: $workdir,
+                volumes: $volumes,
+                vars: $variables,
                 labels: [
                     'openruntimes-executor' => System::getHostname(),
                     'openruntimes-runtime-id' => $runtimeId
                 ],
-                volumes: $volumes,
-                network: \strval($network),
-                workdir: $workdir,
+                hostname: $runtimeHostname,
+                network: $network,
                 restart: $restartPolicy
             );
 
@@ -696,6 +712,7 @@ class Docker extends Adapter
      * @param string $restartPolicy
      * @param Log $log
      * @return mixed
+     * @throws Exception
      */
     public function createExecution(
         string $runtimeId,
@@ -728,21 +745,42 @@ class Docker extends Adapter
 
         $prepareStart = \microtime(true);
 
-
         // Prepare runtime
         if (!$this->activeRuntimes->exists($runtimeName)) {
             if (empty($image) || empty($source)) {
                 throw new Exception('Runtime not found. Please start it first or provide runtime-related parameters.', 401);
             }
 
+            // Prepare a reusable cURL handle for the polling loop
+            $handle = \curl_init();
+
+            \curl_setopt_array($handle, [
+                CURLOPT_URL => 'http://127.0.0.1/v1/runtimes',
+                CURLOPT_POST => true,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 10,
+            ]);
+
+            $runtimeHeaders = [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . System::getEnv('OPR_EXECUTOR_SECRET', '')
+            ];
+
             // Prepare request to executor
-            $sendCreateRuntimeRequest = function () use ($runtimeId, $image, $source, $entrypoint, $variables, $cpus, $memory, $version, $restartPolicy, $runtimeEntrypoint) {
-                $statusCode = 0;
-                $errNo = -1;
-                $executorResponse = '';
-
-                $ch = \curl_init();
-
+            $sendCreateRuntimeRequest = function () use (
+                $runtimeId,
+                $image,
+                $source,
+                $entrypoint,
+                $variables,
+                $cpus,
+                $memory,
+                $version,
+                $restartPolicy,
+                $runtimeEntrypoint,
+                &$handle,
+                $runtimeHeaders
+            ) {
                 $body = \json_encode([
                     'runtimeId' => $runtimeId,
                     'image' => $image,
@@ -756,27 +794,15 @@ class Docker extends Adapter
                     'runtimeEntrypoint' => $runtimeEntrypoint
                 ]);
 
-                \curl_setopt($ch, CURLOPT_URL, "http://127.0.0.1/v1/runtimes");
-                \curl_setopt($ch, CURLOPT_POST, true);
-                \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
-                \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+                $headers = $runtimeHeaders;
+                $headers[] = 'Content-Length: ' . \strlen($body ?: '');
+                \curl_setopt($handle, CURLOPT_HTTPHEADER, $headers);
+                \curl_setopt($handle, CURLOPT_POSTFIELDS, $body);
 
-                \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                    'Content-Type: application/json',
-                    'Content-Length: ' . \strlen($body ?: ''),
-                    'authorization: Bearer ' . Http::getEnv('OPR_EXECUTOR_SECRET', '')
-                ]);
-
-                $executorResponse = \curl_exec($ch);
-
-                $statusCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-                $error = \curl_error($ch);
-
-                $errNo = \curl_errno($ch);
-
-                \curl_close($ch);
+                $executorResponse = \curl_exec($handle);
+                $statusCode = \curl_getinfo($handle, CURLINFO_HTTP_CODE);
+                $error = \curl_error($handle);
+                $errNo = \curl_errno($handle);
 
                 return [
                     'errNo' => $errNo,
@@ -787,36 +813,48 @@ class Docker extends Adapter
             };
 
             // Prepare runtime
-            while (true) {
-                // If timeout is passed, stop and return error
-                if (\microtime(true) - $prepareStart >= $timeout) {
-                    throw new Exception('Cold start timeout exceeded during server initialisation.', 400);
-                }
-
-                ['errNo' => $errNo, 'error' => $error, 'statusCode' => $statusCode, 'executorResponse' => $executorResponse] = \call_user_func($sendCreateRuntimeRequest);
-
-                if ($errNo === 0) {
-                    $body = \json_decode($executorResponse, true);
-
-                    // If the runtime has not yet attempted to start, it will return 500
-                    if ($statusCode >= 500) {
-                        $error = $body['message'];
-
-                    // If the runtime fails to start, it will return 400, except for 409
-                    // which indicates that the runtime is already being created
-                    } elseif ($statusCode >= 400 && $statusCode !== 409) {
-                        $error = $body['message'];
-                        throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
-                    } else {
-                        break;
+            try {
+                while (true) {
+                    // If timeout is passed, stop and return error
+                    if (\microtime(true) - $prepareStart >= $timeout) {
+                        throw new Exception('Cold start timeout exceeded during server initialisation.', 400);
                     }
 
-                // Connection refused - see https://openswoole.com/docs/swoole-error-code
-                } elseif ($errNo !== 111) {
-                    throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
-                }
+                    [
+                        'errNo' => $errNo,
+                        'error' => $error,
+                        'statusCode' => $statusCode,
+                        'executorResponse' => $executorResponse
+                    ] = $sendCreateRuntimeRequest();
 
-                \usleep(500000); // 0.5s
+                    if ($errNo === 0) {
+                        if (\is_string($executorResponse)) {
+                            $body = \json_decode($executorResponse, true);
+                        } else {
+                            $body = [];
+                        }
+
+                        // If the runtime has not yet attempted to start, it will return 500
+                        if ($statusCode >= 500) {
+                            $error = $body['message'];
+                        } elseif ($statusCode >= 400 && $statusCode !== 409) {
+                            // If the runtime fails to start, it will return 400, except for 409
+                            // which indicates that the runtime is already being created
+                            $error = $body['message'];
+                            throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
+                        } else {
+                            break;
+                        }
+
+                    } elseif ($errNo !== 111) {
+                        // Connection refused - see https://openswoole.com/docs/swoole-error-code
+                        throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
+                    }
+
+                    \usleep(500000); // 0.5s
+                }
+            } finally {
+                \curl_close($handle);
             }
         }
 
@@ -843,7 +881,7 @@ class Docker extends Adapter
                 break;
             }
 
-            \usleep(500000); // 0.5s
+            \usleep(100000); // 0.1s
         }
 
         // Lower timeout by time it took to launch container
@@ -857,42 +895,36 @@ class Docker extends Adapter
             throw new Exception('Runtime secret not found. Please re-create the runtime.', 500);
         }
 
-        $executeV2 = function () use ($variables, $payload, $secret, $hostname, $timeout): array {
-            $statusCode = 0;
-            $errNo = -1;
-            $executorResponse = '';
-
-            $ch = \curl_init();
-
+        $executeV2 = function () use ($variables, $payload, $secret, $hostname, $timeout, &$execV2Handle): array {
             $body = \json_encode([
                 'variables' => $variables,
                 'payload' => $payload,
                 'headers' => []
             ], JSON_FORCE_OBJECT);
 
-            \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000/");
-            \curl_setopt($ch, CURLOPT_POST, true);
-            \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
-            \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
-            \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+            $execV2Handle = \curl_init();
 
-            \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'Content-Type: application/json',
-                'Content-Length: ' . \strlen($body ?: ''),
-                'x-internal-challenge: ' . $secret,
-                'host: null'
+            \curl_setopt_array($execV2Handle, [
+                CURLOPT_URL => "http://$hostname:3000/",
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => $body,
+                CURLOPT_TIMEOUT => $timeout,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json',
+                    'Content-Length: ' . \strlen($body ?: ''),
+                    'x-internal-challenge: ' . $secret,
+                    'host: null'
+                ]
             ]);
 
-            $executorResponse = \curl_exec($ch);
+            $executorResponse = \curl_exec($execV2Handle);
+            $statusCode = \curl_getinfo($execV2Handle, CURLINFO_HTTP_CODE);
+            $error = \curl_error($execV2Handle);
+            $errNo = \curl_errno($execV2Handle);
 
-            $statusCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-            $error = \curl_error($ch);
-
-            $errNo = \curl_errno($ch);
-
-            \curl_close($ch);
+            \curl_close($execV2Handle);
 
             if ($errNo !== 0) {
                 return [
@@ -930,43 +962,14 @@ class Docker extends Adapter
             ];
         };
 
-        $executeV5 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName, $logging): array {
-            $statusCode = 0;
-            $errNo = -1;
-            $executorResponse = '';
-
-            $ch = \curl_init();
-
+        $executeV5 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName, $logging, &$execV5Handle): array {
             $responseHeaders = [];
 
             if (!(\str_starts_with($path, '/'))) {
                 $path = '/' . $path;
             }
 
-            \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000" . $path);
-            \curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-            \curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
-            \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders) {
-                $len = strlen($header);
-                $header = explode(':', $header, 2);
-                if (count($header) < 2) { // ignore invalid headers
-                    return $len;
-                }
-
-                $key = strtolower(trim($header[0]));
-                $responseHeaders[$key] = trim($header[1]);
-
-                if (\in_array($key, ['x-open-runtimes-log-id'])) {
-                    $responseHeaders[$key] = \urldecode($responseHeaders[$key]);
-                }
-
-                return $len;
-            });
-
-            \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout + 5); // Gives extra 5s after safe timeout to recieve response
-            \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-            if ($logging == true) {
+            if ($logging === true) {
                 $headers['x-open-runtimes-logging'] = 'enabled';
             } else {
                 $headers['x-open-runtimes-logging'] = 'disabled';
@@ -974,25 +977,47 @@ class Docker extends Adapter
 
             $headers['Authorization'] = 'Basic ' . \base64_encode('opr:' . $secret);
             $headers['x-open-runtimes-secret'] = $secret;
-
             $headers['x-open-runtimes-timeout'] = \max(\intval($timeout), 1);
             $headersArr = [];
             foreach ($headers as $key => $value) {
                 $headersArr[] = $key . ': ' . $value;
             }
 
-            \curl_setopt($ch, CURLOPT_HEADEROPT, CURLHEADER_UNIFIED);
-            \curl_setopt($ch, CURLOPT_HTTPHEADER, $headersArr);
+            $execV5Handle = \curl_init();
 
-            $executorResponse = \curl_exec($ch);
+            \curl_setopt_array($execV5Handle, [
+                CURLOPT_URL => "http://$hostname:3000$path",
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_TIMEOUT => $timeout + 5,
+                CURLOPT_HEADEROPT => CURLHEADER_UNIFIED,
+                CURLOPT_CUSTOMREQUEST => $method,
+                CURLOPT_POSTFIELDS => $payload,
+                CURLOPT_HTTPHEADER => $headersArr,
+                CURLOPT_HEADERFUNCTION => function ($curl, $header) use (&$responseHeaders) {
+                    $len = strlen($header);
+                    $header = explode(':', $header, 2);
+                    if (count($header) < 2) { // ignore invalid headers
+                        return $len;
+                    }
 
-            $statusCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    $key = strtolower(trim($header[0]));
+                    $responseHeaders[$key] = trim($header[1]);
 
-            $error = \curl_error($ch);
+                    if ($key == 'x-open-runtimes-log-id') {
+                        $responseHeaders[$key] = \urldecode($responseHeaders[$key]);
+                    }
 
-            $errNo = \curl_errno($ch);
+                    return $len;
+                }
+            ]);
 
-            \curl_close($ch);
+            $executorResponse = \curl_exec($execV5Handle);
+            $statusCode = \curl_getinfo($execV5Handle, CURLINFO_HTTP_CODE);
+            $error = \curl_error($execV5Handle);
+            $errNo = \curl_errno($execV5Handle);
+
+            \curl_close($execV5Handle);
 
             if ($errNo !== 0) {
                 return [
@@ -1110,12 +1135,12 @@ class Docker extends Adapter
         // Execute function
         $executionRequest = $version === 'v2' ? $executeV2 : $executeV5;
 
-        $retryDelayMs = \intval(Http::getEnv('OPR_EXECUTOR_RETRY_DELAY_MS', '500'));
-        $retryAttempts = \intval(Http::getEnv('OPR_EXECUTOR_RETRY_ATTEMPTS', '5'));
+        $retryDelayMs = $this->retryDelayMs;
+        $retryAttempts = $this->retryAttempts;
 
         $attempts = 0;
         do {
-            $executionResponse = \call_user_func($executionRequest);
+            $executionResponse = $executionRequest();
             if ($executionResponse['errNo'] === CURLE_OK) {
                 break;
             }
@@ -1251,7 +1276,7 @@ class Docker extends Adapter
         }
         batch($jobs);
 
-        $image = Http::getEnv('OPR_EXECUTOR_IMAGE', '');
+        $image = System::getEnv('OPR_EXECUTOR_IMAGE', '');
         $containers = $this->orchestration->list(['label' => "com.openruntimes.executor.image=$image"]);
 
         if (count($containers) < 1) {

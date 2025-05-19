@@ -9,6 +9,7 @@ use Utopia\Logger\Adapter\Sentry;
 use Utopia\DSN\DSN;
 use Utopia\Http\Http;
 use Utopia\Registry\Registry;
+use Utopia\System\System;
 
 const MAX_LOG_SIZE = 5 * 1024 * 1024;
 const MAX_BUILD_LOG_SIZE = 1 * 1000 * 1000;
@@ -17,8 +18,8 @@ const MAX_BUILD_LOG_SIZE = 1 * 1000 * 1000;
 $register = new Registry();
 
 $register->set('logger', function () {
-    $providerName = Http::getEnv('OPR_EXECUTOR_LOGGING_PROVIDER', '');
-    $providerConfig = Http::getEnv('OPR_EXECUTOR_LOGGING_CONFIG', '');
+    $providerName = System::getEnv('OPR_EXECUTOR_LOGGING_PROVIDER', '');
+    $providerConfig = System::getEnv('OPR_EXECUTOR_LOGGING_CONFIG', '');
 
     try {
         $loggingProvider = new DSN($providerConfig ?? '');
