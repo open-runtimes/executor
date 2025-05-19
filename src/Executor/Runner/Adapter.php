@@ -137,24 +137,18 @@ abstract class Adapter
     ): Device {
         $connections = System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '');
 
-        if ($connections === null) {
-            $connections = '';
-        }
-
-        $connections = \explode(',', $connections);
-
-        foreach ($connections as $connection) {
-            $connection = \trim($connection);
-
-            if (empty($connection)) {
-                continue;
+        if (\preg_match('/^\w+=/', $connections)) {
+            // Multi region
+            foreach (\explode(',', $connections) as $pair) {
+                [$connectionRegion, $dsn] = \explode('=', $pair, 2);
+                if ($connectionRegion === $region) {
+                    $connection = $dsn;
+                    break;
+                }
             }
-
-            [$connectionRegion, $connection] = \array_pad(\explode('=', $connection, 2), 2, '');
-
-            if ($region === $connectionRegion) {
-                break;
-            }
+        } else {
+            // Single DSN
+            $connection = $connections;
         }
 
         if (!empty($connection)) {
