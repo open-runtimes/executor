@@ -747,17 +747,20 @@ class Docker extends Adapter
 
         // Prepare reusable cURL handles for execution requests
         $execV2Handle = \curl_init();
-        \curl_setopt($execV2Handle, CURLOPT_RETURNTRANSFER, true);
-        \curl_setopt($execV2Handle, CURLOPT_CONNECTTIMEOUT, 10);
-        \curl_setopt($execV2Handle, CURLOPT_TIMEOUT, max(intval($timeout), 1));
-        \curl_setopt($execV2Handle, CURLOPT_POST, true);
+        \curl_setopt_array($execV2Handle, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_TIMEOUT => \max($timeout, 1),
+            CURLOPT_POST => true,
+        ]);
 
         $execV5Handle = \curl_init();
-        \curl_setopt($execV5Handle, CURLOPT_RETURNTRANSFER, true);
-        \curl_setopt($execV5Handle, CURLOPT_CONNECTTIMEOUT, 5);
-        \curl_setopt($execV5Handle, CURLOPT_TIMEOUT, $timeout + 5);
-        \curl_setopt($execV5Handle, CURLOPT_HEADEROPT, CURLHEADER_UNIFIED);
-
+        \curl_setopt_array($execV5Handle, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_TIMEOUT => $timeout + 5,
+            CURLOPT_HEADEROPT => CURLHEADER_UNIFIED,
+        ]);
 
         // Prepare runtime
         if (!$this->activeRuntimes->exists($runtimeName)) {
