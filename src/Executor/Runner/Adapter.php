@@ -57,7 +57,25 @@ abstract class Adapter
      * @param Log $log
      * @return mixed
      */
-    abstract public function createRuntime(string $runtimeId, string $secret, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Log $log): mixed;
+    abstract public function createRuntime(
+        string $runtimeId,
+        string $secret,
+        string $image,
+        string $entrypoint,
+        string $source,
+        string $destination,
+        array $variables,
+        string $runtimeEntrypoint,
+        string $command,
+        int $timeout,
+        bool $remove,
+        float $cpus,
+        int $memory,
+        string $version,
+        string $restartPolicy,
+        Log $log,
+        string $region = '',
+    ): mixed;
 
     /**
      * @param string $runtimeId
