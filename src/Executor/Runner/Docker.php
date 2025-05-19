@@ -80,13 +80,13 @@ class Docker extends Adapter
         /**
          * Warmup: make sure images are ready to run fast 🚀
          */
-        $allowList = empty(Http::getEnv('OPR_EXECUTOR_RUNTIMES')) ? [] : \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIMES'));
+        $allowList = empty(System::getEnv('OPR_EXECUTOR_RUNTIMES')) ? [] : \explode(',', System::getEnv('OPR_EXECUTOR_RUNTIMES'));
 
-        if (Http::getEnv('OPR_EXECUTOR_IMAGE_PULL', 'enabled') === 'disabled') {
+        if (System::getEnv('OPR_EXECUTOR_IMAGE_PULL', 'enabled') === 'disabled') {
             // Useful to prevent auto-pulling from remote when testing local images
             Console::info("Skipping image pulling");
         } else {
-            $runtimeVersions = \explode(',', Http::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v5') ?? 'v5');
+            $runtimeVersions = \explode(',', System::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v5') ?? 'v5');
             foreach ($runtimeVersions as $runtimeVersion) {
                 Console::success("Pulling $runtimeVersion images...");
                 $runtimes = new Runtimes($runtimeVersion); // TODO: @Meldiron Make part of open runtimes
@@ -114,12 +114,12 @@ class Docker extends Adapter
          * Run a maintenance worker every X seconds to remove inactive runtimes
          */
         Console::info('Starting maintenance interval...');
-        $interval = (int)Http::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
+        $interval = (int)System::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
         Timer::tick($interval * 1000, function () {
             Console::info("Running maintenance task ...");
             // Stop idling runtimes
             foreach ($this->activeRuntimes as $runtimeName => $runtime) {
-                $inactiveThreshold = \time() - \intval(Http::getEnv('OPR_EXECUTOR_INACTIVE_TRESHOLD', '60'));
+                $inactiveThreshold = \time() - \intval(System::getEnv('OPR_EXECUTOR_INACTIVE_TRESHOLD', '60'));
                 if ($runtime['updated'] < $inactiveThreshold) {
                     go(function () use ($runtimeName, $runtime) {
                         try {
@@ -156,7 +156,7 @@ class Docker extends Adapter
                 }
             }
 
-            Console::success("Maintanance task finished.");
+            Console::success("Maintenance task finished.");
         });
 
         Console::success('Maintenance interval started.');
@@ -314,7 +314,7 @@ class Docker extends Adapter
 
         $datetime = new \DateTime("now", new \DateTimeZone("UTC")); // Date used for tracking absolute log timing
 
-        $output = ''; // Unused, just a refference for stdout
+        $output = ''; // Unused, just a reference for stdout
         Console::execute('tail -F ' . $tmpLogging . '/timings.txt', '', $output, $timeout, function (string $timingChunk, mixed $process) use ($tmpLogging, &$logsChunk, &$logsProcess, &$datetime, &$offset, $introOffset) {
             $logsProcess = $process;
 
@@ -1110,8 +1110,8 @@ class Docker extends Adapter
         // Execute function
         $executionRequest = $version === 'v2' ? $executeV2 : $executeV5;
 
-        $retryDelayMs = \intval(Http::getEnv('OPR_EXECUTOR_RETRY_DELAY_MS', '500'));
-        $retryAttempts = \intval(Http::getEnv('OPR_EXECUTOR_RETRY_ATTEMPTS', '5'));
+        $retryDelayMs = \intval(System::getEnv('OPR_EXECUTOR_RETRY_DELAY_MS', '500'));
+        $retryAttempts = \intval(System::getEnv('OPR_EXECUTOR_RETRY_ATTEMPTS', '5'));
 
         $attempts = 0;
         do {
@@ -1251,7 +1251,7 @@ class Docker extends Adapter
         }
         batch($jobs);
 
-        $image = Http::getEnv('OPR_EXECUTOR_IMAGE', '');
+        $image = System::getEnv('OPR_EXECUTOR_IMAGE', '');
         $containers = $this->orchestration->list(['label' => "com.openruntimes.executor.image=$image"]);
 
         if (count($containers) < 1) {

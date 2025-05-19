@@ -17,6 +17,7 @@ use Utopia\Storage\Device\Local;
 use Utopia\Storage\Device\S3;
 use Utopia\Storage\Device\Wasabi;
 use Utopia\Storage\Storage;
+use Utopia\System\System;
 
 abstract class Adapter
 {
@@ -182,16 +183,16 @@ abstract class Adapter
                     return new Local($root);
             }
         } else {
-            switch (strtolower(Http::getEnv('OPR_EXECUTOR_STORAGE_DEVICE', Storage::DEVICE_LOCAL) ?? '')) {
+            switch (strtolower(System::getEnv('OPR_EXECUTOR_STORAGE_DEVICE', Storage::DEVICE_LOCAL) ?? '')) {
                 case Storage::DEVICE_LOCAL:
                 default:
                     return new Local($root);
                 case Storage::DEVICE_S3:
-                    $s3AccessKey = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_ACCESS_KEY', '') ?? '';
-                    $s3SecretKey = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_SECRET', '') ?? '';
-                    $s3Host = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_HOST', '') ?? '';
-                    $s3Region = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_REGION', '') ?? '';
-                    $s3Bucket = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_BUCKET', '') ?? '';
+                    $s3AccessKey = System::getEnv('OPR_EXECUTOR_STORAGE_S3_ACCESS_KEY', '') ?? '';
+                    $s3SecretKey = System::getEnv('OPR_EXECUTOR_STORAGE_S3_SECRET', '') ?? '';
+                    $s3Host = System::getEnv('OPR_EXECUTOR_STORAGE_S3_HOST', '') ?? '';
+                    $s3Region = System::getEnv('OPR_EXECUTOR_STORAGE_S3_REGION', '') ?? '';
+                    $s3Bucket = System::getEnv('OPR_EXECUTOR_STORAGE_S3_BUCKET', '') ?? '';
                     $s3Acl = 'private';
                     if (!empty($s3Host)) {
                         return new S3(root: $root, accessKey: $s3AccessKey, secretKey: $s3SecretKey, host: $s3Host, region: $s3Region, acl: $s3Acl);
@@ -200,31 +201,31 @@ abstract class Adapter
                     }
                     // no break
                 case Storage::DEVICE_DO_SPACES:
-                    $doSpacesAccessKey = Http::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_ACCESS_KEY', '') ?? '';
-                    $doSpacesSecretKey = Http::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_SECRET', '') ?? '';
-                    $doSpacesRegion = Http::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_REGION', '') ?? '';
-                    $doSpacesBucket = Http::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_BUCKET', '') ?? '';
+                    $doSpacesAccessKey = System::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_ACCESS_KEY', '') ?? '';
+                    $doSpacesSecretKey = System::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_SECRET', '') ?? '';
+                    $doSpacesRegion = System::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_REGION', '') ?? '';
+                    $doSpacesBucket = System::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_BUCKET', '') ?? '';
                     $doSpacesAcl = 'private';
                     return new DOSpaces($root, $doSpacesAccessKey, $doSpacesSecretKey, $doSpacesBucket, $doSpacesRegion, $doSpacesAcl);
                 case Storage::DEVICE_BACKBLAZE:
-                    $backblazeAccessKey = Http::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_ACCESS_KEY', '') ?? '';
-                    $backblazeSecretKey = Http::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_SECRET', '') ?? '';
-                    $backblazeRegion = Http::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_REGION', '') ?? '';
-                    $backblazeBucket = Http::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_BUCKET', '') ?? '';
+                    $backblazeAccessKey = System::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_ACCESS_KEY', '') ?? '';
+                    $backblazeSecretKey = System::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_SECRET', '') ?? '';
+                    $backblazeRegion = System::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_REGION', '') ?? '';
+                    $backblazeBucket = System::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_BUCKET', '') ?? '';
                     $backblazeAcl = 'private';
                     return new Backblaze($root, $backblazeAccessKey, $backblazeSecretKey, $backblazeBucket, $backblazeRegion, $backblazeAcl);
                 case Storage::DEVICE_LINODE:
-                    $linodeAccessKey = Http::getEnv('OPR_EXECUTOR_STORAGE_LINODE_ACCESS_KEY', '') ?? '';
-                    $linodeSecretKey = Http::getEnv('OPR_EXECUTOR_STORAGE_LINODE_SECRET', '') ?? '';
-                    $linodeRegion = Http::getEnv('OPR_EXECUTOR_STORAGE_LINODE_REGION', '') ?? '';
-                    $linodeBucket = Http::getEnv('OPR_EXECUTOR_STORAGE_LINODE_BUCKET', '') ?? '';
+                    $linodeAccessKey = System::getEnv('OPR_EXECUTOR_STORAGE_LINODE_ACCESS_KEY', '') ?? '';
+                    $linodeSecretKey = System::getEnv('OPR_EXECUTOR_STORAGE_LINODE_SECRET', '') ?? '';
+                    $linodeRegion = System::getEnv('OPR_EXECUTOR_STORAGE_LINODE_REGION', '') ?? '';
+                    $linodeBucket = System::getEnv('OPR_EXECUTOR_STORAGE_LINODE_BUCKET', '') ?? '';
                     $linodeAcl = 'private';
                     return new Linode($root, $linodeAccessKey, $linodeSecretKey, $linodeBucket, $linodeRegion, $linodeAcl);
                 case Storage::DEVICE_WASABI:
-                    $wasabiAccessKey = Http::getEnv('OPR_EXECUTOR_STORAGE_WASABI_ACCESS_KEY', '') ?? '';
-                    $wasabiSecretKey = Http::getEnv('OPR_EXECUTOR_STORAGE_WASABI_SECRET', '') ?? '';
-                    $wasabiRegion = Http::getEnv('OPR_EXECUTOR_STORAGE_WASABI_REGION', '') ?? '';
-                    $wasabiBucket = Http::getEnv('OPR_EXECUTOR_STORAGE_WASABI_BUCKET', '') ?? '';
+                    $wasabiAccessKey = System::getEnv('OPR_EXECUTOR_STORAGE_WASABI_ACCESS_KEY', '') ?? '';
+                    $wasabiSecretKey = System::getEnv('OPR_EXECUTOR_STORAGE_WASABI_SECRET', '') ?? '';
+                    $wasabiRegion = System::getEnv('OPR_EXECUTOR_STORAGE_WASABI_REGION', '') ?? '';
+                    $wasabiBucket = System::getEnv('OPR_EXECUTOR_STORAGE_WASABI_BUCKET', '') ?? '';
                     $wasabiAcl = 'private';
                     return new Wasabi($root, $wasabiAccessKey, $wasabiSecretKey, $wasabiBucket, $wasabiRegion, $wasabiAcl);
             }
