@@ -797,7 +797,11 @@ class Docker extends Adapter
                 ['errNo' => $errNo, 'error' => $error, 'statusCode' => $statusCode, 'executorResponse' => $executorResponse] = \call_user_func($sendCreateRuntimeRequest);
 
                 if ($errNo === 0) {
-                    $body = \json_decode($executorResponse, true);
+                    if (\is_string($executorResponse)) {
+                        $body = \json_decode($executorResponse, true);
+                    } else {
+                        $body = [];
+                    }
 
                     // If the runtime has not yet attempted to start, it will return 500
                     if ($statusCode >= 500) {
