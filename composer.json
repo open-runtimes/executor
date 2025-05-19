@@ -36,7 +36,7 @@
   },
   "require-dev": {
     "swoole/ide-helper": "5.1.2",
-    "phpunit/phpunit": "11.*",
+    "phpunit/phpunit": "9.*",
     "laravel/pint": "1.*",
     "phpstan/phpstan": "1.*"
   },
