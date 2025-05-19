@@ -705,7 +705,7 @@ class ExecutorTest extends TestCase
      *
      * @return array<mixed>
      */
-    public static function provideScenarios(): array
+    public function provideScenarios(): array
     {
         return [
             [
@@ -1039,7 +1039,7 @@ class ExecutorTest extends TestCase
      *
      * @return array<mixed>
      */
-    public static function provideCustomRuntimes(): array
+    public function provideCustomRuntimes(): array
     {
         return [
             [ 'folder' => 'php', 'image' => 'openruntimes/php:v5-8.1', 'entrypoint' => 'index.php', 'buildCommand' => 'composer install' ],
@@ -1219,7 +1219,7 @@ class ExecutorTest extends TestCase
         $this->assertEquals(404, $command['headers']['status-code']);
     }
 
-    public function testLogStreamPersistent(): void
+    public function testLogStreamPersitstant(): void
     {
         $output = '';
         Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
@@ -1231,14 +1231,14 @@ class ExecutorTest extends TestCase
             Co::join([
                 /** Watch logs */
                 Co\go(function () use (&$realtimeEnd) {
-                    $this->client->call(Client::METHOD_GET, '/runtimes/test-log-stream-persistent/logs', [], [], true);
+                    $this->client->call(Client::METHOD_GET, '/runtimes/test-log-stream-persistant/logs', [], [], true);
 
                     $realtimeEnd = \microtime(true);
                 }),
                 /** Start runtime */
                 Co\go(function () use (&$runtimeEnd) {
                     $params = [
-                        'runtimeId' => 'test-log-stream-persistent',
+                        'runtimeId' => 'test-log-stream-persistant',
                         'source' => '/storage/functions/node/code.tar.gz',
                         'destination' => '/storage/builds/test-logs',
                         'entrypoint' => 'index.js',
@@ -1259,7 +1259,7 @@ class ExecutorTest extends TestCase
         $diff = \abs($runtimeEnd - $realtimeEnd);
         $this->assertLessThanOrEqual(1, $diff);
 
-        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/test-log-stream-persistent", [], []);
+        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/test-log-stream-persistant", [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 }
