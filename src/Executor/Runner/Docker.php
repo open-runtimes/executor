@@ -53,8 +53,8 @@ class Docker extends Adapter
         $this->activeRuntimes->create();
 
         $this->stats = new Stats();
-        $this->retryDelayMs = (int)(System::getEnv('OPR_EXECUTOR_RETRY_DELAY_MS', 500));
-        $this->retryAttempts = (int)(System::getEnv('OPR_EXECUTOR_RETRY_ATTEMPTS', 5));
+        $this->retryDelayMs = (int)(System::getEnv('OPR_EXECUTOR_RETRY_DELAY_MS', '500'));
+        $this->retryAttempts = (int)(System::getEnv('OPR_EXECUTOR_RETRY_ATTEMPTS', '5'));
 
         $this->init($networks);
     }
@@ -745,23 +745,6 @@ class Docker extends Adapter
 
         $prepareStart = \microtime(true);
 
-        // Prepare reusable cURL handles for execution requests
-        $execV2Handle = \curl_init();
-        \curl_setopt_array($execV2Handle, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CONNECTTIMEOUT => 10,
-            CURLOPT_TIMEOUT => \max($timeout, 1),
-            CURLOPT_POST => true,
-        ]);
-
-        $execV5Handle = \curl_init();
-        \curl_setopt_array($execV5Handle, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CONNECTTIMEOUT => 10,
-            CURLOPT_TIMEOUT => $timeout + 5,
-            CURLOPT_HEADEROPT => CURLHEADER_UNIFIED,
-        ]);
-
         // Prepare runtime
         if (!$this->activeRuntimes->exists($runtimeName)) {
             if (empty($image) || empty($source)) {
@@ -780,7 +763,7 @@ class Docker extends Adapter
 
             $runtimeHeaders = [
                 'Content-Type: application/json',
-                'authorization: Bearer ' . Http::getEnv('OPR_EXECUTOR_SECRET', '')
+                'Authorization: Bearer ' . System::getEnv('OPR_EXECUTOR_SECRET', '')
             ];
 
             // Prepare request to executor
@@ -871,10 +854,7 @@ class Docker extends Adapter
                     \usleep(500000); // 0.5s
                 }
             } finally {
-                // Close the cURL handle
-                if (isset($handle)) {
-                    \curl_close($handle);
-                }
+                \curl_close($handle);
             }
         }
 
@@ -901,7 +881,7 @@ class Docker extends Adapter
                 break;
             }
 
-            \usleep(500000); // 0.5s
+            \usleep(100000); // 0.1s
         }
 
         // Lower timeout by time it took to launch container
@@ -916,33 +896,35 @@ class Docker extends Adapter
         }
 
         $executeV2 = function () use ($variables, $payload, $secret, $hostname, $timeout, &$execV2Handle): array {
-            $statusCode = 0;
-            $errNo = -1;
-            $executorResponse = '';
-
             $body = \json_encode([
                 'variables' => $variables,
                 'payload' => $payload,
                 'headers' => []
             ], JSON_FORCE_OBJECT);
 
-            \curl_setopt($execV2Handle, CURLOPT_URL, "http://" . $hostname . ":3000/");
-            \curl_setopt($execV2Handle, CURLOPT_POSTFIELDS, $body);
-            \curl_setopt($execV2Handle, CURLOPT_TIMEOUT, $timeout);
-            \curl_setopt($execV2Handle, CURLOPT_HTTPHEADER, [
-                'Content-Type: application/json',
-                'Content-Length: ' . \strlen($body ?: ''),
-                'x-internal-challenge: ' . $secret,
-                'host: null'
+            $execV2Handle = \curl_init();
+
+            \curl_setopt_array($execV2Handle, [
+                CURLOPT_URL => "http://$hostname:3000/",
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => $body,
+                CURLOPT_TIMEOUT => $timeout,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json',
+                    'Content-Length: ' . \strlen($body ?: ''),
+                    'x-internal-challenge: ' . $secret,
+                    'host: null'
+                ]
             ]);
 
             $executorResponse = \curl_exec($execV2Handle);
-
             $statusCode = \curl_getinfo($execV2Handle, CURLINFO_HTTP_CODE);
-
             $error = \curl_error($execV2Handle);
-
             $errNo = \curl_errno($execV2Handle);
+
+            \curl_close($execV2Handle);
 
             if ($errNo !== 0) {
                 return [
@@ -981,38 +963,12 @@ class Docker extends Adapter
         };
 
         $executeV5 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName, $logging, &$execV5Handle): array {
-            $statusCode = 0;
-            $errNo = -1;
-            $executorResponse = '';
-
             $responseHeaders = [];
 
             if (!(\str_starts_with($path, '/'))) {
                 $path = '/' . $path;
             }
 
-            \curl_setopt($execV5Handle, CURLOPT_URL, "http://" . $hostname . ":3000" . $path);
-            \curl_setopt($execV5Handle, CURLOPT_CUSTOMREQUEST, $method);
-            \curl_setopt($execV5Handle, CURLOPT_POSTFIELDS, $payload);
-            \curl_setopt($execV5Handle, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders) {
-                $len = strlen($header);
-                $header = explode(':', $header, 2);
-                if (count($header) < 2) { // ignore invalid headers
-                    return $len;
-                }
-
-                $key = strtolower(trim($header[0]));
-                $responseHeaders[$key] = trim($header[1]);
-
-                if (\in_array($key, ['x-open-runtimes-log-id'])) {
-                    $responseHeaders[$key] = \urldecode($responseHeaders[$key]);
-                }
-
-                return $len;
-            });
-
-            \curl_setopt($execV5Handle, CURLOPT_TIMEOUT, $timeout + 5); // Gives extra 5s after safe timeout to recieve response
-            \curl_setopt($execV5Handle, CURLOPT_CONNECTTIMEOUT, 5);
             if ($logging === true) {
                 $headers['x-open-runtimes-logging'] = 'enabled';
             } else {
@@ -1021,23 +977,47 @@ class Docker extends Adapter
 
             $headers['Authorization'] = 'Basic ' . \base64_encode('opr:' . $secret);
             $headers['x-open-runtimes-secret'] = $secret;
-
             $headers['x-open-runtimes-timeout'] = \max(\intval($timeout), 1);
             $headersArr = [];
             foreach ($headers as $key => $value) {
                 $headersArr[] = $key . ': ' . $value;
             }
 
-            \curl_setopt($execV5Handle, CURLOPT_HEADEROPT, CURLHEADER_UNIFIED);
-            \curl_setopt($execV5Handle, CURLOPT_HTTPHEADER, $headersArr);
+            $execV5Handle = \curl_init();
+
+            \curl_setopt_array($execV5Handle, [
+                CURLOPT_URL => "http://$hostname:3000$path",
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_TIMEOUT => $timeout + 5,
+                CURLOPT_HEADEROPT => CURLHEADER_UNIFIED,
+                CURLOPT_CUSTOMREQUEST => $method,
+                CURLOPT_POSTFIELDS => $payload,
+                CURLOPT_HTTPHEADER => $headersArr,
+                CURLOPT_HEADERFUNCTION => function ($curl, $header) use (&$responseHeaders) {
+                    $len = strlen($header);
+                    $header = explode(':', $header, 2);
+                    if (count($header) < 2) { // ignore invalid headers
+                        return $len;
+                    }
+
+                    $key = strtolower(trim($header[0]));
+                    $responseHeaders[$key] = trim($header[1]);
+
+                    if ($key == 'x-open-runtimes-log-id') {
+                        $responseHeaders[$key] = \urldecode($responseHeaders[$key]);
+                    }
+
+                    return $len;
+                }
+            ]);
 
             $executorResponse = \curl_exec($execV5Handle);
-
             $statusCode = \curl_getinfo($execV5Handle, CURLINFO_HTTP_CODE);
-
             $error = \curl_error($execV5Handle);
-
             $errNo = \curl_errno($execV5Handle);
+
+            \curl_close($execV5Handle);
 
             if ($errNo !== 0) {
                 return [
@@ -1175,10 +1155,6 @@ class Docker extends Adapter
 
             usleep($retryDelayMs * 1000);
         } while ((++$attempts < $retryAttempts) || (\microtime(true) - $startTime < $timeout));
-
-        // Close execution cURL handles
-        \curl_close($execV2Handle);
-        \curl_close($execV5Handle);
 
         // Error occurred
         if ($executionResponse['errNo'] !== CURLE_OK) {
