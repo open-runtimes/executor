@@ -165,6 +165,7 @@ class Docker extends Adapter
          * Get usage stats every X seconds to update swoole table
          */
         Console::info('Starting stats interval...');
+
         $getStats = function (): void {
             // Get usage stats
             $usage = new Usage($this->orchestration);

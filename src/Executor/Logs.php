@@ -62,7 +62,7 @@ class Logs
     public static function parseTiming(string $timing, ?DateTime $datetime = null): array
     {
         if (\is_null($datetime)) {
-            $datetime = new DateTime("now", new DateTimeZone("UTC")); // Date used for tracking absolute log timing
+            $datetime = new DateTime("now", new DateTimeZone('UTC')); // Date used for tracking absolute log timing
         }
 
         if (empty($timing)) {
