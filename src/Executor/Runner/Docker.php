@@ -13,7 +13,6 @@ use Swoole\Table;
 use Swoole\Timer;
 use Throwable;
 use Utopia\CLI\Console;
-use Utopia\Http\Http;
 use Utopia\Http\Response;
 use Utopia\Logger\Log;
 use Utopia\Orchestration\Orchestration;
@@ -343,6 +342,10 @@ class Docker extends Adapter
             }
         });
 
+        if (!$timerId) {
+            throw new Exception('Failed to create timer', 500);
+        }
+
         Timer::clear($timerId);
     }
 
@@ -481,16 +484,16 @@ class Docker extends Adapter
             $containerId = $this->orchestration->run(
                 image: $image,
                 name: $runtimeName,
-                hostname: $runtimeHostname,
-                vars: $variables,
                 command: $runtimeEntrypointCommands,
+                workdir: $workdir,
+                volumes: $volumes,
+                vars: $variables,
                 labels: [
                     'openruntimes-executor' => System::getHostname(),
                     'openruntimes-runtime-id' => $runtimeId
                 ],
-                volumes: $volumes,
-                network: \strval($network),
-                workdir: $workdir,
+                hostname: $runtimeHostname,
+                network: $network,
                 restart: $restartPolicy
             );
 
@@ -697,6 +700,7 @@ class Docker extends Adapter
      * @param string $restartPolicy
      * @param Log $log
      * @return mixed
+     * @throws Exception
      */
     public function createExecution(
         string $runtimeId,
@@ -738,10 +742,6 @@ class Docker extends Adapter
 
             // Prepare request to executor
             $sendCreateRuntimeRequest = function () use ($runtimeId, $image, $source, $entrypoint, $variables, $cpus, $memory, $version, $restartPolicy, $runtimeEntrypoint) {
-                $statusCode = 0;
-                $errNo = -1;
-                $executorResponse = '';
-
                 $ch = \curl_init();
 
                 $body = \json_encode([
@@ -802,18 +802,17 @@ class Docker extends Adapter
                     // If the runtime has not yet attempted to start, it will return 500
                     if ($statusCode >= 500) {
                         $error = $body['message'];
-
-                    // If the runtime fails to start, it will return 400, except for 409
-                    // which indicates that the runtime is already being created
                     } elseif ($statusCode >= 400 && $statusCode !== 409) {
+                        // If the runtime fails to start, it will return 400, except for 409
+                        // which indicates that the runtime is already being created
                         $error = $body['message'];
                         throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
                     } else {
                         break;
                     }
 
-                // Connection refused - see https://openswoole.com/docs/swoole-error-code
                 } elseif ($errNo !== 111) {
+                    // Connection refused - see https://openswoole.com/docs/swoole-error-code
                     throw new Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
                 }
 
@@ -967,7 +966,7 @@ class Docker extends Adapter
 
             \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout + 5); // Gives extra 5s after safe timeout to recieve response
             \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-            if ($logging == true) {
+            if ($logging === true) {
                 $headers['x-open-runtimes-logging'] = 'enabled';
             } else {
                 $headers['x-open-runtimes-logging'] = 'disabled';

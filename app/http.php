@@ -13,8 +13,8 @@ use Utopia\Http\Http;
 use Utopia\Http\Adapter\Swoole\Server;
 use Utopia\Orchestration\Adapter\DockerAPI;
 use Utopia\Orchestration\Orchestration;
-
 use Utopia\System\System;
+
 use function Swoole\Coroutine\run;
 
 // Unlimited memory limit to handle as many coroutines/requests as possible
