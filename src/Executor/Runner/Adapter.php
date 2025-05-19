@@ -111,9 +111,31 @@ abstract class Adapter
 
     abstract public function getStats(): Stats;
 
-    protected function getStorageDevice(string $root): Device
-    {
-        $connection = Http::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '');
+    protected function getStorageDevice(
+        string $root,
+        string $region = ''
+    ): Device {
+        $connections = System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '');
+
+        if ($connections === null) {
+            $connections = '';
+        }
+
+        $connections = \explode(',', $connections);
+
+        foreach ($connections as $connection) {
+            $connection = \trim($connection);
+
+            if (empty($connection)) {
+                continue;
+            }
+
+            [$connectionRegion, $connection] = \array_pad(\explode('=', $connection, 2), 2, '');
+
+            if ($region === $connectionRegion) {
+                break;
+            }
+        }
 
         if (!empty($connection)) {
             $acl = 'private';
