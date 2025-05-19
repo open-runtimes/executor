@@ -384,8 +384,25 @@ class Docker extends Adapter
      * @param Log $log
      * @return mixed
      */
-    public function createRuntime(string $runtimeId, string $secret, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Log $log): mixed
-    {
+    public function createRuntime(
+        string $runtimeId,
+        string $secret,
+        string $image,
+        string $entrypoint,
+        string $source,
+        string $destination,
+        array $variables,
+        string $runtimeEntrypoint,
+        string $command,
+        int $timeout,
+        bool $remove,
+        float $cpus,
+        int $memory,
+        string $version,
+        string $restartPolicy,
+        Log $log,
+        string $region = '',
+    ): mixed {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
         $runtimeHostname = \bin2hex(\random_bytes(16));
 
@@ -714,7 +731,8 @@ class Docker extends Adapter
         string $runtimeEntrypoint,
         bool $logging,
         string $restartPolicy,
-        Log $log
+        Log $log,
+        string $region = '',
     ): mixed {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
