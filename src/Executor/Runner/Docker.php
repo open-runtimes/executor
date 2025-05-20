@@ -751,6 +751,7 @@ class Docker extends Adapter
 
         $prepareStart = \microtime(true);
 
+
         // Prepare runtime
         if (!$this->activeRuntimes->exists($runtimeName)) {
             if (empty($image) || empty($source)) {
@@ -787,8 +788,11 @@ class Docker extends Adapter
                 ]);
 
                 $executorResponse = \curl_exec($ch);
+
                 $statusCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
                 $error = \curl_error($ch);
+
                 $errNo = \curl_errno($ch);
 
                 \curl_close($ch);
