@@ -17,6 +17,7 @@ use Utopia\Storage\Device\Local;
 use Utopia\Storage\Device\S3;
 use Utopia\Storage\Device\Wasabi;
 use Utopia\Storage\Storage;
+use Utopia\System\System;
 
 abstract class Adapter
 {
@@ -56,7 +57,25 @@ abstract class Adapter
      * @param Log $log
      * @return mixed
      */
-    abstract public function createRuntime(string $runtimeId, string $secret, string $image, string $entrypoint, string $source, string $destination, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Log $log): mixed;
+    abstract public function createRuntime(
+        string $runtimeId,
+        string $secret,
+        string $image,
+        string $entrypoint,
+        string $source,
+        string $destination,
+        array $variables,
+        string $runtimeEntrypoint,
+        string $command,
+        int $timeout,
+        bool $remove,
+        float $cpus,
+        int $memory,
+        string $version,
+        string $restartPolicy,
+        Log $log,
+        string $region = '',
+    ): mixed;
 
     /**
      * @param string $runtimeId
@@ -102,7 +121,8 @@ abstract class Adapter
         string $runtimeEntrypoint,
         bool $logging,
         string $restartPolicy,
-        Log $log
+        Log $log,
+        string $region = '',
     ): mixed;
 
     abstract public function getRuntimes(): mixed;
@@ -111,9 +131,25 @@ abstract class Adapter
 
     abstract public function getStats(): Stats;
 
-    protected function getStorageDevice(string $root): Device
-    {
-        $connection = Http::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '');
+    protected function getStorageDevice(
+        string $root,
+        string $region = ''
+    ): Device {
+        $connections = System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '') ?? '';
+
+        if (\preg_match('/^\w+=/', $connections)) {
+            // Multi region
+            foreach (\explode(',', $connections) as $pair) {
+                [$connectionRegion, $dsn] = \explode('=', $pair, 2);
+                if ($connectionRegion === $region) {
+                    $connection = $dsn;
+                    break;
+                }
+            }
+        } else {
+            // Single DSN
+            $connection = $connections;
+        }
 
         if (!empty($connection)) {
             $acl = 'private';
