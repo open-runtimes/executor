@@ -198,13 +198,17 @@ class Client
     }
 
     /**
-     * @return array<string,mixed>
+     * @return array<int|string, mixed>
      */
     public function parseCookie(string $cookie): array
     {
         $cookies = [];
 
-        parse_str(strtr($cookie, array('&' => '%26', '+' => '%2B', ';' => '&')), $cookies);
+        \parse_str(\strtr($cookie, [
+            '&' => '%26',
+            '+' => '%2B',
+            ';' => '&'
+        ]), $cookies);
 
         return $cookies;
     }
