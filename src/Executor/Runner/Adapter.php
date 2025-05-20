@@ -5,6 +5,7 @@ namespace OpenRuntimes\Executor\Runner;
 use OpenRuntimes\Executor\Stats;
 use Utopia\CLI\Console;
 use Utopia\DSN\DSN;
+use Utopia\Http\Http;
 use Utopia\Http\Response;
 use Utopia\Logger\Log;
 use Utopia\Storage\Device;
@@ -134,7 +135,7 @@ abstract class Adapter
         string $root,
         string $region = ''
     ): Device {
-        $connections = System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '');
+        $connections = System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '') ?? '';
 
         if (\preg_match('/^\w+=/', $connections)) {
             // Multi region

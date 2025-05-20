@@ -13,6 +13,7 @@ use Swoole\Table;
 use Swoole\Timer;
 use Throwable;
 use Utopia\CLI\Console;
+use Utopia\Http\Http;
 use Utopia\Http\Response;
 use Utopia\Logger\Log;
 use Utopia\Orchestration\Orchestration;
