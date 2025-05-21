@@ -626,7 +626,7 @@ class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
 
         $this->assertEquals(400, $response['headers']['status-code']);
-        $this->assertGreaterThanOrEqual($size128Kb * 7, \strlen($response['body']['message']));
+        $this->assertGreaterThanOrEqual($size128Kb * 7, \strlen($response['body']['message']), 'Failed to assert body hs long enough: ' . $response['body']['message']);
         $this->assertStringContainsString('First log', $response['body']['message']);
         $this->assertStringContainsString('Last log', $response['body']['message']);
 
