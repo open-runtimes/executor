@@ -31,7 +31,7 @@ namespace runtime {
             curl = curl_easy_init();
             if (curl)
             {
-                std::string url = "https://jsonplaceholder.typicode.com/todos/" + id;
+                std::string url = "https://dummyjson.com/todos/" + id;
                 curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
                 curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
                 curl_easy_setopt(curl, CURLOPT_WRITEDATA, &todoBuffer);

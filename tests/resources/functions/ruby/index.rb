@@ -2,7 +2,7 @@ require 'httparty'
 require 'json'
 
 def main(context)
-    todo = JSON.parse(HTTParty.get("https://jsonplaceholder.typicode.com/todos/" + (context.req.body['id'] || '1')).body)
+    todo = JSON.parse(HTTParty.get("https://dummyjson.com/todos/" + (context.req.body['id'] || '1')).body)
 
     context.log('Sample Log')
     

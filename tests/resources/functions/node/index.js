@@ -1,7 +1,7 @@
 const fetch = require("node-fetch");
 
 module.exports = async (context)=> {
-    const todo = await fetch(`https://jsonplaceholder.typicode.com/todos/${context.req.body.id ?? 1}`).then(r => r.json());
+    const todo = await fetch(`https://dummyjson.com/todos/${context.req.body.id ?? 1}`).then(r => r.json());
     context.log('Sample Log');
 
     return context.res.json({
