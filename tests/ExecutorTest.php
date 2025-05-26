@@ -1123,7 +1123,7 @@ class ExecutorTest extends TestCase
         $this->assertEquals('Hello Open Runtimes 👋', $response['message']);
         $this->assertEquals('Variable secret', $response['variable']);
         $this->assertEquals('https://cloud.appwrite.io/my-awesome/path?param=paramValue', $response['url']);
-        $this->assertEquals(1, $response['todo']['userId']);
+        $this->assertEquals(13, $response['todo']['userId']);
 
         /** Delete runtime */
         $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/custom-execute-{$folder}-{$runtimeId}", [], []);

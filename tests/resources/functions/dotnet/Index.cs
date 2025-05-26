@@ -13,7 +13,7 @@ public class Handler {
         string id = Body.TryGetValue("id", out var value) == true ? value.ToString()! : "1";
         var varData = Environment.GetEnvironmentVariable("TEST_VARIABLE") ?? null;
 
-        var response = await http.GetStringAsync($"https://jsonplaceholder.typicode.com/todos/" + id);
+        var response = await http.GetStringAsync($"https://dummyjson.com/todos/" + id);
         var todo = JsonConvert.DeserializeObject<Dictionary<string, object>>(response, settings: null);
 
         Context.Log("Sample Log");

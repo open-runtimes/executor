@@ -1,7 +1,7 @@
 import axiod from "https://deno.land/x/axiod/mod.ts";
 
 export default async function(context: any) {
-    const todo = (await axiod.get(`https://jsonplaceholder.typicode.com/todos/${context.req.body.id ?? 1}`)).data;
+    const todo = (await axiod.get(`https://dummyjson.com/todos/${context.req.body.id ?? 1}`)).data;
 
     context.log('Sample Log');
 

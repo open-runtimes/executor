@@ -5,7 +5,7 @@ import 'dart:io' show Platform;
 
 Future<dynamic> main(final context) async {
   final id = context.req.body['id'] ?? '1';
-  final todo = await Dio().get('https://jsonplaceholder.typicode.com/todos/$id');
+  final todo = await Dio().get('https://dummyjson.com/todos/$id');
   context.log('Sample Log');
 
   return context.res.json({
