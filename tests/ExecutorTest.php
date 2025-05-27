@@ -1043,6 +1043,7 @@ class ExecutorTest extends TestCase
     {
         return [
             [ 'folder' => 'php', 'image' => 'openruntimes/php:v5-8.1', 'entrypoint' => 'index.php', 'buildCommand' => 'composer install' ],
+            [ 'folder' => 'php-mock', 'image' => 'openruntimes/php:v5-8.1', 'entrypoint' => 'index.php', 'buildCommand' => 'composer install' ],
             [ 'folder' => 'node', 'image' => 'openruntimes/node:v5-18.0', 'entrypoint' => 'index.js', 'buildCommand' => 'npm i'],
             // [ 'folder' => 'deno', 'image' => 'openruntimes/deno:v5-1.24', 'entrypoint' => 'index.ts', 'buildCommand' => 'deno cache index.ts', 'startCommand' => 'denon start' ],
             [ 'folder' => 'python', 'image' => 'openruntimes/python:v5-3.10', 'entrypoint' => 'index.py', 'buildCommand' => 'pip install -r requirements.txt'],
