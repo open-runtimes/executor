@@ -10,6 +10,6 @@ return function ($context)  {
         'message' => 'Hello Open Runtimes 👋',
         'variable' => \getenv('TEST_VARIABLE'),
         'url' => $context->req->url,
-        'todo' => "{}"
+        'todo' => '{"userId" => 13}'
     ]);
 };
