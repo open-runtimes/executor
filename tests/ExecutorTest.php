@@ -1043,6 +1043,7 @@ class ExecutorTest extends TestCase
     {
         return [
             [ 'folder' => 'php', 'image' => 'openruntimes/php:v5-8.1', 'entrypoint' => 'index.php', 'buildCommand' => 'composer install' ],
+            [ 'folder' => 'php-mock', 'image' => 'openruntimes/php:v5-8.1', 'entrypoint' => 'index.php', 'buildCommand' => 'composer install' ],
             [ 'folder' => 'node', 'image' => 'openruntimes/node:v5-18.0', 'entrypoint' => 'index.js', 'buildCommand' => 'npm i'],
             // [ 'folder' => 'deno', 'image' => 'openruntimes/deno:v5-1.24', 'entrypoint' => 'index.ts', 'buildCommand' => 'deno cache index.ts', 'startCommand' => 'denon start' ],
             [ 'folder' => 'python', 'image' => 'openruntimes/python:v5-3.10', 'entrypoint' => 'index.py', 'buildCommand' => 'pip install -r requirements.txt'],
@@ -1219,7 +1220,7 @@ class ExecutorTest extends TestCase
         $this->assertEquals(404, $command['headers']['status-code']);
     }
 
-    public function testLogStreamPersitstant(): void
+    public function testLogStreamPersistent(): void
     {
         $output = '';
         Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
@@ -1231,14 +1232,14 @@ class ExecutorTest extends TestCase
             Co::join([
                 /** Watch logs */
                 Co\go(function () use (&$realtimeEnd) {
-                    $this->client->call(Client::METHOD_GET, '/runtimes/test-log-stream-persistant/logs', [], [], true);
+                    $this->client->call(Client::METHOD_GET, '/runtimes/test-log-stream-persistent/logs', [], [], true);
 
                     $realtimeEnd = \microtime(true);
                 }),
                 /** Start runtime */
                 Co\go(function () use (&$runtimeEnd) {
                     $params = [
-                        'runtimeId' => 'test-log-stream-persistant',
+                        'runtimeId' => 'test-log-stream-persistent',
                         'source' => '/storage/functions/node/code.tar.gz',
                         'destination' => '/storage/builds/test-logs',
                         'entrypoint' => 'index.js',
@@ -1259,7 +1260,7 @@ class ExecutorTest extends TestCase
         $diff = \abs($runtimeEnd - $realtimeEnd);
         $this->assertLessThanOrEqual(1, $diff);
 
-        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/test-log-stream-persistant", [], []);
+        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/test-log-stream-persistent", [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 }
