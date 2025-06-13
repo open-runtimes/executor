@@ -447,9 +447,9 @@ class Docker extends Adapter
             $buildFile = "code.tar";
         }
 
-        $sourceFile = "code." . \pathinfo($source, PATHINFO_EXTENSION);
-        if (\str_ends_with($sourceFile, '.gz')) {
-            $sourceFile = "code.tar.gz";
+        $sourceFile = "code.tar.gz";
+        if (\pathinfo($source, PATHINFO_EXTENSION) === 'tar') {
+            $sourceFile = "code.tar";
         }
 
         $tmpFolder = "tmp/$runtimeName/";
