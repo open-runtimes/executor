@@ -325,6 +325,53 @@ class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
+    public function testBuildUncompressed(): void
+    {
+        $output = '';
+        Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+
+        $runtimeId = \bin2hex(\random_bytes(4));
+
+        /** Build runtime */
+        $params = [
+            'runtimeId' => 'test-build-' . $runtimeId,
+            'source' => '/storage/functions/node/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-22',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm install"',
+            'variables' => [
+                'OPEN_RUNTIMES_BUILD_COMPRESSION' => 'none'
+            ]
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(201, $response['headers']['status-code']);
+        $this->assertNotEmpty($response['body']['path']);
+
+        $buildPath = $response['body']['path'];
+
+        /** Ensure build folder exists (container still running) */
+        $tmpFolderPath = '/tmp/executor-test-build-' . $runtimeId;
+        $this->assertTrue(\is_dir($tmpFolderPath));
+        $this->assertTrue(\file_exists($tmpFolderPath));
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-' . $runtimeId . '/executions', [], [
+            'source' => $buildPath,
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-22',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar /mnt/code/code.tar && nohup helpers/start.sh "bash helpers/server.sh"',
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals(200, $response['body']['statusCode']);
+        $json = json_decode($response['body']['body'], true);
+        $this->assertEquals("Hello Open Runtimes 👋", $json['message']);
+
+        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-' . $runtimeId, [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
+    }
+
     public function testExecute(): void
     {
         /** Prepare function */

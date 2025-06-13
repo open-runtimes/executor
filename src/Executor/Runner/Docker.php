@@ -442,9 +442,19 @@ class Docker extends Adapter
         /**
          * Temporary file paths in the executor
          */
+        $buildFile = "code.tar.gz";
+        if (($variables['OPEN_RUNTIMES_BUILD_COMPRESSION'] ?? '') === 'none') {
+            $buildFile = "code.tar";
+        }
+
+        $sourceFile = "code.tar.gz";
+        if (\pathinfo($source, PATHINFO_EXTENSION) === 'tar') {
+            $sourceFile = "code.tar";
+        }
+
         $tmpFolder = "tmp/$runtimeName/";
-        $tmpSource = "/{$tmpFolder}src/code.tar.gz";
-        $tmpBuild = "/{$tmpFolder}builds/code.tar.gz";
+        $tmpSource = "/{$tmpFolder}src/$sourceFile";
+        $tmpBuild = "/{$tmpFolder}builds/$buildFile";
         $tmpLogging = "/{$tmpFolder}logging"; // Build logs
         $tmpLogs = "/{$tmpFolder}logs"; // Runtime logs
 
@@ -576,8 +586,7 @@ class Docker extends Adapter
                 $container['size'] = $size;
 
                 $destinationDevice = $this->getStorageDevice($destination);
-                $path = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo('code.tar.gz', PATHINFO_EXTENSION));
-
+                $path = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo($tmpBuild, PATHINFO_EXTENSION));
 
                 if (!$localDevice->transfer($tmpBuild, $path, $destinationDevice)) {
                     throw new Exception('Failed to move built code to storage', 500);
