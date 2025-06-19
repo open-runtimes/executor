@@ -178,7 +178,7 @@ abstract class Adapter
             switch ($device) {
                 case Storage::DEVICE_S3:
                     if (!empty($url)) {
-                        return new S3($root, $accessKey, $accessSecret, $url, $region, $acl, );
+                        return new S3($root, $accessKey, $accessSecret, $url, $region, $acl);
                     } elseif (!empty($host)) {
                         $host = $insecure ? 'http://' . $host : $host;
                         return new S3(root: $root, accessKey: $accessKey, secretKey: $accessSecret, host: $host, region: $region, acl: $acl);
