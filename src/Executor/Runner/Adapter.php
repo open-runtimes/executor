@@ -210,7 +210,7 @@ abstract class Adapter
                     $s3Region = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_REGION', '') ?? '';
                     $s3Bucket = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_BUCKET', '') ?? '';
                     $s3Acl = 'private';
-                    $s3EndpointUrl = System::getEnv('OPR_EXECUTOR_STORAGE_S3_ENDPOINT', '');
+                    $s3EndpointUrl = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_ENDPOINT', '');
                     if (!empty($s3EndpointUrl)) {
                         $bucketRoot = (!empty($s3Bucket) ? $s3Bucket . '/' : '') . \ltrim($root, '/');
                         return new S3($bucketRoot, $s3AccessKey, $s3SecretKey, $s3EndpointUrl, $s3Region, $s3Acl);
