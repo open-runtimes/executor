@@ -372,7 +372,7 @@ Http::error()
             Console::warning('Unable to send log message');
         }
 
-        $version = System::getEnv('OPR_EXECUTOR_VERSION', 'UNKNOWN');
+        $version = Http::getEnv('OPR_EXECUTOR_VERSION', 'UNKNOWN');
         $message = $error->getMessage();
         $file = $error->getFile();
         $line = $error->getLine();

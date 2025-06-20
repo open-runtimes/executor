@@ -17,7 +17,6 @@ use Utopia\Storage\Device\Local;
 use Utopia\Storage\Device\S3;
 use Utopia\Storage\Device\Wasabi;
 use Utopia\Storage\Storage;
-use Utopia\System\System;
 
 abstract class Adapter
 {
@@ -135,7 +134,7 @@ abstract class Adapter
         string $root,
         string $region = ''
     ): Device {
-        $connections = System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '') ?? '';
+        $connections = Http::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '') ?? '';
 
         if (\preg_match('/^\w+=/', $connections)) {
             // Multi region
@@ -170,7 +169,7 @@ abstract class Adapter
                 $bucket = $dsn->getPath() ?? '';
                 $region = $dsn->getParam('region');
                 $insecure = $dsn->getParam('insecure', 'false') === 'true';
-                $url = System::getEnv('OPR_EXECUTOR_STORAGE_S3_ENDPOINT', '');
+                $url = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_ENDPOINT', '');
             } catch (\Exception $e) {
                 Console::warning($e->getMessage() . 'Invalid DSN. Defaulting to Local device.');
             }
