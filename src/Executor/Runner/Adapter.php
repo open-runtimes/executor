@@ -17,7 +17,6 @@ use Utopia\Storage\Device\Local;
 use Utopia\Storage\Device\S3;
 use Utopia\Storage\Device\Wasabi;
 use Utopia\Storage\Storage;
-use Utopia\System\System;
 
 abstract class Adapter
 {
@@ -135,7 +134,7 @@ abstract class Adapter
         string $root,
         string $region = ''
     ): Device {
-        $connections = System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '') ?? '';
+        $connections = Http::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '') ?? '';
 
         if (\preg_match('/^\w+=/', $connections)) {
             // Multi region
@@ -170,13 +169,16 @@ abstract class Adapter
                 $bucket = $dsn->getPath() ?? '';
                 $region = $dsn->getParam('region');
                 $insecure = $dsn->getParam('insecure', 'false') === 'true';
+                $url = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_ENDPOINT', '');
             } catch (\Exception $e) {
                 Console::warning($e->getMessage() . 'Invalid DSN. Defaulting to Local device.');
             }
 
             switch ($device) {
                 case Storage::DEVICE_S3:
-                    if (!empty($host)) {
+                    if (!empty($url)) {
+                        return new S3($root, $accessKey, $accessSecret, $url, $region, $acl);
+                    } elseif (!empty($host)) {
                         $host = $insecure ? 'http://' . $host : $host;
                         return new S3(root: $root, accessKey: $accessKey, secretKey: $accessSecret, host: $host, region: $region, acl: $acl);
                     } else {
@@ -207,7 +209,11 @@ abstract class Adapter
                     $s3Region = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_REGION', '') ?? '';
                     $s3Bucket = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_BUCKET', '') ?? '';
                     $s3Acl = 'private';
-                    if (!empty($s3Host)) {
+                    $s3EndpointUrl = Http::getEnv('OPR_EXECUTOR_STORAGE_S3_ENDPOINT', '');
+                    if (!empty($s3EndpointUrl)) {
+                        $bucketRoot = (!empty($s3Bucket) ? $s3Bucket . '/' : '') . \ltrim($root, '/');
+                        return new S3($bucketRoot, $s3AccessKey, $s3SecretKey, $s3EndpointUrl, $s3Region, $s3Acl);
+                    } elseif (!empty($s3Host)) {
                         return new S3(root: $root, accessKey: $s3AccessKey, secretKey: $s3SecretKey, host: $s3Host, region: $s3Region, acl: $s3Acl);
                     } else {
                         return new AWS(root: $root, accessKey: $s3AccessKey, secretKey: $s3SecretKey, bucket: $s3Bucket, region: $s3Region, acl: $s3Acl);
