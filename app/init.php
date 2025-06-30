@@ -8,7 +8,9 @@ use Utopia\Logger\Adapter\Raygun;
 use Utopia\Logger\Adapter\Sentry;
 use Utopia\DSN\DSN;
 use Utopia\Http\Http;
+use Utopia\Http\Route;
 use Utopia\Registry\Registry;
+use Utopia\System\System;
 
 const MAX_LOG_SIZE = 5 * 1024 * 1024;
 const MAX_BUILD_LOG_SIZE = 1 * 1000 * 1000;
@@ -56,9 +58,26 @@ $register->set('logger', function () {
     return $logger;
 });
 
-
 /** Resources */
-Http::setResource('log', fn () => new Log());
+Http::setResource('log', function (?Route $route) {
+    $log = new Log();
+
+    $log->setNamespace("executor");
+    $log->setEnvironment(Http::isProduction() ? Log::ENVIRONMENT_PRODUCTION : Log::ENVIRONMENT_STAGING);
+
+    $version = (string) System::getEnv('OPR_EXECUTOR_VERSION', 'UNKNOWN');
+    $log->setVersion($version);
+
+    $server = System::getEnv('OPR_EXECUTOR_LOGGING_IDENTIFIER', \gethostname() ?: 'UNKNOWN');
+    $log->setServer($server);
+
+    if ($route) {
+        $log->addTag('method', $route->getMethod());
+        $log->addTag('url', $route->getPath());
+    }
+
+    return $log;
+}, ['route']);
 
 Http::setResource('register', fn () => $register);
 

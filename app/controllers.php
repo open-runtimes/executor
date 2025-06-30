@@ -11,7 +11,6 @@ use Utopia\System\System;
 use Utopia\Http\Http;
 use Utopia\Http\Request;
 use Utopia\Http\Response;
-use Utopia\Http\Route;
 use Utopia\Http\Validator\AnyOf;
 use Utopia\Http\Validator\Assoc;
 use Utopia\Http\Validator\Boolean;
@@ -21,7 +20,7 @@ use Utopia\Http\Validator\Text;
 use Utopia\Http\Validator\WhiteList;
 use Utopia\Orchestration\Adapter\DockerAPI;
 
-function logError(Log $log, Throwable $error, string $action, Logger $logger = null, Route $route = null): void
+function logError(Log $log, Throwable $error, string $action, Logger $logger = null): void
 {
     Console::error('[Error] Type: ' . get_class($error));
     Console::error('[Error] Message: ' . $error->getMessage());
@@ -29,21 +28,9 @@ function logError(Log $log, Throwable $error, string $action, Logger $logger = n
     Console::error('[Error] Line: ' . $error->getLine());
 
     if ($logger && ($error->getCode() === 500 || $error->getCode() === 0)) {
-        $version = (string)Http::getEnv('OPR_EXECUTOR_VERSION', '');
-        if (empty($version)) {
-            $version = 'UNKNOWN';
-        }
-
-        $log->setNamespace("executor");
-        $log->setServer(\gethostname() !== false ? \gethostname() : null);
-        $log->setVersion($version);
         $log->setType(Log::TYPE_ERROR);
         $log->setMessage($error->getMessage());
-
-        if ($route) {
-            $log->addTag('method', $route->getMethod());
-            $log->addTag('url', $route->getPath());
-        }
+        $log->setAction($action);
 
         $log->addTag('code', \strval($error->getCode()));
         $log->addTag('verboseType', get_class($error));
@@ -54,15 +41,10 @@ function logError(Log $log, Throwable $error, string $action, Logger $logger = n
         // TODO: @Meldiron Uncomment, was warning: Undefined array key "file" in Sentry.php on line 68
         // $log->addExtra('detailedTrace', $error->getTrace());
 
-        $log->setAction($action);
-
-        $log->setEnvironment(Http::isProduction() ? Log::ENVIRONMENT_PRODUCTION : Log::ENVIRONMENT_STAGING);
-
         $responseCode = $logger->addLog($log);
         Console::info('Executor log pushed with status code: ' . $responseCode);
     }
 }
-
 
 Http::get('/v1/runtimes/:runtimeId/logs')
     ->groups(['api'])
@@ -360,14 +342,13 @@ Http::get('/v1/health')
 
 /** Set callbacks */
 Http::error()
-    ->inject('route')
     ->inject('error')
     ->inject('logger')
     ->inject('response')
     ->inject('log')
-    ->action(function (?Route $route, Throwable $error, ?Logger $logger, Response $response, Log $log) {
+    ->action(function (Throwable $error, ?Logger $logger, Response $response, Log $log) {
         try {
-            logError($log, $error, "httpError", $logger, $route);
+            logError($log, $error, "httpError", $logger);
         } catch (Throwable) {
             Console::warning('Unable to send log message');
         }

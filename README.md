@@ -88,6 +88,7 @@ OPR_EXECUTOR_NETWORK=openruntimes-runtimes
 OPR_EXECUTOR_SECRET=executor-secret-key
 OPR_EXECUTOR_LOGGING_PROVIDER=
 OPR_EXECUTOR_LOGGING_CONFIG=
+OPR_EXECUTOR_LOGGING_IDENTIFIER=
 OPR_EXECUTOR_DOCKER_HUB_USERNAME=
 OPR_EXECUTOR_DOCKER_HUB_PASSWORD=
 OPR_EXECUTOR_RUNTIME_VERSIONS=v5
@@ -97,7 +98,7 @@ OPR_EXECUTOR_RETRY_DELAY_MS=500
 
 > `OPR_EXECUTOR_CONNECTION_STORAGE` takes a DSN string that represents a connection to your storage device. If you would like to use your local filesystem, you can use `file://localhost`. If using S3 or any other provider for storage, use a DSN of the following format `s3://access_key:access_secret@host:port/bucket_name?region=us-east-1`
 
-> For backwards compatibility, executor also supports `OPR_EXECUTOR_STORAGE_*` variables as replacement for `OPR_EXECUTOR_CONNECTION_STORAGE`, as seen in [Appwrite repository](https://github.com/appwrite/appwrite/blob/1.3.8/.env#L26-L46). 
+> For backwards compatibility, executor also supports `OPR_EXECUTOR_STORAGE_*` variables as replacement for `OPR_EXECUTOR_CONNECTION_STORAGE`, as seen in [Appwrite repository](https://github.com/appwrite/appwrite/blob/1.3.8/.env#L26-L46).
 
 4. Start Docker container:
 
@@ -130,7 +131,7 @@ docker compose down
 
 ## API Endpoints
 
-| Method | Endpoint | Description | Params | 
+| Method | Endpoint | Description | Params |
 |--------|----------|-------------| ------ |
 | GET |`/v1/runtimes/{runtimeId}/logs`| Get live stream of logs of a runtime | [JSON](#v1runtimesruntimeidlogs) |
 | POST |`/v1/runtimes`| Create a new runtime server | [JSON](#v1runtimes) |
@@ -148,7 +149,7 @@ docker compose down
 
 #### /v1/runtimes
 | Param | Type | Description | Required | Default |
-|-------|------|-------------|----------|---------| 
+|-------|------|-------------|----------|---------|
 | `runtimeId` | `string` | Runtime unique ID | ✅ |  |
 | `image` | `string` | Base image name of the runtime | ✅ |  |
 | `entrypoint` | `string` | Entrypoint of the code file |  | ' ' |
