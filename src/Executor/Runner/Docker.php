@@ -448,7 +448,7 @@ class Docker extends Adapter
         }
 
         $sourceFile = "code.tar.gz";
-        if (\pathinfo($source, PATHINFO_EXTENSION) === 'tar') {
+        if (!empty($source) && \pathinfo($source, PATHINFO_EXTENSION) === 'tar') {
             $sourceFile = "code.tar";
         }
 
