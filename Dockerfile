@@ -1,5 +1,5 @@
 # Install PHP libraries
-FROM composer:2.0 as composer
+FROM composer:2.0 AS composer
 
 WORKDIR /usr/local/src/
 
@@ -10,7 +10,7 @@ RUN composer install --ignore-platform-reqs --optimize-autoloader \
     --no-plugins --no-scripts --prefer-dist
 
 # Executor
-FROM openruntimes/base:0.1.0 as final
+FROM openruntimes/base:0.1.0 AS final
 
 ARG OPR_EXECUTOR_VERSION
 ENV OPR_EXECUTOR_VERSION=$OPR_EXECUTOR_VERSION
