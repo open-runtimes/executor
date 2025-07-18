@@ -119,7 +119,7 @@ class Docker extends Adapter
             Console::info("Running maintenance task ...");
             // Stop idling runtimes
             foreach ($this->activeRuntimes as $runtimeName => $runtime) {
-                $inactiveThreshold = \time() - \intval(Http::getEnv('OPR_EXECUTOR_INACTIVE_TRESHOLD', '60'));
+                $inactiveThreshold = \time() - \intval(Http::getEnv('OPR_EXECUTOR_INACTIVE_THRESHOLD', '60'));
                 if ($runtime['updated'] < $inactiveThreshold) {
                     go(function () use ($runtimeName, $runtime) {
                         try {

@@ -51,7 +51,7 @@ services:
       - OPR_EXECUTOR_ENV
       - OPR_EXECUTOR_RUNTIMES
       - OPR_EXECUTOR_CONNECTION_STORAGE
-      - OPR_EXECUTOR_INACTIVE_TRESHOLD
+      - OPR_EXECUTOR_INACTIVE_THRESHOLD
       - OPR_EXECUTOR_MAINTENANCE_INTERVAL
       - OPR_EXECUTOR_NETWORK
       - OPR_EXECUTOR_SECRET
@@ -82,7 +82,7 @@ OPR_EXECUTOR_ENV=development
 OPR_EXECUTOR_RUNTIMES=php-8.0
 OPR_EXECUTOR_CONNECTION_STORAGE=file://localhost
 OPR_EXECUTOR_IMAGE_PULL=enabled
-OPR_EXECUTOR_INACTIVE_TRESHOLD=60
+OPR_EXECUTOR_INACTIVE_THRESHOLD=60
 OPR_EXECUTOR_MAINTENANCE_INTERVAL=60
 OPR_EXECUTOR_NETWORK=openruntimes-runtimes
 OPR_EXECUTOR_SECRET=executor-secret-key
@@ -194,7 +194,7 @@ docker compose down
 | OPR_EXECUTOR_ENV                 | Environment mode of the executor, ex. `development`                                                                                           |
 | OPR_EXECUTOR_RUNTIMES            | Comma-separated list of supported runtimes `(ex: php-8.1,dart-2.18,deno-1.24,..)`. These runtimes should be available as container images.    |
 | OPR_EXECUTOR_CONNECTION_STORAGE  | DSN string that represents a connection to your storage device, ex: `file://localhost` for local storage                                      |
-| OPR_EXECUTOR_INACTIVE_TRESHOLD   | Threshold time (in seconds) for detecting inactive runtimes, ex: `60`                                                                         |
+| OPR_EXECUTOR_INACTIVE_THRESHOLD   | Threshold time (in seconds) for detecting inactive runtimes, ex: `60`                                                                         |
 | OPR_EXECUTOR_MAINTENANCE_INTERVAL| Interval (in seconds) at which the Executor performs maintenance tasks, ex: `60`                                                              |
 | OPR_EXECUTOR_NETWORK             | Network used by the executor for runtimes, ex: `openruntimes-runtimes`                                                                        |
 | OPR_EXECUTOR_SECRET              | Secret key used by the executor for authentication                                                                                            |
