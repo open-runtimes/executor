@@ -342,7 +342,8 @@ class ExecutorTest extends TestCase
             'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm install"',
             'variables' => [
                 'OPEN_RUNTIMES_BUILD_COMPRESSION' => 'none'
-            ]
+            ],
+            'remove' => true
         ];
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
@@ -350,11 +351,6 @@ class ExecutorTest extends TestCase
         $this->assertNotEmpty($response['body']['path']);
 
         $buildPath = $response['body']['path'];
-
-        /** Ensure build folder exists (container still running) */
-        $tmpFolderPath = '/tmp/executor-test-build-' . $runtimeId;
-        $this->assertTrue(\is_dir($tmpFolderPath));
-        $this->assertTrue(\file_exists($tmpFolderPath));
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-' . $runtimeId . '/executions', [], [
             'source' => $buildPath,
