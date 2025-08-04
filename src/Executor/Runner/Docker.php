@@ -1153,11 +1153,29 @@ class Docker extends Adapter
             $log->addExtra('error', $executionResponse['error']);
             $log->addTag('hostname', $hostname);
 
-            // Intended timeout error for v2 functions
-            if ($version === 'v2' && $executionResponse['errNo'] === SOCKET_ETIMEDOUT) {
-                throw new Exception($executionResponse['error'], 400);
+            // Gateway errors
+            if ($executionResponse['errNo'] === CURLE_COULDNT_CONNECT) {
+                throw new Exception('Connection failed.', 502);
             }
 
+            if ($executionResponse['errNo'] === CURLE_RECV_ERROR) {
+                throw new Exception('Connection closed unexpectedly.', 502);
+            }
+
+            if ($executionResponse['errNo'] === CURLE_GOT_NOTHING) {
+                throw new Exception('Execution response is empty.', 502);
+            }
+
+            // Timeout errors
+            if ($version === 'v2' && $executionResponse['errNo'] === SOCKET_ETIMEDOUT) {
+                throw new Exception($executionResponse['error'], 504);
+            }
+
+            if ($executionResponse['errNo'] === CURLE_OPERATION_TIMEDOUT) {
+                throw new Exception('Execution timed out.', 504);
+            }
+
+            // Catch-all for other errors
             throw new Exception('Internal curl error has occurred within the executor! Error Number: ' . $executionResponse['errNo'], 500);
         }
 

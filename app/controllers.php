@@ -371,7 +371,9 @@ Http::error()
             case 425: // Error allowed publicly
             case 429: // Error allowed publicly
             case 501: // Error allowed publicly
+            case 502: // Error allowed publicly
             case 503: // Error allowed publicly
+            case 504: // Error allowed publicly
                 $code = $error->getCode();
                 break;
             default:
