@@ -149,24 +149,36 @@ class ExecutorTest extends TestCase
         $validateLogs($streamChunks, false);
     }
 
-    public function testErrors(): void
+    public function testUnknownPath(): void
     {
         $response = $this->client->call(Client::METHOD_GET, '/unknown', [], []);
         $this->assertEquals(404, $response['headers']['status-code']);
         $this->assertEquals('Not Found', $response['body']['message']);
+    }
 
+    public function testGetRuntimesEmpty(): void
+    {
         $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(0, count($response['body']));
+    }
 
+    public function testGetRuntimeUnknown(): void
+    {
         $response = $this->client->call(Client::METHOD_GET, '/runtimes/id', [], []);
         $this->assertEquals(404, $response['headers']['status-code']);
         $this->assertEquals('Runtime not found', $response['body']['message']);
+    }
 
+    public function testDeleteRuntimeUnknown(): void
+    {
         $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test', [], []);
         $this->assertEquals(404, $response['headers']['status-code']);
         $this->assertEquals('Runtime not found', $response['body']['message']);
+    }
 
+    public function testGetRuntimesUnauthorized(): void
+    {
         $this->client->setKey('');
         $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
         $this->assertEquals(401, $response['headers']['status-code']);
