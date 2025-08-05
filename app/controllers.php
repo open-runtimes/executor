@@ -27,6 +27,8 @@ Http::get('/v1/runtimes/:runtimeId/logs')
     ->inject('log')
     ->inject('runner')
     ->action(function (string $runtimeId, string $timeoutStr, Response $response, Log $log, Runner $runner) {
+        $log->addTag('runtimeId', $runtimeId);
+
         $timeout = \intval($timeoutStr);
 
         $response->sendHeader('Content-Type', 'text/event-stream');
@@ -71,8 +73,9 @@ Http::post('/v1/runtimes')
     ->inject('log')
     ->inject('runner')
     ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, string $outputDirectory, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Response $response, Log $log, Runner $runner) {
-        $secret = \bin2hex(\random_bytes(16));
+        $log->addTag('runtimeId', $runtimeId);
 
+        $secret = \bin2hex(\random_bytes(16));
         /**
          * Create container
          */
@@ -125,8 +128,9 @@ Http::get('/v1/runtimes/:runtimeId')
     ->inject('response')
     ->inject('log')
     ->action(function (string $runtimeId, Runner $runner, Response $response, Log $log) {
+        $log->addTag('runtimeId', $runtimeId);
+
         $runtimeName = System::getHostname() . '-' . $runtimeId;
-        $log->addTag('runtimeId', $runtimeName);
         $response->setStatusCode(Response::STATUS_CODE_OK)->json($runner->getRuntime($runtimeName));
     });
 
@@ -138,6 +142,8 @@ Http::delete('/v1/runtimes/:runtimeId')
     ->inject('log')
     ->inject('runner')
     ->action(function (string $runtimeId, Response $response, Log $log, Runner $runner) {
+        $log->addTag('runtimeId', $runtimeId);
+
         $runner->deleteRuntime($runtimeId, $log);
         $response->setStatusCode(Response::STATUS_CODE_OK)->send();
     });
@@ -191,6 +197,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             Log $log,
             Runner $runner
         ) {
+            $log->addTag('runtimeId', $runtimeId);
+
             // Extra parsers and validators to support both JSON and multipart
             $intParams = ['timeout', 'memory'];
             foreach ($intParams as $intParam) {
