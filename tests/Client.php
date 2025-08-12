@@ -184,7 +184,7 @@ class Client
                     $json = null;
                     break;
             }
-        }  elseif ($method === self::METHOD_HEAD) {
+        } elseif ($method === self::METHOD_HEAD) {
             // For HEAD requests, always set body to empty string regardless of decode flag
             $responseBody = '';
         }
