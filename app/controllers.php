@@ -150,7 +150,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->param('runtimeId', '', new Text(64), 'The runtimeID to execute.')
     ->param('body', '', new Text(20971520), 'Data to be forwarded to the function, this is user specified.', true)
     ->param('path', '/', new Text(2048), 'Path from which execution comes.', true)
-    ->param('method', 'GET', new Whitelist(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], true), 'Path from which execution comes.', true)
+    ->param('method', 'GET', new Whitelist(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'], true), 'Path from which execution comes.', true)
     ->param('headers', [], new AnyOf([new Text(65535), new Assoc()], AnyOf::TYPE_MIXED), 'Headers passed into runtime.', true)
     ->param('timeout', 15, new Integer(true), 'Function maximum execution time in seconds.', true)
     // Runtime-related
