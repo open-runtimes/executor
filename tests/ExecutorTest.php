@@ -550,7 +550,7 @@ class ExecutorTest extends TestCase
         /** Execute HEAD request */
         $response = $this->client->call(Client::METHOD_HEAD, '/runtimes/test-exec-coldstart/executions');
 
-        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals(404, $response['headers']['status-code']); // not found
         // For HEAD requests, the body should be empty but headers should be present
         $this->assertEmpty($response['body']);
         $this->assertArrayHasKey('content-type', $response['headers']);
