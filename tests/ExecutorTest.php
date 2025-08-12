@@ -547,6 +547,14 @@ class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertStringStartsWith('multipart/form-data', $response['headers']['content-type']);
 
+        /** Execute HEAD request */
+        $response = $this->client->call(Client::METHOD_HEAD, '/runtimes/test-exec-coldstart/executions');
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        // For HEAD requests, the body should be empty but headers should be present
+        $this->assertEmpty($response['body']);
+        $this->assertArrayHasKey('content-type', $response['headers']);
+
         /** Delete runtime */
         $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-coldstart', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
