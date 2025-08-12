@@ -1148,7 +1148,10 @@ class Docker extends Adapter
         } while ((++$attempts < $retryAttempts) || (\microtime(true) - $startTime < $timeout));
 
         // Error occurred
-        if ($executionResponse['errNo'] !== CURLE_OK) {
+        if (
+            $executionResponse['errNo'] !== CURLE_OK &&
+            $executionResponse['errNo'] !== CURLE_PARTIAL_FILE // Head request may return partial file
+        ) {
             $log->addExtra('activeRuntime', $this->activeRuntimes->get($runtimeName));
             $log->addExtra('error', $executionResponse['error']);
             $log->addTag('hostname', $hostname);
