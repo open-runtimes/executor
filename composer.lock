@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "19acd63cdfc2cefbfe3e528918d30d73",
+    "content-hash": "e317d567e1a2fafdd587ef82a6a05d84",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -1870,6 +1870,57 @@
                 "source": "https://github.com/utopia-php/cli/tree/0.16.0"
             },
             "time": "2023-08-05T13:13:08+00:00"
+        },
+        {
+            "name": "utopia-php/config",
+            "version": "0.2.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/utopia-php/config.git",
+                "reference": "a3d7bc0312d7150d5e04b1362dc34b2b136908cc"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/utopia-php/config/zipball/a3d7bc0312d7150d5e04b1362dc34b2b136908cc",
+                "reference": "a3d7bc0312d7150d5e04b1362dc34b2b136908cc",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.3"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9.3",
+                "vimeo/psalm": "4.0.1"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Utopia\\Config\\": "src/Config"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Eldad Fux",
+                    "email": "eldad@appwrite.io"
+                }
+            ],
+            "description": "A simple Config library to managing application config variables",
+            "keywords": [
+                "config",
+                "framework",
+                "php",
+                "upf",
+                "utopia"
+            ],
+            "support": {
+                "issues": "https://github.com/utopia-php/config/issues",
+                "source": "https://github.com/utopia-php/config/tree/0.2.2"
+            },
+            "time": "2020-10-24T09:49:09+00:00"
         },
         {
             "name": "utopia-php/dsn",

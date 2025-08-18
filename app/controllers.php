@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/init.php';
 
+use OpenRuntimes\Executor\Exception;
 use OpenRuntimes\Executor\BodyMultipart;
 use OpenRuntimes\Executor\Runner\Adapter as Runner;
 use Utopia\Logger\Log;
@@ -27,6 +28,8 @@ Http::get('/v1/runtimes/:runtimeId/logs')
     ->inject('log')
     ->inject('runner')
     ->action(function (string $runtimeId, string $timeoutStr, Response $response, Log $log, Runner $runner) {
+        $log->addTag('runtimeId', $runtimeId);
+
         $timeout = \intval($timeoutStr);
 
         $response->sendHeader('Content-Type', 'text/event-stream');
@@ -44,7 +47,10 @@ Http::post('/v1/runtimes/:runtimeId/commands')
     ->param('timeout', 600, new Integer(), 'Commands execution time in seconds.', true)
     ->inject('response')
     ->inject('runner')
-    ->action(function (string $runtimeId, string $command, int $timeout, Response $response, Runner $runner) {
+    ->inject('log')
+    ->action(function (string $runtimeId, string $command, int $timeout, Response $response, Runner $runner, Log $log) {
+        $log->addTag('runtimeId', $runtimeId);
+
         $output = $runner->executeCommand($runtimeId, $command, $timeout);
         $response->setStatusCode(Response::STATUS_CODE_OK)->json([ 'output' => $output ]);
     });
@@ -71,6 +77,9 @@ Http::post('/v1/runtimes')
     ->inject('log')
     ->inject('runner')
     ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, string $outputDirectory, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Response $response, Log $log, Runner $runner) {
+        $log->addTag('runtimeId', $runtimeId);
+        $log->addTag('image', $image);
+
         $secret = \bin2hex(\random_bytes(16));
 
         /**
@@ -125,8 +134,9 @@ Http::get('/v1/runtimes/:runtimeId')
     ->inject('response')
     ->inject('log')
     ->action(function (string $runtimeId, Runner $runner, Response $response, Log $log) {
+        $log->addTag('runtimeId', $runtimeId);
+
         $runtimeName = System::getHostname() . '-' . $runtimeId;
-        $log->addTag('runtimeId', $runtimeName);
         $response->setStatusCode(Response::STATUS_CODE_OK)->json($runner->getRuntime($runtimeName));
     });
 
@@ -138,6 +148,8 @@ Http::delete('/v1/runtimes/:runtimeId')
     ->inject('log')
     ->inject('runner')
     ->action(function (string $runtimeId, Response $response, Log $log, Runner $runner) {
+        $log->addTag('runtimeId', $runtimeId);
+
         $runner->deleteRuntime($runtimeId, $log);
         $response->setStatusCode(Response::STATUS_CODE_OK)->send();
     });
@@ -191,6 +203,12 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             Log $log,
             Runner $runner
         ) {
+            $log->addTag('runtimeId', $runtimeId);
+            $log->addTag('image', $image);
+            $log->addTag('path', $path);
+            $log->addTag('method', $method);
+            $log->addTag('version', $version);
+
             // Extra parsers and validators to support both JSON and multipart
             $intParams = ['timeout', 'memory'];
             foreach ($intParams as $intParam) {
@@ -227,13 +245,13 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             // 'headers' validator
             $validator = new Assoc();
             if (!$validator->isValid($headers)) {
-                throw new Exception($validator->getDescription(), 400);
+                throw new Exception(Exception::EXECUTION_BAD_REQUEST, $validator->getDescription());
             }
 
             // 'variables' validator
             $validator = new Assoc();
             if (!$validator->isValid($variables)) {
-                throw new Exception($validator->getDescription(), 400);
+                throw new Exception(Exception::EXECUTION_BAD_REQUEST, $validator->getDescription());
             }
 
             if (empty($payload)) {
@@ -275,7 +293,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             if ($isJson) {
                 $executionString = \json_encode($execution, JSON_UNESCAPED_UNICODE);
                 if (!$executionString) {
-                    throw new Exception('Execution resulted in binary response, but JSON response does not allow binaries. Use "Accept: multipart/form-data" header to support binaries.', 400);
+                    throw new Exception(Exception::EXECUTION_BAD_JSON);
                 }
 
                 $response
@@ -318,6 +336,6 @@ Http::init()
     ->action(function (Request $request) {
         $secretKey = \explode(' ', $request->getHeader('authorization', ''))[1] ?? '';
         if (empty($secretKey) || $secretKey !== Http::getEnv('OPR_EXECUTOR_SECRET', '')) {
-            throw new Exception('Missing executor key', 401);
+            throw new Exception(Exception::GENERAL_UNAUTHORIZED, 'Missing executor key');
         }
     });
