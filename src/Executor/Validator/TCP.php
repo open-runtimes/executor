@@ -29,26 +29,31 @@ class TCP extends Validator
     {
         return self::TYPE_STRING;
     }
+
     public function isValid(mixed $value): bool
     {
-        $value = \strval($value);
-        [ $ip, $port ] = \explode(':', $value);
-        $port = \intval($port);
+        try {
+            $value = \strval($value);
+            [ $ip, $port ] = \explode(':', $value);
+            $port = \intval($port);
 
-        if (empty($port) || empty($ip)) {
+            if (empty($port) || empty($ip)) {
+                return false;
+            }
+
+            // TCP Ping
+            $errorCode = null;
+            $errorMessage = "";
+            $socket = @\fsockopen($ip, $port, $errorCode, $errorMessage, $this->timeout); // @ prevents warnings (Unable to connect)
+
+            if (!$socket) {
+                return false;
+            } else {
+                \fclose($socket);
+                return true;
+            }
+        } catch (\RuntimeException) {
             return false;
-        }
-
-        // TCP Ping
-        $errorCode = null;
-        $errorMessage = "";
-        $socket = @\fsockopen($ip, $port, $errorCode, $errorMessage, $this->timeout); // @ prevents warnings (Unable to connect)
-
-        if (!$socket) {
-            return false;
-        } else {
-            \fclose($socket);
-            return true;
         }
     }
 }
