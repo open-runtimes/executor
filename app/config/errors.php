@@ -29,6 +29,12 @@ return [
         'message' => 'Runtime failed.',
         'code' => 400,
     ],
+    Exception::RUNTIME_TIMEOUT => [
+        'name' => Exception::RUNTIME_TIMEOUT,
+        'short' => 'Timeout',
+        'message' => 'Timed out waiting for runtime.',
+        'code' => 400,
+    ],
     Exception::RUNTIME_NOT_FOUND  => [
         'name' => Exception::RUNTIME_CONFLICT,
         'short' => 'Not found',
@@ -40,24 +46,6 @@ return [
         'short' => 'Conflict',
         'message' => 'Runtime already exists ',
         'code' => 409,
-    ],
-    Exception::RUNTIME_START_FAILED  => [
-        'name' => Exception::RUNTIME_START_FAILED,
-        'short' => 'Failed',
-        'message' => 'Runtime start failed.',
-        'code' => 500,
-    ],
-    Exception::RUNTIME_NOT_READY => [
-        'name' => Exception::RUNTIME_TIMEOUT,
-        'short' => 'Not ready',
-        'message' => 'Runtime not ready. Container not found.',
-        'code' => 500,
-    ],
-    Exception::RUNTIME_TIMEOUT => [
-        'name' => Exception::RUNTIME_TIMEOUT,
-        'short' => 'Timeout',
-        'message' => 'Timed out waiting for runtime.',
-        'code' => 504,
     ],
     /* Execution */
     Exception::EXECUTION_BAD_REQUEST => [
@@ -76,7 +64,7 @@ return [
         'name' => Exception::EXECUTION_TIMEOUT,
         'short' => 'Timeout',
         'message' => 'Timed out waiting for execution.',
-        'code' => 504,
+        'code' => 400,
     ],
     /* Logs */
     Exception::LOGS_TIMEOUT => [

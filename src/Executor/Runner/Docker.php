@@ -213,7 +213,7 @@ class Docker extends Adapter
             }
 
             if ($i === 9) {
-                throw new Exception(Exception::RUNTIME_NOT_READY);
+                throw new \Exception('Runtime not ready. Container not found.');
             }
 
             \usleep(500000); // 0.5s
@@ -336,7 +336,7 @@ class Docker extends Adapter
         });
 
         if (!$timerId) {
-            throw new \Exception('Failed to create timer', 500);
+            throw new \Exception('Failed to create timer');
         }
 
         Timer::clear($timerId);
@@ -462,7 +462,7 @@ class Docker extends Adapter
              */
             if (!empty($source)) {
                 if (!$sourceDevice->transfer($source, $tmpSource, $localDevice)) {
-                    throw new Exception(Exception::RUNTIME_START_FAILED, 'Failed to copy source code to temporary directory');
+                    throw new \Exception('Failed to copy source code to temporary directory');
                 };
             }
 
@@ -470,7 +470,7 @@ class Docker extends Adapter
              * Create the mount folder
              */
             if (!$localDevice->createDirectory(\dirname($tmpBuild))) {
-                throw new Exception(Exception::RUNTIME_START_FAILED, "Failed to create temporary directory");
+                throw new \Exception("Failed to create temporary directory");
             }
 
             $this->orchestration
@@ -520,7 +520,7 @@ class Docker extends Adapter
             );
 
             if (empty($containerId)) {
-                throw new Exception(Exception::RUNTIME_START_FAILED, 'Failed to create runtime');
+                throw new \Exception('Failed to create runtime');
             }
 
             /**
@@ -574,7 +574,7 @@ class Docker extends Adapter
             if (!empty($destination)) {
                 // Check if the build was successful by checking if file exists
                 if (!$localDevice->exists($tmpBuild)) {
-                    throw new Exception(Exception::RUNTIME_START_FAILED, 'Something went wrong when starting runtime.');
+                    throw new \Exception('Something went wrong when starting runtime.');
                 }
 
                 $size = $localDevice->getFileSize($tmpBuild);
@@ -584,7 +584,7 @@ class Docker extends Adapter
                 $path = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo($tmpBuild, PATHINFO_EXTENSION));
 
                 if (!$localDevice->transfer($tmpBuild, $path, $destinationDevice)) {
-                    throw new Exception(Exception::RUNTIME_START_FAILED, 'Failed to move built code to storage');
+                    throw new \Exception('Failed to move built code to storage');
                 };
 
                 $container['path'] = $path;
@@ -656,7 +656,7 @@ class Docker extends Adapter
                 $message .= $chunk['content'];
             }
 
-            throw new Exception(Exception::RUNTIME_FAILED, $message, $th->getCode() ?: 500, $th);
+            throw new \Exception($message, $th->getCode() ?: 500, $th);
         }
 
         // Container cleanup

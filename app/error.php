@@ -19,7 +19,7 @@ function logError(Log $log, Throwable $error, ?Logger $logger = null): void
     }
 
     // Log everything, except those explicitly marked as not loggable
-    if ($error instanceof Exception && !$error->isLoggable()) {
+    if ($error instanceof Exception && !$error->isPublishable()) {
         return;
     }
 
@@ -49,15 +49,15 @@ Http::error()
     ->action(function (Throwable $error, ?Logger $logger, Response $response, Log $log) {
         logError($log, $error, $logger);
 
-        // Show all errors in development mode.
-        // Otherwise, only show Executor type exceptions, that are also marked as public.
-        $public = Http::isDevelopment() || ($error instanceof Exception && $error->isPublic());
+        // Show all Executor\Exceptions, or everything if in development
+        $public = $error instanceof Exception || Http::isDevelopment();
         $exception = $public ? $error : new Exception(Exception::GENERAL_UNKNOWN);
+        $code = $exception->getCode() ?: 500;
 
         $output = [
-            'type' => $error instanceof Exception ? $error->getType() : Exception::GENERAL_UNKNOWN,
+            'type' => $exception instanceof Exception ? $exception->getType() : Exception::GENERAL_UNKNOWN,
             'message' => $exception->getMessage(),
-            'code' => $exception->getCode(),
+            'code' => $code,
             'version' => Http::getEnv('OPR_EXECUTOR_VERSION', 'unknown')
         ];
 
@@ -72,6 +72,6 @@ Http::error()
             ->addHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
             ->addHeader('Expires', '0')
             ->addHeader('Pragma', 'no-cache')
-            ->setStatusCode($exception->getCode())
+            ->setStatusCode($code)
             ->json($output);
     });

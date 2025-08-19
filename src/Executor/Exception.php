@@ -18,13 +18,11 @@ class Exception extends \RuntimeException
 
     public const string EXECUTION_BAD_REQUEST = 'execution_bad_request';
     public const string EXECUTION_TIMEOUT     = 'execution_timeout';
-    public const string EXECUTION_BAD_JSON    = 'execution_bad_josn';
+    public const string EXECUTION_BAD_JSON    = 'execution_bad_json';
 
     public const string RUNTIME_NOT_FOUND    = 'runtime_not_found';
     public const string RUNTIME_CONFLICT     = 'runtime_conflict';
-    public const string RUNTIME_START_FAILED = 'runtime_start_failed';
     public const string RUNTIME_FAILED       = 'runtime_failed';
-    public const string RUNTIME_NOT_READY    = 'runtime_not_ready';
     public const string RUNTIME_TIMEOUT      = 'runtime_timeout';
 
     public const string LOGS_TIMEOUT = 'logs_timeout';
@@ -32,11 +30,21 @@ class Exception extends \RuntimeException
     public const string COMMAND_TIMEOUT = 'command_timeout';
     public const string COMMAND_FAILED = 'command_failed';
 
+    /**
+     * Properties
+     */
     protected readonly string $type;
     protected readonly string $short;
-    protected readonly bool $public;
-    protected readonly bool $loggable;
+    protected readonly bool $publish;
 
+    /**
+     * Constructor for the Exception class.
+     *
+     * @param string $type The type of exception. This will automatically set fallbacks for the other parameters.
+     * @param string|null $message The error message.
+     * @param int|null $code The error code.
+     * @param \Throwable|null $previous The previous exception.
+     */
     public function __construct(
         string $type = Exception::GENERAL_UNKNOWN,
         ?string $message = null,
@@ -52,8 +60,7 @@ class Exception extends \RuntimeException
         $this->code = $code ?? $error['code'] ?: 500;
         $this->short = $error['short'] ?? '';
 
-        $this->public = $error['public'] ?? true;
-        $this->loggable = $error['loggable'] ?? true;
+        $this->publish = $error['publish'] ?? true;
 
         parent::__construct($this->message, $this->code, $previous);
     }
@@ -79,22 +86,12 @@ class Exception extends \RuntimeException
     }
 
     /**
-     * Check whether the error message is public.
+     * Check whether the error message is publishable to logging systems (e.g. Sentry).
      *
      * @return bool
      */
-    public function isPublic(): bool
+    public function isPublishable(): bool
     {
-        return $this->public;
-    }
-
-    /**
-     * Check whether the error is loggable.
-     *
-     * @return bool
-     */
-    public function isLoggable(): bool
-    {
-        return $this->loggable;
+        return $this->publish;
     }
 }
