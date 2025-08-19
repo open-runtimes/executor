@@ -28,6 +28,7 @@ return [
         'short' => 'Failed',
         'message' => 'Runtime failed.',
         'code' => 400,
+        'publish' => false,
     ],
     Exception::RUNTIME_TIMEOUT => [
         'name' => Exception::RUNTIME_TIMEOUT,
