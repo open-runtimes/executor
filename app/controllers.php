@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/init.php';
 
+use OpenRuntimes\Executor\Exception;
 use OpenRuntimes\Executor\BodyMultipart;
 use OpenRuntimes\Executor\Runner\Adapter as Runner;
 use Utopia\Logger\Log;
@@ -123,10 +124,8 @@ Http::get('/v1/runtimes/:runtimeId')
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->inject('runner')
     ->inject('response')
-    ->inject('log')
-    ->action(function (string $runtimeId, Runner $runner, Response $response, Log $log) {
+    ->action(function (string $runtimeId, Runner $runner, Response $response) {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
-        $log->addTag('runtimeId', $runtimeName);
         $response->setStatusCode(Response::STATUS_CODE_OK)->json($runner->getRuntime($runtimeName));
     });
 
@@ -227,13 +226,13 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             // 'headers' validator
             $validator = new Assoc();
             if (!$validator->isValid($headers)) {
-                throw new Exception($validator->getDescription(), 400);
+                throw new Exception(Exception::EXECUTION_BAD_REQUEST, $validator->getDescription());
             }
 
             // 'variables' validator
             $validator = new Assoc();
             if (!$validator->isValid($variables)) {
-                throw new Exception($validator->getDescription(), 400);
+                throw new Exception(Exception::EXECUTION_BAD_REQUEST, $validator->getDescription());
             }
 
             if (empty($payload)) {
@@ -275,7 +274,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             if ($isJson) {
                 $executionString = \json_encode($execution, JSON_UNESCAPED_UNICODE);
                 if (!$executionString) {
-                    throw new Exception('Execution resulted in binary response, but JSON response does not allow binaries. Use "Accept: multipart/form-data" header to support binaries.', 400);
+                    throw new Exception(Exception::EXECUTION_BAD_JSON);
                 }
 
                 $response
@@ -318,6 +317,6 @@ Http::init()
     ->action(function (Request $request) {
         $secretKey = \explode(' ', $request->getHeader('authorization', ''))[1] ?? '';
         if (empty($secretKey) || $secretKey !== Http::getEnv('OPR_EXECUTOR_SECRET', '')) {
-            throw new Exception('Missing executor key', 401);
+            throw new Exception(Exception::GENERAL_UNAUTHORIZED, 'Missing executor key');
         }
     });

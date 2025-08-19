@@ -1,94 +1,77 @@
 <?php
 
+use OpenRuntimes\Executor\Exception;
 use Utopia\CLI\Console;
 use Utopia\Http\Http;
 use Utopia\Logger\Log;
 use Utopia\Logger\Logger;
 use Utopia\Http\Response;
 
-function logError(Log $log, Throwable $error, string $action, Logger $logger = null): void
+function logError(Log $log, Throwable $error, ?Logger $logger = null): void
 {
     Console::error('[Error] Type: ' . get_class($error));
     Console::error('[Error] Message: ' . $error->getMessage());
     Console::error('[Error] File: ' . $error->getFile());
     Console::error('[Error] Line: ' . $error->getLine());
 
-    if ($logger && ($error->getCode() === 500 || $error->getCode() === 0)) {
+    if ($logger === null) {
+        return;
+    }
+
+    // Log everything, except those explicitly marked as not loggable
+    if ($error instanceof Exception && !$error->isPublishable()) {
+        return;
+    }
+
+    try {
         $log->setType(Log::TYPE_ERROR);
         $log->setMessage($error->getMessage());
-        $log->setAction($action);
-
+        $log->setAction("httpError");
         $log->addTag('code', \strval($error->getCode()));
         $log->addTag('verboseType', get_class($error));
-
         $log->addExtra('file', $error->getFile());
         $log->addExtra('line', $error->getLine());
         $log->addExtra('trace', $error->getTraceAsString());
-        // TODO: @Meldiron Uncomment, was warning: Undefined array key "file" in Sentry.php on line 68
-        // $log->addExtra('detailedTrace', $error->getTrace());
 
-        $responseCode = $logger->addLog($log);
-        Console::info('Executor log pushed with status code: ' . $responseCode);
+        $status = $logger->addLog($log);
+
+        Console::info("Pushed log with response status code: $status");
+    } catch (\Throwable $e) {
+        Console::error("Failed to push log: {$e->getMessage()}");
     }
 }
 
-
-/** Set callbacks */
 Http::error()
     ->inject('error')
     ->inject('logger')
     ->inject('response')
     ->inject('log')
     ->action(function (Throwable $error, ?Logger $logger, Response $response, Log $log) {
-        try {
-            logError($log, $error, "httpError", $logger);
-        } catch (Throwable) {
-            Console::warning('Unable to send log message');
-        }
+        logError($log, $error, $logger);
 
-        $version = Http::getEnv('OPR_EXECUTOR_VERSION', 'UNKNOWN');
-        $message = $error->getMessage();
-        $file = $error->getFile();
-        $line = $error->getLine();
-        $trace = $error->getTrace();
+        // Show all Executor\Exceptions, or everything if in development
+        $public = $error instanceof Exception || Http::isDevelopment();
+        $exception = $public ? $error : new Exception(Exception::GENERAL_UNKNOWN);
+        $code = $exception->getCode() ?: 500;
 
-        switch ($error->getCode()) {
-            case 400: // Error allowed publicly
-            case 401: // Error allowed publicly
-            case 402: // Error allowed publicly
-            case 403: // Error allowed publicly
-            case 404: // Error allowed publicly
-            case 406: // Error allowed publicly
-            case 409: // Error allowed publicly
-            case 412: // Error allowed publicly
-            case 425: // Error allowed publicly
-            case 429: // Error allowed publicly
-            case 501: // Error allowed publicly
-            case 503: // Error allowed publicly
-                $code = $error->getCode();
-                break;
-            default:
-                $code = 500; // All other errors get the generic 500 server error status code
-        }
-
-        $output = Http::isDevelopment() ? [
-            'message' => $message,
+        $output = [
+            'type' => $exception instanceof Exception ? $exception->getType() : Exception::GENERAL_UNKNOWN,
+            'message' => $exception->getMessage(),
             'code' => $code,
-            'file' => $file,
-            'line' => $line,
-            'trace' => \json_encode($trace, JSON_UNESCAPED_UNICODE) === false ? [] : $trace, // check for failing encode
-            'version' => $version
-        ] : [
-            'message' => $message,
-            'code' => $code,
-            'version' => $version
+            'version' => Http::getEnv('OPR_EXECUTOR_VERSION', 'unknown')
         ];
+
+        // If in development, include some additional details.
+        if (Http::isDevelopment()) {
+            $output['file'] = $exception->getFile();
+            $output['line'] = $exception->getLine();
+            $output['trace'] = \json_encode($exception->getTrace(), JSON_UNESCAPED_UNICODE) === false ? [] : $exception->getTrace();
+        }
 
         $response
             ->addHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
             ->addHeader('Expires', '0')
             ->addHeader('Pragma', 'no-cache')
-            ->setStatusCode($code);
-
-        $response->json($output);
+            ->setStatusCode($code)
+            ->json($output);
     });

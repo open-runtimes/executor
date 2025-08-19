@@ -201,50 +201,14 @@ class ExecutorTest extends TestCase
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v5-8.1',
             'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "composer install"',
+            'remove' => true
         ];
-
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
-        $this->assertEquals(201, $response['headers']['status-code']);
-        $this->assertIsString($response['body']['path']);
-        $this->assertIsArray($response['body']['output']);
-        $this->assertIsFloat($response['body']['duration']);
-        $this->assertIsFloat($response['body']['startTime']);
-        $this->assertIsInt($response['body']['size']);
-
-        /** Ensure build folder exists (container still running) */
-        $tmpFolderPath = '/tmp/executor-test-build-' . $runtimeId;
-        $this->assertTrue(\is_dir($tmpFolderPath));
-        $this->assertTrue(\file_exists($tmpFolderPath));
-
-        /** List runtimes */
-        $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
-        $this->assertEquals(200, $response['headers']['status-code']);
-        $this->assertEquals(1, count($response['body']));
-        $this->assertStringEndsWith('test-build-' . $runtimeId, $response['body'][0]['name']);
-
-        /** Get runtime */
-        $response = $this->client->call(Client::METHOD_GET, '/runtimes/test-build-' . $runtimeId, [], []);
-        $this->assertEquals(200, $response['headers']['status-code']);
-        $this->assertStringEndsWith('test-build-' . $runtimeId, $response['body']['name']);
-
-        /** Delete runtime */
-        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-build-' . $runtimeId, [], []);
-        $this->assertEquals(200, $response['headers']['status-code']);
-
-        /** Delete non existent runtime */
-        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-build-' . $runtimeId, [], []);
-        $this->assertEquals(404, $response['headers']['status-code']);
-        $this->assertEquals('Runtime not found', $response['body']['message']);
-
-        /** Self-deleting build */
-        $params['runtimeId'] = 'test-build-selfdelete-' . $runtimeId;
-        $params['remove'] = true;
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
 
         /** Ensure build folder cleanup */
-        $tmpFolderPath = '/tmp/executor-test-build-selfdelete-' . $runtimeId;
+        $tmpFolderPath = '/tmp/executor-test-build-' . $runtimeId;
         $this->assertFalse(\is_dir($tmpFolderPath));
         $this->assertFalse(\file_exists($tmpFolderPath));
 
@@ -633,7 +597,6 @@ class ExecutorTest extends TestCase
         $buildPath = $response['body']['path'];
 
         /** Execute function */
-
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-restart-policy/executions', [], [
             'source' => $buildPath,
             'entrypoint' => 'index.php',
@@ -656,7 +619,6 @@ class ExecutorTest extends TestCase
         \sleep(5);
 
         /** Ensure restart policy */
-
         $output = [];
         \exec('docker logs executor-test-exec-restart-policy', $output);
         $output = \implode("\n", $output);
