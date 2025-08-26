@@ -963,7 +963,7 @@ class Docker extends Adapter
             \curl_setopt($ch, CURLOPT_NOBODY, $method === 'HEAD');
             \curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
             \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders) {
+            \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($header) use (&$responseHeaders) {
                 $len = strlen($header);
                 $header = explode(':', $header, 2);
                 if (count($header) < 2) { // ignore invalid headers
@@ -1134,10 +1134,7 @@ class Docker extends Adapter
         } while ((++$attempts < $retryAttempts) || (\microtime(true) - $startTime < $timeout));
 
         // Error occurred
-        if (
-            $executionResponse['errNo'] !== CURLE_OK &&
-            $executionResponse['errNo'] !== CURLE_PARTIAL_FILE // Head request may return partial file
-        ) {
+        if ($executionResponse['errNo'] !== CURLE_OK) {
             // Intended timeout error for v2 functions
             if ($version === 'v2' && $executionResponse['errNo'] === SOCKET_ETIMEDOUT) {
                 throw new Exception(Exception::EXECUTION_TIMEOUT, $executionResponse['error'], 400);
