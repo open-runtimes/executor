@@ -960,7 +960,7 @@ class Docker extends Adapter
 
             \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000" . $path);
             \curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-            \curl_setopt($ch, CURLOPT_NOBODY, $method === 'HEAD');
+            \curl_setopt($ch, CURLOPT_NOBODY, \strtoupper($method) === 'HEAD');
             \curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
             \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($header) use (&$responseHeaders) {
