@@ -362,7 +362,7 @@ class ExecutorTest extends TestCase
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
-        $this->assertNotEmpty(201, $response['body']['path']);
+        $this->assertNotEmpty($response['body']['path']);
 
         $buildPath = $response['body']['path'];
 
@@ -550,7 +550,7 @@ class ExecutorTest extends TestCase
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
-        $this->assertNotEmpty(201, $response['body']['path']);
+        $this->assertNotEmpty($response['body']['path']);
 
         $buildPath = $response['body']['path'];
 
