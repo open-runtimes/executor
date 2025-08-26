@@ -641,14 +641,13 @@ class Docker extends Adapter
                 \sleep(2); // Allow time to read logs
             }
 
-            $localDevice->deletePath($tmpFolder);
-
             // Silently try to kill container
             try {
                 $this->orchestration->remove($runtimeName, true);
             } catch (Throwable $th) {
             }
 
+            $localDevice->deletePath($tmpFolder);
             $this->activeRuntimes->del($runtimeName);
 
             $message = '';
@@ -663,14 +662,13 @@ class Docker extends Adapter
         if ($remove) {
             \sleep(2); // Allow time to read logs
 
-            $localDevice->deletePath($tmpFolder);
-
             // Silently try to kill container
             try {
                 $this->orchestration->remove($runtimeName, true);
             } catch (Throwable $th) {
             }
 
+            $localDevice->deletePath($tmpFolder);
             $this->activeRuntimes->del($runtimeName);
         }
 
@@ -962,6 +960,7 @@ class Docker extends Adapter
 
             \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000" . $path);
             \curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+            \curl_setopt($ch, CURLOPT_NOBODY, $method === 'HEAD');
             \curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
             \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders) {
