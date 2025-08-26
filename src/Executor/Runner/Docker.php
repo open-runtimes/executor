@@ -963,7 +963,7 @@ class Docker extends Adapter
             \curl_setopt($ch, CURLOPT_NOBODY, \strtoupper($method) === 'HEAD');
             \curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
             \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($header) use (&$responseHeaders) {
+            \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders) {
                 $len = strlen($header);
                 $header = explode(':', $header, 2);
                 if (count($header) < 2) { // ignore invalid headers
