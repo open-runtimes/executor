@@ -380,7 +380,6 @@ class ExecutorTest extends TestCase
         $this->assertEquals(201, $response['headers']['status-code']);
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions');
-
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(200, $response['body']['statusCode']);
 
@@ -446,6 +445,7 @@ class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals('application/json', $response['headers']['content-type']);
 
+        /** accept application/* */
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
             'accept' => 'application/*'
         ], [
@@ -459,6 +459,7 @@ class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals('application/json', $response['headers']['content-type']);
 
+        /** accept text/plain, application/json */
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
             'accept' => 'text/plain, application/json'
         ], [
@@ -472,6 +473,7 @@ class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals('application/json', $response['headers']['content-type']);
 
+        /** accept application/xml */
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
             'accept' => 'application/xml'
         ], [
@@ -485,6 +487,7 @@ class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertStringStartsWith('multipart/form-data', $response['headers']['content-type']);
 
+        /** accept text/plain */
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
             'accept' => 'text/plain'
         ], [
@@ -498,6 +501,7 @@ class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertStringStartsWith('multipart/form-data', $response['headers']['content-type']);
 
+        /** accept */
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
             'accept' => '*/*'
         ], [
@@ -510,6 +514,18 @@ class ExecutorTest extends TestCase
 
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertStringStartsWith('multipart/form-data', $response['headers']['content-type']);
+
+        /** Execution with HEAD request */
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [], [
+            'source' => $buildPath,
+            'method' => 'HEAD',
+            'entrypoint' => 'index.php',
+            'path' => '/v1/users',
+            'image' => 'openruntimes/php:v5-8.1',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
+        ]);
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEmpty($response['body']['body']);
 
         /** Delete runtime */
         $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-coldstart', [], []);
