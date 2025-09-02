@@ -382,7 +382,7 @@ class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions');
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(200, $response['body']['statusCode']);
-        
+
         // Example of expected headers:
         // "[{"key":"x-my-cookie","value":"cookieValue"},{"key":"content-type","value":"application\/json; charset=utf-8"},{"key":"server","value":"swoole-http-server"},{"key":"date","value":"Tue, 02 Sep 2025 13:43:32 GMT"},{"key":"connection","value":"keep-alive"},{"key":"content-length","value":"235"}]"
         $headers = [];
@@ -390,7 +390,7 @@ class ExecutorTest extends TestCase
             $headers[$pair['key']] = $pair['value'];
         }
         $this->assertEquals('cookieValue', $headers['x-my-cookie']);
-        
+
         /** Execute with intentionally old version to ensure response filter */
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions', [
             'x-executor-response-format' => '0.8.6'

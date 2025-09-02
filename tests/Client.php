@@ -62,10 +62,10 @@ class Client
     public function call(string $method, string $path = '', array $headers = [], array $params = [], bool $decode = true, callable $callback = null): array
     {
         $headers            = array_merge($this->headers, $headers);
-        if(!\array_key_exists('x-executor-response-format', $headers)) {
+        if (!\array_key_exists('x-executor-response-format', $headers)) {
             $headers['x-executor-response-format'] = $this->version;
         }
-        
+
         $ch                 = curl_init($this->endpoint . $path . (($method == self::METHOD_GET && !empty($params)) ? '?' . http_build_query($params) : ''));
 
         if (!$ch) {
