@@ -21,5 +21,7 @@ return function ($context) use ($client) {
         'variable' => \getenv('TEST_VARIABLE'),
         'url' => $context->req->url,
         'todo' => $todo
+    ], 200, [
+        'x-my-cookie' => 'cookieValue'
     ]);
 };
