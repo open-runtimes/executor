@@ -1025,9 +1025,13 @@ class Docker extends Adapter
             }
 
             // Extract logs and errors from file based on fileId in header
-            $logIdHeader = \array_find($responseHeaders, function ($header) {
-                return $header['key'] === 'x-open-runtimes-log-id';
-            });
+            $logIdHeader = [];
+            foreach ($responseHeaders as $responseHeader) {
+                if ($responseHeader['key'] === 'x-open-runtimes-log-id') {
+                    $logIdHeader = $responseHeader;
+                    break;
+                }
+            }
             $fileId = $logIdHeader['value'] ?? '';
             $logs = '';
             $errors = '';
