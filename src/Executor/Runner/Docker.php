@@ -978,7 +978,11 @@ class Docker extends Adapter
                 }
 
                 if (\array_key_exists($key, $responseHeaders)) {
-                    $responseHeaders[$key] .= ', ' . $value;
+                    if (is_array($responseHeaders[$key])) {
+                        $responseHeaders[$key][] = $value;
+                    } else {
+                        $responseHeaders[$key] = [$responseHeaders[$key], $value];
+                    }
                 } else {
                     $responseHeaders[$key] = $value;
                 }
