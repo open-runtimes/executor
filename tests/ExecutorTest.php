@@ -382,7 +382,7 @@ class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions');
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(200, $response['body']['statusCode']);
-        $this->assertEquals('cookie1=value1; Path=/; HttpOnly; Secure; SameSite=Lax, cookie2=value2; Path=/; HttpOnly; Secure; SameSite=Lax', \json_decode($response['body']['headers'], true)['Set-Cookie']);
+        $this->assertEquals('cookie1=value1; Path=/; HttpOnly; Secure; SameSite=Lax, cookie2=value2; Path=/; HttpOnly; Secure; SameSite=Lax', \json_decode($response['body']['headers'], true)['set-cookie']);
 
         /** Execute on cold-started runtime */
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions', [], [
@@ -570,7 +570,7 @@ class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(200, $response['body']['statusCode']);
         $this->assertStringContainsString('<p>OK</p>', $response['body']['body']);
-        $this->assertEquals('astroCookie1=astroValue1; Max-Age=1800; HttpOnly, astroCookie2=astroValue2; Max-Age=1800; HttpOnly', $response['body']['headers']['Set-Cookie']);
+        $this->assertEquals('astroCookie1=astroValue1; Max-Age=1800; HttpOnly, astroCookie2=astroValue2; Max-Age=1800; HttpOnly', \json_decode($response['body']['headers'], true)['set-cookie']);
 
         $this->assertNotEmpty($response['body']['logs']);
         $this->assertStringContainsString('Open runtimes log', $response['body']['logs']);

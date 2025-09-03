@@ -971,10 +971,16 @@ class Docker extends Adapter
                 }
 
                 $key = strtolower(trim($header[0]));
-                $responseHeaders[$key] = trim($header[1]);
+                $value = trim($header[1]);
 
                 if (\in_array($key, ['x-open-runtimes-log-id'])) {
-                    $responseHeaders[$key] = \urldecode($responseHeaders[$key]);
+                    $value = \urldecode($value);
+                }
+
+                if (\array_key_exists($key, $responseHeaders)) {
+                    $responseHeaders[$key] .= ', ' . $value;
+                } else {
+                    $responseHeaders[$key] = $value;
                 }
 
                 return $len;
