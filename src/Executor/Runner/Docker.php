@@ -977,7 +977,11 @@ class Docker extends Adapter
                     $value = \urldecode($value);
                 }
 
-                $responseHeaders[] = ['key' => $key, 'value' => $value ];
+                if (\array_key_exists($key, $responseHeaders)) {
+                    $responseHeaders[$key] .= ', ' . $value;
+                } else {
+                    $responseHeaders[$key] = $value;
+                }
 
                 return $len;
             });
@@ -1025,14 +1029,7 @@ class Docker extends Adapter
             }
 
             // Extract logs and errors from file based on fileId in header
-            $logIdHeader = [];
-            foreach ($responseHeaders as $responseHeader) {
-                if ($responseHeader['key'] === 'x-open-runtimes-log-id') {
-                    $logIdHeader = $responseHeader;
-                    break;
-                }
-            }
-            $fileId = $logIdHeader['value'] ?? '';
+            $fileId = $responseHeaders['x-open-runtimes-log-id'] ?? '';
             $logs = '';
             $errors = '';
             if (!empty($fileId)) {
@@ -1067,12 +1064,12 @@ class Docker extends Adapter
             }
 
             $outputHeaders = [];
-            foreach ($responseHeaders as $pair) {
-                if (\str_starts_with($pair['key'], 'x-open-runtimes-')) {
+            foreach ($responseHeaders as $key => $value) {
+                if (\str_starts_with($key, 'x-open-runtimes-')) {
                     continue;
                 }
 
-                $outputHeaders[] = $pair;
+                $outputHeaders[$key] = $value;
             }
 
             return [

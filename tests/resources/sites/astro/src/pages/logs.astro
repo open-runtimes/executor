@@ -2,6 +2,17 @@
 console.log('Open runtimes log');
 console.log('A developer log');
 console.error('Open runtimes error');
+
+Astro.cookies.set('astroCookie1', 'astroValue1', {
+    httpOnly: true,
+    maxAge: 1800
+});
+
+Astro.cookies.set('astroCookie2', 'astroValue2', {
+    httpOnly: true,
+    maxAge: 1800
+});
+
 ---
 
 <p>OK</p>
