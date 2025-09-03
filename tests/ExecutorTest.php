@@ -382,7 +382,7 @@ class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions');
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(200, $response['body']['statusCode']);
-        $this->assertEquals('cookie1=value1; Path=/; HttpOnly; Secure; SameSite=Lax, cookie2=value2; Path=/; HttpOnly; Secure; SameSite=Lax', \json_decode($response['body']['headers'], true)['set-cookie']);
+        $this->assertEquals('aValue', \json_decode($response['body']['headers'], true)['x-key']);
 
         /** Execute on cold-started runtime */
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions', [], [
@@ -570,7 +570,10 @@ class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(200, $response['body']['statusCode']);
         $this->assertStringContainsString('<p>OK</p>', $response['body']['body']);
-        $this->assertEquals('astroCookie1=astroValue1; Max-Age=1800; HttpOnly, astroCookie2=astroValue2; Max-Age=1800; HttpOnly', \json_decode($response['body']['headers'], true)['set-cookie']);
+
+        $setCookieList = \json_decode($response['body']['headers'], true)['set-cookie'];
+        $this->assertEquals('astroCookie1=astroValue1; Max-Age=1800; HttpOnly', $setCookieList[0]);
+        $this->assertEquals('astroCookie2=astroValue2; Max-Age=1800; HttpOnly', $setCookieList[1]);
 
         $this->assertNotEmpty($response['body']['logs']);
         $this->assertStringContainsString('Open runtimes log', $response['body']['logs']);
@@ -579,9 +582,17 @@ class ExecutorTest extends TestCase
         $this->assertNotEmpty($response['body']['errors']);
         $this->assertStringContainsString('Open runtimes error', $response['body']['errors']);
 
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-ssr-exec/executions', [
+            'x-executor-response-format' => '0.10.0' // Last version to report string header values only
+        ], $params);
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals(200, $response['body']['statusCode']);
+        $this->assertEquals('astroCookie2=astroValue2; Max-Age=1800; HttpOnly', \json_decode($response['body']['headers'], true)['set-cookie']);
+
         /** Delete runtime */
         $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-ssr-exec', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals('astroCookie1=astroValue1; Max-Age=1800; HttpOnly', $setCookieList[0]);
     }
 
     public function testRestartPolicy(): void

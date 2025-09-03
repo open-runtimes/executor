@@ -22,6 +22,6 @@ return function ($context) use ($client) {
         'url' => $context->req->url,
         'todo' => $todo
     ], 200, [
-        'Set-Cookie' => 'cookie1=value1; Path=/; HttpOnly; Secure; SameSite=Lax, cookie2=value2; Path=/; HttpOnly; Secure; SameSite=Lax'
+        'x-key' => 'aValue'
     ]);
 };
