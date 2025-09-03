@@ -261,16 +261,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 $log
             );
 
-            // Backwards compatibility for headers
-            $responseFormat = $request->getHeader('x-executor-response-format', '0.8.6'); // Last version without support for this header
-            if (version_compare($responseFormat, '0.9.0', '<')) {
-                $oldHeaders = [];
-                foreach ($execution['headers'] as $pair) {
-                    $oldHeaders[$pair['key']] = $pair['value'];
-                }
-                $execution['headers'] = $oldHeaders;
-            }
-
             $acceptTypes = \explode(', ', $request->getHeader('accept', 'multipart/form-data'));
             $isJson = false;
 
