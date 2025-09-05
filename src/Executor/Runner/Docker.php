@@ -1251,7 +1251,7 @@ class Docker extends Adapter
                         $this->orchestration->createNetwork($network, false);
                         Console::success("Created network: $network");
                         $createdNetworks[] = $network;
-                    } catch (Exception $e) {
+                    } catch (\Throwable $e) {
                         Console::error("Failed to create network $network: " . $e->getMessage());
                     }
                 } else {
