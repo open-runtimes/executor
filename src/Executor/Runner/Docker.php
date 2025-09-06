@@ -1278,7 +1278,7 @@ class Docker extends Adapter
                 try {
                     $this->orchestration->networkConnect($containerName, $network);
                     Console::success("Successfully connected executor '$containerName' to network '$network'");
-                } catch (Exception $e) {
+                } catch (\Throwable $e) {
                     Console::error("Failed to connect executor '$containerName' to network '$network': " . $e->getMessage());
                 }
             }
