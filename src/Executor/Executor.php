@@ -9,6 +9,11 @@ use Utopia\Logger\Log;
 class Executor
 {
     private readonly Runner $runner;
+
+    /**
+     * @param Orchestration $orchestration
+     * @param string[] $networks
+     */
     public function __construct(
         private readonly Orchestration $orchestration,
         private readonly array $networks,
