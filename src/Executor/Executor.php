@@ -2,23 +2,14 @@
 
 namespace OpenRuntimes\Executor;
 
-use OpenRuntimes\Executor\Runner\Docker as Runner;
-use Utopia\Orchestration\Orchestration;
+use OpenRuntimes\Executor\Runner\Adapter as Runner;
 use Utopia\Logger\Log;
 
 class Executor
 {
-    private readonly Runner $runner;
-
-    /**
-     * @param Orchestration $orchestration
-     * @param string[] $networks
-     */
     public function __construct(
-        private readonly Orchestration $orchestration,
-        private readonly array $networks,
+        private readonly Runner $runner,
     ) {
-        $this->runner = new Runner($this->orchestration, $this->networks);
     }
 
     public function createExecution(

@@ -33,8 +33,8 @@ run(function () {
     ));
     $networks = explode(',', Http::getEnv('OPR_EXECUTOR_NETWORK') ?: 'openruntimes-runtimes');
 
-    $executor = new Executor($orchestration, $networks);
     $runner = new Docker($orchestration, $networks);
+    $executor = new Executor($runner);
 
     Http::setResource('runner', fn () => $runner);
     Http::setResource('executor', fn () => $executor);
