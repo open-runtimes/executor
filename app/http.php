@@ -1,5 +1,7 @@
 <?php
 
+use OpenRuntimes\Executor\Executor;
+
 if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
     require_once __DIR__ . '/../vendor/autoload.php';
 }
@@ -30,9 +32,12 @@ run(function () {
         Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '')
     ));
     $networks = explode(',', Http::getEnv('OPR_EXECUTOR_NETWORK') ?: 'openruntimes-runtimes');
+
+    $executor = new Executor($orchestration, $networks);
     $runner = new Docker($orchestration, $networks);
 
     Http::setResource('runner', fn () => $runner);
+    Http::setResource('executor', fn () => $executor);
 
     $payloadSize = 22 * (1024 * 1024);
     $settings = [

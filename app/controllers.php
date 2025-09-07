@@ -4,6 +4,7 @@ require_once __DIR__ . '/init.php';
 
 use OpenRuntimes\Executor\Exception;
 use OpenRuntimes\Executor\BodyMultipart;
+use OpenRuntimes\Executor\Executor;
 use OpenRuntimes\Executor\Runner\Adapter as Runner;
 use Utopia\Logger\Log;
 use Utopia\System\System;
@@ -166,7 +167,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->inject('response')
     ->inject('request')
     ->inject('log')
-    ->inject('runner')
+    ->inject('executor')
     ->action(
         function (
             string $runtimeId,
@@ -188,7 +189,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             Response $response,
             Request $request,
             Log $log,
-            Runner $runner
+            Executor $executor
         ) {
             // Extra parsers and validators to support both JSON and multipart
             $intParams = ['timeout', 'memory'];
@@ -241,7 +242,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             $variables = array_map(fn ($v) => strval($v), $variables);
 
-            $execution = $runner->createExecution(
+            $execution = $executor->createExecution(
                 $runtimeId,
                 $payload,
                 $path,
