@@ -1,7 +1,5 @@
 <?php
 
-use OpenRuntimes\Executor\Executor;
-
 if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
     require_once __DIR__ . '/../vendor/autoload.php';
 }
@@ -10,6 +8,7 @@ require_once __DIR__ . '/error.php';
 require_once __DIR__ . '/controllers.php';
 
 use OpenRuntimes\Executor\Runner\Docker;
+use OpenRuntimes\Executor\Executor;
 use Swoole\Runtime;
 use Utopia\CLI\Console;
 use Utopia\Http\Http;
