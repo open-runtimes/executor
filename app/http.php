@@ -11,6 +11,7 @@ use OpenRuntimes\Executor\Runner\Docker;
 use Swoole\Runtime;
 use Utopia\CLI\Console;
 use Utopia\Http\Http;
+use Utopia\Http\Response;
 use Utopia\Http\Adapter\Swoole\Server;
 use Utopia\Orchestration\Adapter\DockerAPI;
 use Utopia\Orchestration\Orchestration;
@@ -23,6 +24,11 @@ ini_set('memory_limit', '-1');
 Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
 
 Http::setMode((string)Http::getEnv('OPR_EXECUTOR_ENV', Http::MODE_TYPE_PRODUCTION));
+Http::onRequest()
+    ->inject('response')
+    ->action(function (Response $response) {
+        $response->addHeader('Server', 'Executor');
+    });
 
 run(function () {
     $orchestration = new Orchestration(new DockerAPI(
