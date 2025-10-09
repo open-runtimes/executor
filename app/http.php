@@ -27,7 +27,7 @@ Http::setMode((string)Http::getEnv('OPR_EXECUTOR_ENV', Http::MODE_TYPE_PRODUCTIO
 Http::onRequest()
     ->inject('response')
     ->action(function (Response $response) {
-        $response->addHeader('Server', 'OpenRuntimes Executor');
+        $response->addHeader('Server', 'Executor');
     });
 
 run(function () {
