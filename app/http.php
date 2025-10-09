@@ -28,7 +28,7 @@ Http::onRequest()
     ->inject('response')
     ->action(function (Response $response) {
         $response->addHeader('Server', 'OpenRuntimes Executor');
-});
+    });
 
 run(function () {
     $orchestration = new Orchestration(new DockerAPI(
