@@ -22,8 +22,8 @@ Config::load('errors', __DIR__ . '/config/errors.php');
 $register = new Registry();
 
 $register->set('logger', function () {
-    $providerName = Http::getEnv('OPR_EXECUTOR_LOGGING_PROVIDER', '');
-    $providerConfig = Http::getEnv('OPR_EXECUTOR_LOGGING_CONFIG', '');
+    $providerName = System::getEnv('OPR_EXECUTOR_LOGGING_PROVIDER', '');
+    $providerConfig = System::getEnv('OPR_EXECUTOR_LOGGING_CONFIG', '');
 
     try {
         $loggingProvider = new DSN($providerConfig ?? '');

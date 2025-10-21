@@ -6,6 +6,7 @@ use Utopia\Http\Http;
 use Utopia\Logger\Log;
 use Utopia\Logger\Logger;
 use Utopia\Http\Response;
+use Utopia\System\System;
 
 function logError(Log $log, Throwable $error, ?Logger $logger = null): void
 {
@@ -58,7 +59,7 @@ Http::error()
             'type' => $exception instanceof Exception ? $exception->getType() : Exception::GENERAL_UNKNOWN,
             'message' => $exception->getMessage(),
             'code' => $code,
-            'version' => Http::getEnv('OPR_EXECUTOR_VERSION', 'unknown')
+            'version' => System::getEnv('OPR_EXECUTOR_VERSION', 'unknown')
         ];
 
         // If in development, include some additional details.
