@@ -13,6 +13,7 @@ use Utopia\CLI\Console;
 use Utopia\Http\Http;
 use Utopia\Http\Response;
 use Utopia\Http\Adapter\Swoole\Server;
+use Utopia\System\System;
 use Utopia\Orchestration\Adapter\DockerAPI;
 use Utopia\Orchestration\Orchestration;
 
@@ -23,7 +24,7 @@ ini_set('memory_limit', '-1');
 
 Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
 
-Http::setMode((string)Http::getEnv('OPR_EXECUTOR_ENV', Http::MODE_TYPE_PRODUCTION));
+Http::setMode((string)System::getEnv('OPR_EXECUTOR_ENV', Http::MODE_TYPE_PRODUCTION));
 Http::onRequest()
     ->inject('response')
     ->action(function (Response $response) {
@@ -32,10 +33,10 @@ Http::onRequest()
 
 run(function () {
     $orchestration = new Orchestration(new DockerAPI(
-        Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', ''),
-        Http::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '')
+        System::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', ''),
+        System::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '')
     ));
-    $networks = explode(',', Http::getEnv('OPR_EXECUTOR_NETWORK') ?: 'openruntimes-runtimes');
+    $networks = explode(',', System::getEnv('OPR_EXECUTOR_NETWORK') ?: 'openruntimes-runtimes');
     $runner = new Docker($orchestration, $networks);
 
     Http::setResource('runner', fn () => $runner);
