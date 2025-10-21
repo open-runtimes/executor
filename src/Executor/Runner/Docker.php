@@ -8,6 +8,7 @@ use OpenRuntimes\Executor\Exception;
 use OpenRuntimes\Executor\Stats;
 use OpenRuntimes\Executor\Usage;
 use OpenRuntimes\Executor\Validator\TCP;
+use Swoole\Coroutine;
 use Swoole\Process;
 use Swoole\Table;
 use Swoole\Timer;
@@ -114,72 +115,76 @@ class Docker extends Adapter
         /**
          * Run a maintenance worker every X seconds to remove inactive runtimes
          */
-        Console::info('Starting maintenance interval...');
-        $interval = (int)System::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
-        Timer::tick($interval * 1000, function () {
-            Console::info("Running maintenance task ...");
-            // Stop idling runtimes
-            foreach ($this->activeRuntimes as $runtimeName => $runtime) {
-                $inactiveThreshold = \time() - \intval(System::getEnv('OPR_EXECUTOR_INACTIVE_THRESHOLD', '60'));
-                if ($runtime['updated'] < $inactiveThreshold) {
-                    go(function () use ($runtimeName, $runtime) {
-                        try {
-                            $this->orchestration->remove($runtime['name'], true);
-                            Console::success("Successfully removed {$runtime['name']}");
-                        } catch (\Throwable $th) {
-                            Console::error('Inactive Runtime deletion failed: ' . $th->getMessage());
-                        } finally {
-                            $this->activeRuntimes->del($runtimeName);
-                        }
-                    });
-                }
-            }
+        // we don't want to run this in every coroutine - extract to seperate module later
+        if (Coroutine::getCid() === 0) {
+            Console::info('Starting maintenance interval...');
 
-            // Clear leftover build folders
-            $localDevice = new Local();
-            $tmpPath = DIRECTORY_SEPARATOR . 'tmp' . DIRECTORY_SEPARATOR;
-            $entries = $localDevice->getFiles($tmpPath);
-            $prefix = $tmpPath . System::getHostname() . '-';
-            foreach ($entries as $entry) {
-                if (\str_starts_with($entry, $prefix)) {
-                    $isActive = false;
-
-                    foreach ($this->activeRuntimes as $runtimeName => $runtime) {
-                        if (\str_ends_with($entry, $runtimeName)) {
-                            $isActive = true;
-                            break;
-                        }
-                    }
-
-                    if (!$isActive) {
-                        $localDevice->deletePath($entry);
+            $interval = (int)System::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
+            Timer::tick($interval * 1000, function () {
+                Console::info("Running maintenance task ...");
+                // Stop idling runtimes
+                foreach ($this->activeRuntimes as $runtimeName => $runtime) {
+                    $inactiveThreshold = \time() - \intval(System::getEnv('OPR_EXECUTOR_INACTIVE_THRESHOLD', '60'));
+                    if ($runtime['updated'] < $inactiveThreshold) {
+                        go(function () use ($runtimeName, $runtime) {
+                            try {
+                                $this->orchestration->remove($runtime['name'], true);
+                                Console::success("Successfully removed {$runtime['name']}");
+                            } catch (\Throwable $th) {
+                                Console::error('Inactive Runtime deletion failed: ' . $th->getMessage());
+                            } finally {
+                                $this->activeRuntimes->del($runtimeName);
+                            }
+                        });
                     }
                 }
-            }
 
-            Console::success("Maintanance task finished.");
-        });
+                // Clear leftover build folders
+                $localDevice = new Local();
+                $tmpPath = DIRECTORY_SEPARATOR . 'tmp' . DIRECTORY_SEPARATOR;
+                $entries = $localDevice->getFiles($tmpPath);
+                $prefix = $tmpPath . System::getHostname() . '-';
+                foreach ($entries as $entry) {
+                    if (\str_starts_with($entry, $prefix)) {
+                        $isActive = false;
 
-        Console::success('Maintenance interval started.');
+                        foreach ($this->activeRuntimes as $runtimeName => $runtime) {
+                            if (\str_ends_with($entry, $runtimeName)) {
+                                $isActive = true;
+                                break;
+                            }
+                        }
 
-        /**
-         * Get usage stats every X seconds to update swoole table
-         */
-        Console::info('Starting stats interval...');
-        $getStats = function (): void {
-            // Get usage stats
-            $usage = new Usage($this->orchestration);
-            $usage->run();
-            $this->stats->updateStats($usage);
-        };
+                        if (!$isActive) {
+                            $localDevice->deletePath($entry);
+                        }
+                    }
+                }
 
-        // Load initial stats in blocking way
-        $getStats();
+                Console::success("Maintanance task finished.");
+            });
 
-        // Setup infinite recursion in non-blocking way
-        \go(fn () => Timer::after(1000, fn () => $getStats()));
+            Console::success('Maintenance interval started.');
 
-        Console::success('Stats interval started.');
+            /**
+            * Get usage stats every X seconds to update swoole table
+            */
+            Console::info('Starting stats interval...');
+            $getStats = function (): void {
+                // Get usage stats
+                $usage = new Usage($this->orchestration);
+                $usage->run();
+                $this->stats->updateStats($usage);
+            };
+
+            // Load initial stats in blocking way
+            $getStats();
+
+            // Setup infinite recursion in non-blocking way
+            \go(fn () => Timer::after(1000, fn () => $getStats()));
+
+            Console::success('Stats interval started.');
+        }
 
         Process::signal(SIGINT, fn () => $this->cleanUp($this->networks));
         Process::signal(SIGQUIT, fn () => $this->cleanUp($this->networks));

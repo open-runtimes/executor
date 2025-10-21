@@ -2,7 +2,7 @@
 
 namespace OpenRuntimes\Executor\Validator;
 
-use Utopia\Http\Validator;
+use Utopia\Validator;
 
 /**
  * TCP ping validator
