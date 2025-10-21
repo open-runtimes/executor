@@ -1,7 +1,7 @@
 <?php
 
 use OpenRuntimes\Executor\Exception;
-use Utopia\CLI\Console;
+use Utopia\Console;
 use Utopia\Http\Http;
 use Utopia\Logger\Log;
 use Utopia\Logger\Logger;

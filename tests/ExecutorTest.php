@@ -4,7 +4,7 @@ namespace Tests;
 
 use PHPUnit\Framework\TestCase;
 use Swoole\Coroutine as Co;
-use Utopia\CLI\Console;
+use Utopia\Console;
 
 // TODO: @Meldiron Write more tests (validators mainly)
 // TODO: @Meldiron Health API tests

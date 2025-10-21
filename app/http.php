@@ -9,7 +9,7 @@ require_once __DIR__ . '/controllers.php';
 
 use OpenRuntimes\Executor\Runner\Docker;
 use Swoole\Runtime;
-use Utopia\CLI\Console;
+use Utopia\Console;
 use Utopia\Http\Http;
 use Utopia\Http\Response;
 use Utopia\Http\Adapter\Swoole\Server;

@@ -3,7 +3,7 @@
 namespace OpenRuntimes\Executor\Runner;
 
 use OpenRuntimes\Executor\Stats;
-use Utopia\CLI\Console;
+use Utopia\Console;
 use Utopia\DSN\DSN;
 use Utopia\Http\Response;
 use Utopia\Logger\Log;
