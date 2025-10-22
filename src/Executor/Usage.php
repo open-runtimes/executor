@@ -3,7 +3,7 @@
 namespace OpenRuntimes\Executor;
 
 use Exception;
-use Utopia\CLI\Console;
+use Utopia\Console;
 use Utopia\Orchestration\Orchestration;
 use Utopia\System\System;
 
