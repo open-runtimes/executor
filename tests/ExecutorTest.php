@@ -160,7 +160,7 @@ class ExecutorTest extends TestCase
     {
         $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
-        $this->assertEquals(0, count($response['body']));
+        $this->assertEquals(0, count($response['body']), 'Runtimes should be empty, instead got ' . json_encode($response['body']));
     }
 
     public function testGetRuntimeUnknown(): void
