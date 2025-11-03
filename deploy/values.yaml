@@ -1,0 +1,189 @@
+# Default values for openruntimes-executor.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: openruntimes/executor
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: "executor-sa"
+
+rbac:
+  # Specifies whether RBAC resources should be created
+  create: true
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 80
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+    # nginx.ingress.kubernetes.io/rewrite-target: /
+  hosts:
+    - host: executor.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: executor-tls
+  #    hosts:
+  #      - executor.example.com
+
+resources:
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Executor configuration
+config:
+  # Runner type: docker or kubernetes
+  runner: "kubernetes"
+  
+  # Environment mode
+  env: "production"
+  
+  # Comma-separated list of supported runtimes
+  runtimes: "php-8.3,node-21.0,python-3.12,deno-1.40"
+  
+  # Runtime versions
+  runtimeVersions: "v5"
+  
+  # Storage connection
+  connectionStorage: "file://localhost"
+  
+  # Inactive threshold in seconds
+  inactiveThreshold: "300"
+  
+  # Maintenance interval in seconds
+  maintenanceInterval: "600"
+  
+  # Network name
+  network: "openruntimes-runtimes"
+  
+  # Image pull policy: enabled or disabled
+  imagePull: "enabled"
+  
+  # Kubernetes configuration
+  kubernetes:
+    url: "https://kubernetes.default.svc"
+    namespace: "default"
+  
+  # Retry configuration
+  retryAttempts: "5"
+  retryDelayMs: "500"
+
+# Secret configuration
+secret:
+  # Executor secret key for authentication
+  # IMPORTANT: Change this in production!
+  executorSecret: "change-this-secret-key-in-production"
+  
+  # Docker Hub credentials (optional, for docker runner)
+  dockerHub:
+    username: ""
+    password: ""
+
+# Persistent volume for /tmp (executor pod only)
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  # Use emptyDir instead of PVC
+  emptyDir: true
+
+# Shared storage for code/functions between executor and runtime pods
+sharedStorage:
+  enabled: true
+  # Storage class - leave empty for default, or specify (e.g., "standard", "gp2", "local-path")
+  storageClass: ""
+  accessMode: ReadWriteMany
+  size: 20Gi
+  # Mount paths
+  builds:
+    mountPath: /storage/builds
+  functions:
+    mountPath: /storage/functions
+
+# Liveness and readiness probes
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /v1/health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /v1/health
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+# Network Policy
+networkPolicy:
+  enabled: false
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress: []

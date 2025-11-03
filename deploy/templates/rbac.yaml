@@ -1,0 +1,60 @@
+{{- if .Values.rbac.create -}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "openruntimes-executor.fullname" . }}
+  labels:
+    {{- include "openruntimes-executor.labels" . | nindent 4 }}
+rules:
+  # Permissions for managing pods
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "create", "delete", "watch", "update", "patch"]
+  
+  # Permissions for pod logs
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get", "list"]
+  
+  # Permissions for executing commands in pods
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create", "get"]
+  
+  # Permissions for pod status
+  - apiGroups: [""]
+    resources: ["pods/status"]
+    verbs: ["get", "list", "watch"]
+  
+  # Permissions for network policies
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "create", "delete", "update", "patch"]
+  
+  # Permissions for secrets (if needed for storing runtime secrets)
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+  
+  # Permissions for config maps (if needed)
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "openruntimes-executor.fullname" . }}
+  labels:
+    {{- include "openruntimes-executor.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "openruntimes-executor.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "openruntimes-executor.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

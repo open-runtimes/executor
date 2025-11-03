@@ -1,0 +1,17 @@
+apiVersion: v2
+name: openruntimes-executor
+description: A Helm chart for OpenRuntimes Executor on Kubernetes
+type: application
+version: 1.0.0
+appVersion: "latest"
+keywords:
+  - openruntimes
+  - executor
+  - serverless
+  - functions
+home: https://github.com/open-runtimes/executor
+sources:
+  - https://github.com/open-runtimes/executor
+maintainers:
+  - name: OpenRuntimes Team
+    url: https://github.com/open-runtimes

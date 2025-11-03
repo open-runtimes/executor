@@ -22,6 +22,14 @@ COPY ./src /usr/local/src
 # Extensions and libraries
 COPY --from=composer /usr/local/src/vendor /usr/local/vendor
 
+RUN \
+  apk update \
+  && apk add --no-cache make automake autoconf gcc g++ git brotli-dev docker-cli curl
+
+RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+  && chmod +x kubectl \
+  && mv kubectl /usr/local/bin/kubectl
+
 HEALTHCHECK --interval=30s --timeout=15s --start-period=60s --retries=3 CMD curl -s -H "Authorization: Bearer ${OPR_EXECUTOR_SECRET}" --fail http://127.0.0.1:80/v1/health
 
 CMD [ "php", "app/http.php" ]

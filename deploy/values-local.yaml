@@ -1,0 +1,44 @@
+# Values for local Kind development
+replicaCount: 1
+
+image:
+  repository: openruntimes/executor
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+config:
+  runner: "kubernetes"
+  env: "development"
+  runtimes: "php-8.3,node-21.0,python-3.12"
+  runtimeVersions: "v5"
+  inactiveThreshold: "60"
+  maintenanceInterval: "300"
+  imagePull: "disabled"  # Use local images
+
+secret:
+  executorSecret: "local-dev-secret-key"
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+autoscaling:
+  enabled: false
+
+persistence:
+  emptyDir: true
+  size: 5Gi
+
+# Shared storage for local development
+# Kind doesn't support ReadWriteMany PVCs by default
+# For local dev, we'll disable shared storage and use emptyDir
+# In production, use NFS or cloud provider RWX storage
+sharedStorage:
+  enabled: false
+  storageClass: "standard"  
+  accessMode: ReadWriteOnce
+  size: 10Gi

@@ -129,6 +129,60 @@ curl -H "authorization: Bearer executor-secret-key" -H "Content-Type: applicatio
 docker compose down
 ```
 
+## Kubernetes Deployment
+
+For deploying to Kubernetes with Helm:
+
+### Quick Start with Kind (Local)
+
+```bash
+# Create local Kubernetes cluster
+make kind-create
+
+# Build and deploy
+make kind-full
+
+# Test the executor
+make helm-test
+```
+
+### Production Deployment
+
+```bash
+# Install with Helm
+helm install executor ./deploy \
+  --set secret.executorSecret="your-secure-secret-key" \
+  --set ingress.enabled=true \
+  --set ingress.hosts[0].host="executor.example.com" \
+  --set sharedStorage.enabled=true \
+  --set sharedStorage.storageClass="nfs-storage"
+
+# Or use production values
+helm install executor ./deploy -f ./deploy/values-production.yaml
+```
+
+### Shared Storage (Required for Function Execution)
+
+For full function execution in Kubernetes, you need shared storage between executor and runtime pods:
+
+```bash
+# Configure shared storage (ReadWriteMany required)
+helm install executor ./deploy \
+  --set sharedStorage.enabled=true \
+  --set sharedStorage.storageClass="efs-sc"  # AWS EFS
+  --set sharedStorage.size="100Gi"
+```
+
+Supported storage classes:
+- **AWS**: EFS (`efs-sc`)
+- **Azure**: Azure Files (`azurefile`)
+- **GCP**: Filestore (`filestore-sc`)
+- **On-Premises**: NFS, Ceph, GlusterFS
+
+See the [shared storage documentation](./deploy/STORAGE.md) for detailed setup instructions.
+
+See the [deployment documentation](./deploy/README.md) for more details.
+
 ## API Endpoints
 
 | Method | Endpoint | Description | Params |
@@ -192,6 +246,7 @@ docker compose down
 | Variable name                    | Description                                                                                                                                   |
 |------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
 | OPR_EXECUTOR_ENV                 | Environment mode of the executor, ex. `development`                                                                                           |
+| OPR_EXECUTOR_RUNNER              | Runner type for the executor: `docker` (default) or `kubernetes`                                                                               |
 | OPR_EXECUTOR_RUNTIMES            | Comma-separated list of supported runtimes `(ex: php-8.1,dart-2.18,deno-1.24,..)`. These runtimes should be available as container images.    |
 | OPR_EXECUTOR_CONNECTION_STORAGE  | DSN string that represents a connection to your storage device, ex: `file://localhost` for local storage                                      |
 | OPR_EXECUTOR_INACTIVE_THRESHOLD   | Threshold time (in seconds) for detecting inactive runtimes, ex: `60`                                                                         |
@@ -200,8 +255,11 @@ docker compose down
 | OPR_EXECUTOR_SECRET              | Secret key used by the executor for authentication                                                                                            |
 | OPR_EXECUTOR_LOGGING_PROVIDER     | Deprecated: use `OPR_EXECUTOR_LOGGING_CONFIG` with DSN instead. External logging provider used by the executor, ex: `sentry`               |
 | OPR_EXECUTOR_LOGGING_CONFIG       | External logging provider DSN used by the executor, ex: `sentry://PROJECT_ID:SENTRY_API_KEY@SENTRY_HOST/`                                  |
-| OPR_EXECUTOR_DOCKER_HUB_USERNAME | Username for Docker Hub authentication (if applicable)                                                                                        |
-| OPR_EXECUTOR_DOCKER_HUB_PASSWORD | Password for Docker Hub authentication (if applicable)                                                                                        |
+| OPR_EXECUTOR_DOCKER_HUB_USERNAME | Username for Docker Hub authentication (if applicable, used when runner is `docker`)                                                          |
+| OPR_EXECUTOR_DOCKER_HUB_PASSWORD | Password for Docker Hub authentication (if applicable, used when runner is `docker`)                                                          |
+| OPR_EXECUTOR_K8S_URL             | Kubernetes API URL (if applicable, used when runner is `kubernetes`), ex: `https://kubernetes.default.svc`                                   |
+| OPR_EXECUTOR_K8S_NAMESPACE       | Kubernetes namespace for runtime pods (if applicable, used when runner is `kubernetes`), ex: `default`                                        |
+| OPR_EXECUTOR_K8S_TOKEN           | Kubernetes API token for external access (optional, auto-detected from ServiceAccount when running in-cluster)                                |
 | OPR_EXECUTOR_RUNTIME_VERSIONS    | Version tag for runtime environments, ex: `v5`                                                                                                |
 | OPR_EXECUTOR_RETRY_ATTEMPTS      | Number of retry attempts for failed executions, ex: `5`                                                                                       |
 | OPR_EXECUTOR_RETRY_DELAY_MS      | Delay (in milliseconds) between retry attempts, ex: `500`                                                                                    |

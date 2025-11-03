@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "openruntimes-executor.fullname" . }}
+  labels:
+    {{- include "openruntimes-executor.labels" . | nindent 4 }}
+data:
+  OPR_EXECUTOR_ENV: {{ .Values.config.env | quote }}
+  OPR_EXECUTOR_RUNNER: {{ .Values.config.runner | quote }}
+  OPR_EXECUTOR_RUNTIMES: {{ .Values.config.runtimes | quote }}
+  OPR_EXECUTOR_RUNTIME_VERSIONS: {{ .Values.config.runtimeVersions | quote }}
+  OPR_EXECUTOR_CONNECTION_STORAGE: {{ .Values.config.connectionStorage | quote }}
+  OPR_EXECUTOR_INACTIVE_THRESHOLD: {{ .Values.config.inactiveThreshold | quote }}
+  OPR_EXECUTOR_MAINTENANCE_INTERVAL: {{ .Values.config.maintenanceInterval | quote }}
+  OPR_EXECUTOR_NETWORK: {{ .Values.config.network | quote }}
+  OPR_EXECUTOR_IMAGE_PULL: {{ .Values.config.imagePull | quote }}
+  OPR_EXECUTOR_K8S_URL: {{ .Values.config.kubernetes.url | quote }}
+  OPR_EXECUTOR_K8S_NAMESPACE: {{ .Values.config.kubernetes.namespace | default .Release.Namespace | quote }}
+  OPR_EXECUTOR_RETRY_ATTEMPTS: {{ .Values.config.retryAttempts | quote }}
+  OPR_EXECUTOR_RETRY_DELAY_MS: {{ .Values.config.retryDelayMs | quote }}
+  {{- if .Values.sharedStorage.enabled }}
+  OPR_EXECUTOR_STORAGE_BUILDS: {{ .Values.sharedStorage.builds.mountPath | quote }}
+  OPR_EXECUTOR_STORAGE_FUNCTIONS: {{ .Values.sharedStorage.functions.mountPath | quote }}
+  OPR_EXECUTOR_STORAGE_BUILDS_PVC: {{ include "openruntimes-executor.fullname" . }}-builds
+  OPR_EXECUTOR_STORAGE_FUNCTIONS_PVC: {{ include "openruntimes-executor.fullname" . }}-functions
+  {{- end }}
