@@ -40,24 +40,24 @@ Http::onRequest()
 
 run(function () use ($runnerType) {
     $networks = explode(',', System::getEnv('OPR_EXECUTOR_NETWORK') ?: 'openruntimes-runtimes');
-    
+
     if ($runnerType === 'kubernetes') {
         Console::info("Initializing Kubernetes orchestration...");
-        
+
         // Kubernetes in-cluster configuration
         $k8sUrl = System::getEnv('OPR_EXECUTOR_K8S_URL', 'https://kubernetes.default.svc');
         $k8sNamespace = System::getEnv('OPR_EXECUTOR_K8S_NAMESPACE', 'default');
-        
+
         Console::info("K8s API URL: $k8sUrl");
         Console::info("K8s Namespace: $k8sNamespace");
-        
+
         // Build authentication configuration
         $auth = [];
-        
+
         // Try to read ServiceAccount token from the mounted secret (in-cluster)
         $tokenPath = '/var/run/secrets/kubernetes.io/serviceaccount/token';
         $caPath = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt';
-        
+
         if (file_exists($tokenPath)) {
             $auth['token'] = trim(file_get_contents($tokenPath));
             Console::info("Using ServiceAccount token from: $tokenPath");
@@ -66,32 +66,32 @@ run(function () use ($runnerType) {
             $auth['token'] = $token;
             Console::info("Using token from environment variable");
         }
-        
+
         if (file_exists($caPath)) {
             $auth['ca'] = $caPath;
             Console::info("Using CA certificate from: $caPath");
         }
-        
+
         if (empty($auth['token'])) {
             Console::warning("No authentication token found! Make sure ServiceAccount is properly configured.");
         }
-        
+
         $orchestration = new Orchestration(new K8s($k8sUrl, $k8sNamespace, $auth));
-        
+
         Console::info("Creating Kubernetes runner...");
         $runner = new Kubernetes($orchestration, $networks);
-        
+
         Console::success('Kubernetes Executor is ready.');
     } else {
         Console::info("Initializing Docker orchestration...");
-        
+
         $orchestration = new Orchestration(new DockerAPI(
             System::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', ''),
             System::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '')
         ));
-        
+
         $runner = new Docker($orchestration, $networks);
-        
+
         Console::success('Docker Executor is ready.');
     }
 
