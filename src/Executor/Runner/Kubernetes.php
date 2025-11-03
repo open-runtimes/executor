@@ -337,13 +337,17 @@ class Kubernetes extends Adapter
             $read = [$pipes[1]];
         }
 
-        Timer::clear($timerId);
+        if ($timerId !== false) {
+            Timer::clear($timerId);
+        }
 
         \fclose($pipes[0]);
         \fclose($pipes[1]);
         \fclose($pipes[2]);
-        \proc_terminate($logsProcess, 9);
-        \proc_close($logsProcess);
+        if (\is_resource($logsProcess)) {
+            \proc_terminate($logsProcess, 9);
+            \proc_close($logsProcess);
+        }
     }
 
     /**
@@ -1202,7 +1206,7 @@ class Kubernetes extends Adapter
     {
         Console::log('Cleaning up pods and networks...');
 
-        $functionsToRemove = $this->orchestration->list(['labels' => ['openruntimes-executor' => System::getHostname()]]);
+        $functionsToRemove = $this->orchestration->list(['label' => 'openruntimes-executor=' . System::getHostname()]);
 
         if (\count($functionsToRemove) === 0) {
             Console::info('No pods found to clean up.');

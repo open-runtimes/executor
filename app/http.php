@@ -59,8 +59,11 @@ run(function () use ($runnerType) {
         $caPath = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt';
 
         if (file_exists($tokenPath)) {
-            $auth['token'] = trim(file_get_contents($tokenPath));
-            Console::info("Using ServiceAccount token from: $tokenPath");
+            $tokenContent = file_get_contents($tokenPath);
+            if ($tokenContent !== false) {
+                $auth['token'] = trim($tokenContent);
+                Console::info("Using ServiceAccount token from: $tokenPath");
+            }
         } elseif ($token = System::getEnv('OPR_EXECUTOR_K8S_TOKEN', '')) {
             // Fallback to environment variable (for external access)
             $auth['token'] = $token;
@@ -76,7 +79,7 @@ run(function () use ($runnerType) {
             Console::warning("No authentication token found! Make sure ServiceAccount is properly configured.");
         }
 
-        $orchestration = new Orchestration(new K8s($k8sUrl, $k8sNamespace, $auth));
+        $orchestration = new Orchestration(new K8s($k8sUrl, $k8sNamespace ?? 'default', $auth));
 
         Console::info("Creating Kubernetes runner...");
         $runner = new Kubernetes($orchestration, $networks);
