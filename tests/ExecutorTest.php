@@ -14,17 +14,21 @@ use Utopia\Console;
 
 class ExecutorTest extends TestCase
 {
-    protected Client $client;
     protected string $endpoint = 'http://executor/v1';
     protected string $key = 'executor-secret-key';
 
+    /**
+     * Base headers that are added to every request
+     * @var array<string, string>
+     */
+    protected array $baseHeaders = [];
+
     protected function setUp(): void
     {
-        $this->client = new Client();
-
-        $this->client
-            ->addHeader('Content-Type', 'application/json')
-            ->addHeader('x-executor-key', $this->key);
+        $this->baseHeaders = [
+            'Content-Type' => 'application/json',
+            'x-executor-key' => $this->key
+        ];
     }
 
     /**
@@ -34,7 +38,7 @@ class ExecutorTest extends TestCase
      */
     protected function setKey(string $key): void
     {
-        $this->client->addHeader('x-executor-key', $key);
+        $this->baseHeaders['x-executor-key'] = $key;
     }
 
     /**
@@ -51,12 +55,15 @@ class ExecutorTest extends TestCase
     {
         $url = $this->endpoint . $path;
 
-        // Add request-specific headers
+        $client = new Client();
+        foreach ($this->baseHeaders as $key => $value) {
+            $client->addHeader($key, $value);
+        }
         foreach ($headers as $key => $value) {
-            $this->client->addHeader($key, $value);
+            $client->addHeader($key, $value);
         }
 
-        $response = $this->client->fetch(
+        $response = $client->fetch(
             url: $url,
             method: $method,
             body: $method !== Client::METHOD_GET ? $params : [],
