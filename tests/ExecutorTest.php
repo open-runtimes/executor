@@ -3,6 +3,7 @@
 namespace Tests;
 
 use PHPUnit\Framework\TestCase;
+use Utopia\Fetch\Client;
 use Swoole\Coroutine as Co;
 use Utopia\Console;
 
@@ -22,9 +23,58 @@ class ExecutorTest extends TestCase
         $this->client = new Client();
 
         $this->client
-            ->setEndpoint($this->endpoint)
             ->addHeader('Content-Type', 'application/json')
-            ->setKey($this->key);
+            ->addHeader('x-executor-key', $this->key);
+    }
+
+    /**
+     * Set the executor key
+     * @param string $key
+     * @return void
+     */
+    protected function setKey(string $key): void
+    {
+        $this->client->addHeader('x-executor-key', $key);
+    }
+
+    /**
+     * Wrapper method for client calls to match old API
+     * @param string $method
+     * @param string $path
+     * @param array<string, string> $headers
+     * @param array<string, mixed> $params
+     * @param bool $decode
+     * @param ?callable $callback
+     * @return array<string, mixed>
+     */
+    protected function call(string $method, string $path = '', array $headers = [], array $params = [], bool $decode = true, ?callable $callback = null): array
+    {
+        $url = $this->endpoint . $path;
+
+        // Add request-specific headers
+        foreach ($headers as $key => $value) {
+            $this->client->addHeader($key, $value);
+        }
+
+        $response = $this->client->fetch(
+            url: $url,
+            method: $method,
+            body: $method !== Client::METHOD_GET ? $params : [],
+            query: $method === Client::METHOD_GET ? $params : [],
+            chunks: $callback ? function ($chunk) use ($callback) {
+                $callback($chunk->getData());
+            } : null
+        );
+
+        $result = [
+            'headers' => array_merge(
+                $response->getHeaders(),
+                ['status-code' => $response->getStatusCode()]
+            ),
+            'body' => $decode ? $response->json() : $response->text()
+        ];
+
+        return $result;
     }
 
     public function testLogStream(): void
@@ -42,7 +92,7 @@ class ExecutorTest extends TestCase
             Co::join([
                 /** Watch logs */
                 Co\go(function () use (&$streamChunks, $runtimeId) {
-                    $this->client->call(Client::METHOD_GET, '/runtimes/test-log-stream-' . $runtimeId . '/logs', [], [], true, function ($data) use (&$streamChunks) {
+                    $this->call(Client::METHOD_GET, '/runtimes/test-log-stream-' . $runtimeId . '/logs', [], [], true, function ($data) use (&$streamChunks) {
                         // stream log parsing
                         $data = \str_replace("\\n", "{OPR_LINEBREAK_PLACEHOLDER}", $data);
                         foreach (\explode("\n", $data) as $chunk) {
@@ -72,7 +122,7 @@ class ExecutorTest extends TestCase
                         'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm install && npm run build"'
                     ];
 
-                    $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+                    $response = $this->call(Client::METHOD_POST, '/runtimes', [], $params);
                     $this->assertEquals(201, $response['headers']['status-code']);
 
                     $runtimeChunks = $response['body']['output'];
@@ -151,39 +201,39 @@ class ExecutorTest extends TestCase
 
     public function testUnknownPath(): void
     {
-        $response = $this->client->call(Client::METHOD_GET, '/unknown', [], []);
+        $response = $this->call(Client::METHOD_GET, '/unknown', [], []);
         $this->assertEquals(404, $response['headers']['status-code']);
         $this->assertEquals('Not Found', $response['body']['message']);
     }
 
     public function testGetRuntimesEmpty(): void
     {
-        $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
+        $response = $this->call(Client::METHOD_GET, '/runtimes', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(0, count($response['body']));
     }
 
     public function testGetRuntimeUnknown(): void
     {
-        $response = $this->client->call(Client::METHOD_GET, '/runtimes/id', [], []);
+        $response = $this->call(Client::METHOD_GET, '/runtimes/id', [], []);
         $this->assertEquals(404, $response['headers']['status-code']);
         $this->assertEquals('Runtime not found', $response['body']['message']);
     }
 
     public function testDeleteRuntimeUnknown(): void
     {
-        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test', [], []);
+        $response = $this->call(Client::METHOD_DELETE, '/runtimes/test', [], []);
         $this->assertEquals(404, $response['headers']['status-code']);
         $this->assertEquals('Runtime not found', $response['body']['message']);
     }
 
     public function testGetRuntimesUnauthorized(): void
     {
-        $this->client->setKey('');
-        $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
+        $this->setKey('');
+        $response = $this->call(Client::METHOD_GET, '/runtimes', [], []);
         $this->assertEquals(401, $response['headers']['status-code']);
         $this->assertEquals('Missing executor key', $response['body']['message']);
-        $this->client->setKey($this->key);
+        $this->setKey($this->key);
     }
 
     public function testBuild(): void
@@ -204,7 +254,7 @@ class ExecutorTest extends TestCase
             'remove' => true
         ];
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $response = $this->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
 
         /** Ensure build folder cleanup */
@@ -213,12 +263,12 @@ class ExecutorTest extends TestCase
         $this->assertFalse(\file_exists($tmpFolderPath));
 
         /** List runtimes */
-        $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
+        $response = $this->call(Client::METHOD_GET, '/runtimes', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(0, count($response['body'])); // Not 1, it was auto-removed
 
         /** Failure getRuntime */
-        $response = $this->client->call(Client::METHOD_GET, '/runtimes/test-build-selfdelete-' . $runtimeId, [], []);
+        $response = $this->call(Client::METHOD_GET, '/runtimes/test-build-selfdelete-' . $runtimeId, [], []);
         $this->assertEquals(404, $response['headers']['status-code']);
 
         /** User error in build command */
@@ -232,7 +282,7 @@ class ExecutorTest extends TestCase
             'remove' => true
         ];
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $response = $this->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(400, $response['headers']['status-code']);
 
         /** Test invalid path */
@@ -246,7 +296,7 @@ class ExecutorTest extends TestCase
             'remove' => true
         ];
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $response = $this->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(500, $response['headers']['status-code']);
     }
 
@@ -266,7 +316,7 @@ class ExecutorTest extends TestCase
             'remove' => true,
         ];
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $response = $this->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
         $this->assertIsString($response['body']['path']);
         $this->assertIsArray($response['body']['output']);
@@ -286,10 +336,10 @@ class ExecutorTest extends TestCase
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
         ];
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $response = $this->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-site-'.$runtimeId.'/executions', [
+        $response = $this->call(Client::METHOD_POST, '/runtimes/test-exec-site-'.$runtimeId.'/executions', [
             'path' => '/index.html'
         ]);
 
@@ -297,7 +347,7 @@ class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['body']['statusCode']);
 
         /** Delete runtime */
-        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-site-'.$runtimeId, [], []);
+        $response = $this->call(Client::METHOD_DELETE, '/runtimes/test-exec-site-'.$runtimeId, [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
@@ -322,13 +372,13 @@ class ExecutorTest extends TestCase
             'remove' => true
         ];
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $response = $this->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
         $this->assertNotEmpty($response['body']['path']);
 
         $buildPath = $response['body']['path'];
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-' . $runtimeId . '/executions', [], [
+        $response = $this->call(Client::METHOD_POST, '/runtimes/test-exec-' . $runtimeId . '/executions', [], [
             'source' => $buildPath,
             'entrypoint' => 'index.js',
             'image' => 'openruntimes/node:v5-22',
@@ -340,7 +390,7 @@ class ExecutorTest extends TestCase
         $json = json_decode($response['body']['body'], true);
         $this->assertEquals("Hello Open Runtimes 👋", $json['message']);
 
-        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-' . $runtimeId, [], []);
+        $response = $this->call(Client::METHOD_DELETE, '/runtimes/test-exec-' . $runtimeId, [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
@@ -360,7 +410,7 @@ class ExecutorTest extends TestCase
             'remove' => true,
         ];
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $response = $this->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
         $this->assertNotEmpty($response['body']['path']);
 
@@ -376,16 +426,16 @@ class ExecutorTest extends TestCase
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
         ];
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $response = $this->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions');
+        $response = $this->call(Client::METHOD_POST, '/runtimes/test-exec/executions');
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(200, $response['body']['statusCode']);
         $this->assertEquals('aValue', \json_decode($response['body']['headers'], true)['x-key']);
 
         /** Execute on cold-started runtime */
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions', [], [
+        $response = $this->call(Client::METHOD_POST, '/runtimes/test-exec/executions', [], [
             'body' => 'test payload',
             'variables' => [
                 'customVariable' => 'mySecret'
@@ -395,11 +445,11 @@ class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
 
         /** Delete runtime */
-        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec', [], []);
+        $response = $this->call(Client::METHOD_DELETE, '/runtimes/test-exec', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
 
         /** Execute on new runtime */
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [], [
+        $response = $this->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [], [
             'source' => $buildPath,
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v5-8.1',
@@ -409,7 +459,7 @@ class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
 
         /** Execution without / at beginning of path */
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [], [
+        $response = $this->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [], [
             'source' => $buildPath,
             'entrypoint' => 'index.php',
             'path' => 'v1/users',
@@ -421,7 +471,7 @@ class ExecutorTest extends TestCase
         $this->assertEquals("200", $response['body']['statusCode']);
 
         /** Execution with / at beginning of path */
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [], [
+        $response = $this->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [], [
             'source' => $buildPath,
             'entrypoint' => 'index.php',
             'path' => '/v1/users',
@@ -433,7 +483,7 @@ class ExecutorTest extends TestCase
         $this->assertEquals("200", $response['body']['statusCode']);
 
         /** Execution with different accept headers */
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
+        $response = $this->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
             'accept' => 'application/json'
         ], [
             'source' => $buildPath,
@@ -447,7 +497,7 @@ class ExecutorTest extends TestCase
         $this->assertEquals('application/json', $response['headers']['content-type']);
 
         /** accept application/* */
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
+        $response = $this->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
             'accept' => 'application/*'
         ], [
             'source' => $buildPath,
@@ -461,7 +511,7 @@ class ExecutorTest extends TestCase
         $this->assertEquals('application/json', $response['headers']['content-type']);
 
         /** accept text/plain, application/json */
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
+        $response = $this->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
             'accept' => 'text/plain, application/json'
         ], [
             'source' => $buildPath,
@@ -475,7 +525,7 @@ class ExecutorTest extends TestCase
         $this->assertEquals('application/json', $response['headers']['content-type']);
 
         /** accept application/xml */
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
+        $response = $this->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
             'accept' => 'application/xml'
         ], [
             'source' => $buildPath,
@@ -489,7 +539,7 @@ class ExecutorTest extends TestCase
         $this->assertStringStartsWith('multipart/form-data', $response['headers']['content-type']);
 
         /** accept text/plain */
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
+        $response = $this->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
             'accept' => 'text/plain'
         ], [
             'source' => $buildPath,
@@ -503,7 +553,7 @@ class ExecutorTest extends TestCase
         $this->assertStringStartsWith('multipart/form-data', $response['headers']['content-type']);
 
         /** accept */
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
+        $response = $this->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [
             'accept' => '*/*'
         ], [
             'source' => $buildPath,
@@ -517,7 +567,7 @@ class ExecutorTest extends TestCase
         $this->assertStringStartsWith('multipart/form-data', $response['headers']['content-type']);
 
         /** Execution with HEAD request */
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [], [
+        $response = $this->call(Client::METHOD_POST, '/runtimes/test-exec-coldstart/executions', [], [
             'source' => $buildPath,
             'method' => 'HEAD',
             'entrypoint' => 'index.php',
@@ -529,7 +579,7 @@ class ExecutorTest extends TestCase
         $this->assertEmpty($response['body']['body']);
 
         /** Delete runtime */
-        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-coldstart', [], []);
+        $response = $this->call(Client::METHOD_DELETE, '/runtimes/test-exec-coldstart', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
@@ -550,7 +600,7 @@ class ExecutorTest extends TestCase
             'remove' => true
         ];
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $response = $this->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
         $this->assertNotEmpty($response['body']['path']);
 
@@ -565,7 +615,7 @@ class ExecutorTest extends TestCase
             'path' => '/logs'
         ];
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-ssr-exec/executions', [], $params);
+        $response = $this->call(Client::METHOD_POST, '/runtimes/test-ssr-exec/executions', [], $params);
 
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(200, $response['body']['statusCode']);
@@ -582,7 +632,7 @@ class ExecutorTest extends TestCase
         $this->assertNotEmpty($response['body']['errors']);
         $this->assertStringContainsString('Open runtimes error', $response['body']['errors']);
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-ssr-exec/executions', [
+        $response = $this->call(Client::METHOD_POST, '/runtimes/test-ssr-exec/executions', [
             'x-executor-response-format' => '0.10.0' // Last version to report string header values only
         ], $params);
         $this->assertEquals(200, $response['headers']['status-code']);
@@ -590,7 +640,7 @@ class ExecutorTest extends TestCase
         $this->assertEquals('astroCookie2=astroValue2; Max-Age=1800; HttpOnly', \json_decode($response['body']['headers'], true)['set-cookie']);
 
         /** Delete runtime */
-        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-ssr-exec', [], []);
+        $response = $this->call(Client::METHOD_DELETE, '/runtimes/test-ssr-exec', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals('astroCookie1=astroValue1; Max-Age=1800; HttpOnly', $setCookieList[0]);
     }
@@ -613,13 +663,13 @@ class ExecutorTest extends TestCase
             'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh ""'
         ];
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $response = $this->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
 
         $buildPath = $response['body']['path'];
 
         /** Execute function */
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-restart-policy/executions', [], [
+        $response = $this->call(Client::METHOD_POST, '/runtimes/test-exec-restart-policy/executions', [], [
             'source' => $buildPath,
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v5-8.1',
@@ -630,7 +680,7 @@ class ExecutorTest extends TestCase
 
         \sleep(5);
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-restart-policy/executions', [], [
+        $response = $this->call(Client::METHOD_POST, '/runtimes/test-exec-restart-policy/executions', [], [
             'source' => $buildPath,
             'entrypoint' => 'index.php',
             'image' => 'openruntimes/php:v5-8.1',
@@ -648,7 +698,7 @@ class ExecutorTest extends TestCase
         $this->assertEquals(3, $occurances);
 
         /** Delete runtime */
-        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-restart-policy', [], []);
+        $response = $this->call(Client::METHOD_DELETE, '/runtimes/test-exec-restart-policy', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
@@ -670,7 +720,7 @@ class ExecutorTest extends TestCase
             'remove' => true
         ];
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $response = $this->call(Client::METHOD_POST, '/runtimes', [], $params);
 
         $this->assertEquals(400, $response['headers']['status-code']);
         $this->assertGreaterThanOrEqual($size128Kb * 7, \strlen($response['body']['message']));
@@ -691,7 +741,7 @@ class ExecutorTest extends TestCase
             'remove' => true
         ];
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $response = $this->call(Client::METHOD_POST, '/runtimes', [], $params);
 
         $output = '';
         foreach ($response['body']['output'] as $outputItem) {
@@ -714,7 +764,7 @@ class ExecutorTest extends TestCase
             'remove' => true
         ];
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $response = $this->call(Client::METHOD_POST, '/runtimes', [], $params);
 
         $this->assertEquals(400, $response['headers']['status-code']);
         $this->assertGreaterThanOrEqual(1000000, \strlen($response['body']['message']));
@@ -735,7 +785,7 @@ class ExecutorTest extends TestCase
             'remove' => true
         ];
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $response = $this->call(Client::METHOD_POST, '/runtimes', [], $params);
 
         $output = '';
         foreach ($response['body']['output'] as $outputItem) {
@@ -1018,7 +1068,7 @@ class ExecutorTest extends TestCase
      *
      * @dataProvider provideScenarios
      */
-    public function testScenarios(string $image, string $entrypoint, string $folder, string $version, string $startCommand, string $buildCommand, callable $assertions, callable $body = null, bool $logging = true, string $mimeType = "application/json", float $cpus = 1, int $memory = 512, callable $buildAssertions = null): void
+    public function testScenarios(string $image, string $entrypoint, string $folder, string $version, string $startCommand, string $buildCommand, callable $assertions, ?callable $body = null, bool $logging = true, string $mimeType = "application/json", float $cpus = 1, int $memory = 512, ?callable $buildAssertions = null): void
     {
         /** Prepare deployment */
         $output = '';
@@ -1041,7 +1091,7 @@ class ExecutorTest extends TestCase
             'memory' => $memory
         ];
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $response = $this->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
 
         if (!is_null($buildAssertions)) {
@@ -1067,7 +1117,7 @@ class ExecutorTest extends TestCase
         }
 
         /** Execute function */
-        $response = $this->client->call(Client::METHOD_POST, "/runtimes/scenario-execute-{$folder}-{$runtimeId}/executions", [
+        $response = $this->call(Client::METHOD_POST, "/runtimes/scenario-execute-{$folder}-{$runtimeId}/executions", [
             'content-type' => $mimeType,
             'accept' => $mimeType
         ], $params);
@@ -1077,7 +1127,7 @@ class ExecutorTest extends TestCase
         call_user_func($assertions, $response);
 
         /** Delete runtime */
-        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/scenario-execute-{$folder}-{$runtimeId}", [], []);
+        $response = $this->call(Client::METHOD_DELETE, "/runtimes/scenario-execute-{$folder}-{$runtimeId}", [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
@@ -1129,7 +1179,7 @@ class ExecutorTest extends TestCase
             'remove' => true
         ];
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $response = $this->call(Client::METHOD_POST, '/runtimes', [], $params);
         if ($response['headers']['status-code'] !== 201) {
             \var_dump($response);
         }
@@ -1139,7 +1189,7 @@ class ExecutorTest extends TestCase
         $path = $response['body']['path'];
 
         // Execute function
-        $response = $this->client->call(Client::METHOD_POST, "/runtimes/custom-execute-{$folder}-{$runtimeId}/executions", [], [
+        $response = $this->call(Client::METHOD_POST, "/runtimes/custom-execute-{$folder}-{$runtimeId}/executions", [], [
             'source' => $path,
             'entrypoint' => $entrypoint,
             'image' => $image,
@@ -1174,7 +1224,7 @@ class ExecutorTest extends TestCase
         $this->assertEquals(13, $response['todo']['userId']);
 
         /** Delete runtime */
-        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/custom-execute-{$folder}-{$runtimeId}", [], []);
+        $response = $this->call(Client::METHOD_DELETE, "/runtimes/custom-execute-{$folder}-{$runtimeId}", [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
@@ -1196,7 +1246,7 @@ class ExecutorTest extends TestCase
             'command' => 'unzip /tmp/code.tar.gz -d /mnt/code && bash helpers/build.sh "composer install"',
         ];
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $response = $this->call(Client::METHOD_POST, '/runtimes', [], $params);
 
         $this->assertEquals(201, $response['headers']['status-code']);
         $this->assertNotEmpty(201, $response['body']['path']);
@@ -1213,22 +1263,22 @@ class ExecutorTest extends TestCase
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
         ];
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $response = $this->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
 
-        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-zip-' . $runtimeId .'/executions');
+        $response = $this->call(Client::METHOD_POST, '/runtimes/test-exec-zip-' . $runtimeId .'/executions');
 
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(200, $response['body']['statusCode']);
 
         /** Delete runtime */
-        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-zip-' . $runtimeId, [], []);
+        $response = $this->call(Client::METHOD_DELETE, '/runtimes/test-exec-zip-' . $runtimeId, [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
     public function testCommands(): void
     {
-        $runtime = $this->client->call(Client::METHOD_POST, '/runtimes', [], [
+        $runtime = $this->call(Client::METHOD_POST, '/runtimes', [], [
             'runtimeId' => 'test-commands',
             'remove' => false,
             'image' => 'openruntimes/php:v5-8.1',
@@ -1236,32 +1286,32 @@ class ExecutorTest extends TestCase
         ]);
         $this->assertEquals(201, $runtime['headers']['status-code']);
 
-        $command = $this->client->call(Client::METHOD_POST, '/runtimes/test-commands/commands', [], [
+        $command = $this->call(Client::METHOD_POST, '/runtimes/test-commands/commands', [], [
             'command' => 'echo "Hello, World!"'
         ]);
         $this->assertEquals(200, $command['headers']['status-code']);
         $this->assertStringContainsString('Hello, World!', $command['body']['output']); // not equals, because echo adds a newline
 
-        $command = $this->client->call(Client::METHOD_POST, '/runtimes/test-commands/commands', [], [
+        $command = $this->call(Client::METHOD_POST, '/runtimes/test-commands/commands', [], [
             'command' => 'sleep 5 && echo "Ok"',
             'timeout' => 1
         ]);
         $this->assertEquals(500, $command['headers']['status-code']);
         $this->assertStringContainsString('Operation timed out', $command['body']['message']);
 
-        $command = $this->client->call(Client::METHOD_POST, '/runtimes/test-commands/commands', [], [
+        $command = $this->call(Client::METHOD_POST, '/runtimes/test-commands/commands', [], [
             'command' => 'exit 1'
         ]);
         $this->assertEquals(500, $command['headers']['status-code']);
         $this->assertStringContainsString('Failed to execute command', $command['body']['message']);
 
-        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/test-commands", [], []);
+        $response = $this->call(Client::METHOD_DELETE, "/runtimes/test-commands", [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
 
-        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/test-commands", [], []);
+        $response = $this->call(Client::METHOD_DELETE, "/runtimes/test-commands", [], []);
         $this->assertEquals(404, $response['headers']['status-code']);
 
-        $command = $this->client->call(Client::METHOD_POST, '/runtimes/test-commands/commands', [], [
+        $command = $this->call(Client::METHOD_POST, '/runtimes/test-commands/commands', [], [
             'command' => 'echo 123'
         ]);
         $this->assertEquals(404, $command['headers']['status-code']);
@@ -1279,7 +1329,7 @@ class ExecutorTest extends TestCase
             Co::join([
                 /** Watch logs */
                 Co\go(function () use (&$realtimeEnd) {
-                    $this->client->call(Client::METHOD_GET, '/runtimes/test-log-stream-persistent/logs', [], [], true);
+                    $this->call(Client::METHOD_GET, '/runtimes/test-log-stream-persistent/logs', [], [], true);
 
                     $realtimeEnd = \microtime(true);
                 }),
@@ -1296,7 +1346,7 @@ class ExecutorTest extends TestCase
                         'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm install && npm run build"'
                     ];
 
-                    $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+                    $response = $this->call(Client::METHOD_POST, '/runtimes', [], $params);
                     $this->assertEquals(201, $response['headers']['status-code']);
 
                     $runtimeEnd = \microtime(true);
@@ -1307,7 +1357,7 @@ class ExecutorTest extends TestCase
         $diff = \abs($runtimeEnd - $realtimeEnd);
         $this->assertLessThanOrEqual(1, $diff);
 
-        $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/test-log-stream-persistent", [], []);
+        $response = $this->call(Client::METHOD_DELETE, "/runtimes/test-log-stream-persistent", [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 }

@@ -23,6 +23,7 @@
     "ext-curl": "*",
     "ext-json": "*",
     "ext-swoole": "*",
+    "appwrite/php-runtimes": "0.19.*",
     "utopia-php/framework": "0.34.*",
     "utopia-php/logger": "0.6.*",
     "utopia-php/console": "0.0.*",
@@ -32,8 +33,8 @@
     "utopia-php/preloader": "0.2.*",
     "utopia-php/system": "0.9.*",
     "utopia-php/orchestration": "0.14.*",
-    "appwrite/php-runtimes": "0.19.*",
-    "utopia-php/config": "^0.2.2"
+    "utopia-php/config": "^0.2.2",
+    "utopia-php/fetch": "0.4.*"
   },
   "require-dev": {
     "swoole/ide-helper": "5.1.2",
