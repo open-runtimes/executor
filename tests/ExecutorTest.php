@@ -66,12 +66,19 @@ class ExecutorTest extends TestCase
             } : null
         );
 
+        // When using streaming callback, body is consumed by the callback
+        // so we return empty body to avoid JSON decode errors
+        $body = null;
+        if ($callback === null) {
+            $body = $decode ? $response->json() : $response->text();
+        }
+
         $result = [
             'headers' => array_merge(
                 $response->getHeaders(),
                 ['status-code' => $response->getStatusCode()]
             ),
-            'body' => $decode ? $response->json() : $response->text()
+            'body' => $body
         ];
 
         return $result;
