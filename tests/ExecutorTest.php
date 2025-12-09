@@ -15,11 +15,15 @@ class ExecutorTest extends TestCase
 {
     protected string $endpoint = 'http://executor/v1';
     protected string $key = 'executor-secret-key';
+    protected Client $client;
+
+    /**
+     * @var array<string, string>
+     */
     protected array $baseHeaders = [
         'content-type' => 'application/json',
         'x-executor-response-format' => '0.11.0' // Enable array support for duplicate headers
     ];
-    protected Client $client;
 
     public function setUp(): void
     {
