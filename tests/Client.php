@@ -7,10 +7,12 @@ use OpenRuntimes\Executor\BodyMultipart;
 
 class Client extends FetchClient
 {
+    /**
+     * @param array<string, string> $baseHeaders
+     */
     public function __construct(
         private readonly string $endpoint,
-        private readonly string $key,
-        private readonly array $baseHeaders = []
+        private array $baseHeaders = []
     ) {
     }
 

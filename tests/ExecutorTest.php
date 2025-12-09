@@ -18,7 +18,8 @@ class ExecutorTest extends TestCase
     protected Client $client;
     public function setUp(): void
     {
-        $this->client = new Client($this->endpoint, $this->key);
+        $this->client = new Client($this->endpoint);
+        $this->client->setKey($this->key);
     }
 
     public function testLogStream(): void
