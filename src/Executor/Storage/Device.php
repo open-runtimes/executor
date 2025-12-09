@@ -30,6 +30,7 @@ class Device
     ): StorageDevice {
         $connections = System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '') ?? '';
 
+        $connection = '';
         if (\preg_match('/^\w+=/', $connections)) {
             // Multi region
             foreach (\explode(',', $connections) as $pair) {
@@ -56,7 +57,7 @@ class Device
         $accessSecret = '';
         $host = '';
         $bucket = '';
-        $region = '';
+        $dsnRegion = '';
         $insecure = false;
 
         try {
@@ -66,32 +67,32 @@ class Device
             $accessSecret = $dsn->getPassword() ?? '';
             $host = $dsn->getHost();
             $bucket = $dsn->getPath() ?? '';
-            $region = $dsn->getParam('region');
+            $dsnRegion = $dsn->getParam('region');
             $insecure = $dsn->getParam('insecure', 'false') === 'true';
             $url = System::getEnv('OPR_EXECUTOR_STORAGE_S3_ENDPOINT', '');
         } catch (\Exception $e) {
-            Console::warning($e->getMessage() . 'Invalid DSN. Defaulting to Local device.');
+            Console::warning($e->getMessage() . ' - Invalid DSN. Defaulting to Local device.');
         }
 
         switch ($device) {
             case Storage::DEVICE_S3:
                 if (!empty($url)) {
-                    return new S3($root, $accessKey, $accessSecret, $url, $region, $acl);
+                    return new S3($root, $accessKey, $accessSecret, $url, $dsnRegion, $acl);
                 } elseif (!empty($host)) {
                     $host = $insecure ? 'http://' . $host : $host;
-                    return new S3(root: $root, accessKey: $accessKey, secretKey: $accessSecret, host: $host, region: $region, acl: $acl);
+                    return new S3(root: $root, accessKey: $accessKey, secretKey: $accessSecret, host: $host, region: $dsnRegion, acl: $acl);
                 } else {
-                    return new AWS(root: $root, accessKey: $accessKey, secretKey: $accessSecret, bucket: $bucket, region: $region, acl: $acl);
+                    return new AWS(root: $root, accessKey: $accessKey, secretKey: $accessSecret, bucket: $bucket, region: $dsnRegion, acl: $acl);
                 }
                 // no break
-            case STORAGE::DEVICE_DO_SPACES:
-                return new DOSpaces($root, $accessKey, $accessSecret, $bucket, $region, $acl);
+            case Storage::DEVICE_DO_SPACES:
+                return new DOSpaces($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
             case Storage::DEVICE_BACKBLAZE:
-                return new Backblaze($root, $accessKey, $accessSecret, $bucket, $region, $acl);
+                return new Backblaze($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
             case Storage::DEVICE_LINODE:
-                return new Linode($root, $accessKey, $accessSecret, $bucket, $region, $acl);
+                return new Linode($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
             case Storage::DEVICE_WASABI:
-                return new Wasabi($root, $accessKey, $accessSecret, $bucket, $region, $acl);
+                return new Wasabi($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
             case Storage::DEVICE_LOCAL:
             default:
                 return new Local($root);
@@ -127,8 +128,8 @@ class Device
                 } else {
                     return new AWS(root: $root, accessKey: $s3AccessKey, secretKey: $s3SecretKey, bucket: $s3Bucket, region: $s3Region, acl: $s3Acl);
                 }
-
                 // no break
+
             case Storage::DEVICE_DO_SPACES:
                 $doSpacesAccessKey = System::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_ACCESS_KEY', '') ?? '';
                 $doSpacesSecretKey = System::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_SECRET', '') ?? '';
