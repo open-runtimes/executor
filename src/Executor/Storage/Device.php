@@ -78,21 +78,25 @@ class Device
             case Storage::DEVICE_S3:
                 if (!empty($url)) {
                     return new S3($root, $accessKey, $accessSecret, $url, $dsnRegion, $acl);
-                } elseif (!empty($host)) {
+                }
+                if (!empty($host)) {
                     $host = $insecure ? 'http://' . $host : $host;
                     return new S3(root: $root, accessKey: $accessKey, secretKey: $accessSecret, host: $host, region: $dsnRegion, acl: $acl);
-                } else {
-                    return new AWS(root: $root, accessKey: $accessKey, secretKey: $accessSecret, bucket: $bucket, region: $dsnRegion, acl: $acl);
                 }
-                // no break
+                return new AWS(root: $root, accessKey: $accessKey, secretKey: $accessSecret, bucket: $bucket, region: $dsnRegion, acl: $acl);
+
             case Storage::DEVICE_DO_SPACES:
                 return new DOSpaces($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
+
             case Storage::DEVICE_BACKBLAZE:
                 return new Backblaze($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
+
             case Storage::DEVICE_LINODE:
                 return new Linode($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
+
             case Storage::DEVICE_WASABI:
                 return new Wasabi($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
+
             case Storage::DEVICE_LOCAL:
             default:
                 return new Local($root);
@@ -123,12 +127,11 @@ class Device
                 if (!empty($s3EndpointUrl)) {
                     $bucketRoot = (!empty($s3Bucket) ? $s3Bucket . '/' : '') . \ltrim($root, '/');
                     return new S3($bucketRoot, $s3AccessKey, $s3SecretKey, $s3EndpointUrl, $s3Region, $s3Acl);
-                } elseif (!empty($s3Host)) {
-                    return new S3(root: $root, accessKey: $s3AccessKey, secretKey: $s3SecretKey, host: $s3Host, region: $s3Region, acl: $s3Acl);
-                } else {
-                    return new AWS(root: $root, accessKey: $s3AccessKey, secretKey: $s3SecretKey, bucket: $s3Bucket, region: $s3Region, acl: $s3Acl);
                 }
-                // no break
+                if (!empty($s3Host)) {
+                    return new S3(root: $root, accessKey: $s3AccessKey, secretKey: $s3SecretKey, host: $s3Host, region: $s3Region, acl: $s3Acl);
+                }
+                return new AWS(root: $root, accessKey: $s3AccessKey, secretKey: $s3SecretKey, bucket: $s3Bucket, region: $s3Region, acl: $s3Acl);
 
             case Storage::DEVICE_DO_SPACES:
                 $doSpacesAccessKey = System::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_ACCESS_KEY', '') ?? '';
