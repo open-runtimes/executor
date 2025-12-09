@@ -6,6 +6,7 @@ use PHPUnit\Framework\TestCase;
 use Utopia\Fetch\Client;
 use Swoole\Coroutine as Co;
 use Utopia\Console;
+use OpenRuntimes\Executor\BodyMultipart;
 
 // TODO: @Meldiron Write more tests (validators mainly)
 // TODO: @Meldiron Health API tests
@@ -78,7 +79,29 @@ class ExecutorTest extends TestCase
 
         $body = null;
         if ($callback === null) {
-            $body = $decode ? $response->json() : $response->text();
+            if ($decode) {
+                $contentType = $response->getHeaders()['content-type'] ?? '';
+                $strpos = strpos($contentType, ';');
+                $strpos = is_bool($strpos) ? strlen($contentType) : $strpos;
+                $contentType = substr($contentType, 0, $strpos);
+
+                switch ($contentType) {
+                    case 'multipart/form-data':
+                        $boundary = explode('boundary=', $response->getHeaders()['content-type'] ?? '')[1] ?? '';
+                        $multipartResponse = new BodyMultipart($boundary);
+                        $multipartResponse->load($response->text());
+                        $body = $multipartResponse->getParts();
+                        break;
+                    case 'application/json':
+                        $body = $response->json();
+                        break;
+                    default:
+                        $body = $response->text();
+                        break;
+                }
+            } else {
+                $body = $response->text();
+            }
         }
 
         $result = [
