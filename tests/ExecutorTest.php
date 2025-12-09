@@ -57,6 +57,8 @@ class ExecutorTest extends TestCase
         $url = $this->endpoint . $path;
 
         $client = new Client();
+        $client->setTimeout(60);
+
         foreach ($this->baseHeaders as $key => $value) {
             $client->addHeader($key, $value);
         }
