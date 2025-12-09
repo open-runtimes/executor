@@ -6,6 +6,7 @@ use OpenRuntimes\Executor\Logs;
 use Appwrite\Runtimes\Runtimes;
 use OpenRuntimes\Executor\Exception;
 use OpenRuntimes\Executor\Stats;
+use OpenRuntimes\Executor\Storage\Device as StorageDevice;
 use OpenRuntimes\Executor\Usage;
 use OpenRuntimes\Executor\Validator\TCP;
 use Swoole\Process;
@@ -27,6 +28,7 @@ class Docker extends Adapter
 {
     private Table $activeRuntimes;
     private Stats $stats;
+    private StorageDevice $storageDevice;
     /**
      * @var string[]
      */
@@ -34,10 +36,16 @@ class Docker extends Adapter
 
     /**
      * @param Orchestration $orchestration
+     * @param StorageDevice $storageDevice
      * @param string[] $networks
      */
-    public function __construct(private readonly Orchestration $orchestration, array $networks)
-    {
+    public function __construct(
+        private readonly Orchestration $orchestration,
+        StorageDevice $storageDevice,
+        array $networks
+    ) {
+        $this->storageDevice = $storageDevice;
+
         $this->activeRuntimes = new Table(4096);
 
         $this->activeRuntimes->column('version', Table::TYPE_STRING, 32);
@@ -416,6 +424,7 @@ class Docker extends Adapter
             throw new Exception(Exception::RUNTIME_CONFLICT);
         }
 
+        /** @var array<string, mixed> $container */
         $container = [];
         $output = [];
         $startTime = \microtime(true);
@@ -452,7 +461,7 @@ class Docker extends Adapter
         $tmpLogging = "/{$tmpFolder}logging"; // Build logs
         $tmpLogs = "/{$tmpFolder}logs"; // Runtime logs
 
-        $sourceDevice = $this->getStorageDevice("/");
+        $sourceDevice = $this->storageDevice->getStorageDevice("/");
         $localDevice = new Local();
 
         try {
@@ -579,7 +588,7 @@ class Docker extends Adapter
                 $size = $localDevice->getFileSize($tmpBuild);
                 $container['size'] = $size;
 
-                $destinationDevice = $this->getStorageDevice($destination);
+                $destinationDevice = $this->storageDevice->getStorageDevice($destination);
                 $path = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo($tmpBuild, PATHINFO_EXTENSION));
 
                 if (!$localDevice->transfer($tmpBuild, $path, $destinationDevice)) {

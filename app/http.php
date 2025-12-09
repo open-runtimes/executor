@@ -8,6 +8,7 @@ require_once __DIR__ . '/error.php';
 require_once __DIR__ . '/controllers.php';
 
 use OpenRuntimes\Executor\Runner\Docker;
+use OpenRuntimes\Executor\Storage\Device as StorageDevice;
 use Swoole\Runtime;
 use Utopia\Console;
 use Utopia\Http\Http;
@@ -36,9 +37,9 @@ run(function () {
         System::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', ''),
         System::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '')
     ));
+    $storageDevice = new StorageDevice();
     $networks = explode(',', System::getEnv('OPR_EXECUTOR_NETWORK') ?: 'openruntimes-runtimes');
-    $runner = new Docker($orchestration, $networks);
-
+    $runner = new Docker($orchestration, $storageDevice, $networks);
     Http::setResource('runner', fn () => $runner);
 
     $payloadSize = 22 * (1024 * 1024);
