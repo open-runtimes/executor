@@ -28,7 +28,8 @@ class ExecutorTest extends TestCase
     {
         $this->baseHeaders = [
             'Content-Type' => 'application/json',
-            'Authorization' => 'Bearer ' . $this->key
+            'Authorization' => 'Bearer ' . $this->key,
+            'x-executor-response-format' => '0.11.0' // Enable array support for duplicate headers
         ];
     }
 
