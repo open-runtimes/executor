@@ -27,7 +27,7 @@ class ExecutorTest extends TestCase
     {
         $this->baseHeaders = [
             'Content-Type' => 'application/json',
-            'x-executor-key' => $this->key
+            'Authorization' => 'Bearer ' . $this->key
         ];
     }
 
@@ -38,11 +38,12 @@ class ExecutorTest extends TestCase
      */
     protected function setKey(string $key): void
     {
-        $this->baseHeaders['x-executor-key'] = $key;
+        $this->baseHeaders['Authorization'] = 'Bearer ' . $key;
     }
 
     /**
-     * Wrapper method for client calls to match old API
+     * Wrapper method for client calls to make requests to the executor
+     *
      * @param string $method
      * @param string $path
      * @param array<string, string> $headers
@@ -73,8 +74,6 @@ class ExecutorTest extends TestCase
             } : null
         );
 
-        // When using streaming callback, body is consumed by the callback
-        // so we return empty body to avoid JSON decode errors
         $body = null;
         if ($callback === null) {
             $body = $decode ? $response->json() : $response->text();
