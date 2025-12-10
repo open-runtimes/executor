@@ -20,11 +20,12 @@ class StorageFactory
      * Get storage device by connection string
      *
      * @param string $root Root path for storage
-     * @param string $connection DSN connection string. If empty, the local device will be used.
+     * @param ?string $connection DSN connection string. If empty or null, the local device will be used.
      * @return Device
      */
-    public function getDevice(string $root, string $connection = ''): Device
+    public function getDevice(string $root, ?string $connection = ''): Device
     {
+        $connection = $connection ?? '';
         $acl = 'private';
         $deviceType = Storage::DEVICE_LOCAL;
         $accessKey = '';
