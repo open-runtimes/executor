@@ -21,29 +21,11 @@ class Device
      * Get storage device based on configuration
      *
      * @param string $root
-     * @param string $region
      * @return StorageDevice
      */
-    public function getStorageDevice(
-        string $root,
-        string $region = ''
-    ): StorageDevice {
-        $connections = System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '') ?? '';
-
-        $connection = '';
-        if (\preg_match('/^\w+=/', $connections)) {
-            // Multi region
-            foreach (\explode(',', $connections) as $pair) {
-                [$connectionRegion, $dsn] = \explode('=', $pair, 2);
-                if ($connectionRegion === $region) {
-                    $connection = $dsn;
-                    break;
-                }
-            }
-        } else {
-            // Single DSN
-            $connection = $connections;
-        }
+    public function getStorageDevice(string $root): StorageDevice
+    {
+        $connection = System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '') ?? '';
 
         // Fallback to environment variables if no connection string
         if (empty($connection)) {
