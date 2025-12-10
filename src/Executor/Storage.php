@@ -1,10 +1,10 @@
 <?php
 
-namespace OpenRuntimes\Executor\Storage;
+namespace OpenRuntimes\Executor;
 
 use Utopia\Console;
 use Utopia\DSN\DSN;
-use Utopia\Storage\Device as StorageDevice;
+use Utopia\Storage\Device;
 use Utopia\Storage\Device\AWS;
 use Utopia\Storage\Device\Backblaze;
 use Utopia\Storage\Device\DOSpaces;
@@ -12,27 +12,27 @@ use Utopia\Storage\Device\Linode;
 use Utopia\Storage\Device\Local;
 use Utopia\Storage\Device\S3;
 use Utopia\Storage\Device\Wasabi;
-use Utopia\Storage\Storage;
+use Utopia\Storage\Storage as UtopiaStorage;
 use Utopia\System\System;
 
-class Device
+class Storage
 {
     /**
      * Get storage device based on configuration
      *
      * @param string $root
-     * @return StorageDevice
+     * @return Device
      */
-    public function getStorageDevice(string $root, string $connection = ''): StorageDevice
+    public function getDevice(string $root, string $connection = ''): Device
     {
         // Fallback to environment variables if no connection string
         if (empty($connection)) {
-            return $this->getStorageDeviceFromEnv($root);
+            return $this->getDeviceFromEnv($root);
         }
 
         // Parse DSN connection
         $acl = 'private';
-        $device = Storage::DEVICE_LOCAL;
+        $device = UtopiaStorage::DEVICE_LOCAL;
         $accessKey = '';
         $accessSecret = '';
         $host = '';
@@ -54,26 +54,26 @@ class Device
         }
 
         switch ($device) {
-            case Storage::DEVICE_S3:
+            case UtopiaStorage::DEVICE_S3:
                 if (!empty($host)) {
                     $host = $insecure ? 'http://' . $host : $host;
                     return new S3(root: $root, accessKey: $accessKey, secretKey: $accessSecret, host: $host, region: $dsnRegion, acl: $acl);
                 }
                 return new AWS(root: $root, accessKey: $accessKey, secretKey: $accessSecret, bucket: $bucket, region: $dsnRegion, acl: $acl);
 
-            case Storage::DEVICE_DO_SPACES:
+            case UtopiaStorage::DEVICE_DO_SPACES:
                 return new DOSpaces($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
 
-            case Storage::DEVICE_BACKBLAZE:
+            case UtopiaStorage::DEVICE_BACKBLAZE:
                 return new Backblaze($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
 
-            case Storage::DEVICE_LINODE:
+            case UtopiaStorage::DEVICE_LINODE:
                 return new Linode($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
 
-            case Storage::DEVICE_WASABI:
+            case UtopiaStorage::DEVICE_WASABI:
                 return new Wasabi($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
 
-            case Storage::DEVICE_LOCAL:
+            case UtopiaStorage::DEVICE_LOCAL:
             default:
                 return new Local($root);
         }
@@ -83,16 +83,16 @@ class Device
      * Get storage device from environment variables (fallback)
      *
      * @param string $root
-     * @return StorageDevice
+     * @return Device
      */
-    private function getStorageDeviceFromEnv(string $root): StorageDevice
+    private function getDeviceFromEnv(string $root): Device
     {
-        switch (strtolower(System::getEnv('OPR_EXECUTOR_STORAGE_DEVICE', Storage::DEVICE_LOCAL) ?? '')) {
-            case Storage::DEVICE_LOCAL:
+        switch (strtolower(System::getEnv('OPR_EXECUTOR_STORAGE_DEVICE', UtopiaStorage::DEVICE_LOCAL) ?? '')) {
+            case UtopiaStorage::DEVICE_LOCAL:
             default:
                 return new Local($root);
 
-            case Storage::DEVICE_S3:
+            case UtopiaStorage::DEVICE_S3:
                 $s3AccessKey = System::getEnv('OPR_EXECUTOR_STORAGE_S3_ACCESS_KEY', '') ?? '';
                 $s3SecretKey = System::getEnv('OPR_EXECUTOR_STORAGE_S3_SECRET', '') ?? '';
                 $s3Host = System::getEnv('OPR_EXECUTOR_STORAGE_S3_HOST', '') ?? '';
@@ -109,7 +109,7 @@ class Device
                 }
                 return new AWS(root: $root, accessKey: $s3AccessKey, secretKey: $s3SecretKey, bucket: $s3Bucket, region: $s3Region, acl: $s3Acl);
 
-            case Storage::DEVICE_DO_SPACES:
+            case UtopiaStorage::DEVICE_DO_SPACES:
                 $doSpacesAccessKey = System::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_ACCESS_KEY', '') ?? '';
                 $doSpacesSecretKey = System::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_SECRET', '') ?? '';
                 $doSpacesRegion = System::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_REGION', '') ?? '';
@@ -117,7 +117,7 @@ class Device
                 $doSpacesAcl = 'private';
                 return new DOSpaces($root, $doSpacesAccessKey, $doSpacesSecretKey, $doSpacesBucket, $doSpacesRegion, $doSpacesAcl);
 
-            case Storage::DEVICE_BACKBLAZE:
+            case UtopiaStorage::DEVICE_BACKBLAZE:
                 $backblazeAccessKey = System::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_ACCESS_KEY', '') ?? '';
                 $backblazeSecretKey = System::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_SECRET', '') ?? '';
                 $backblazeRegion = System::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_REGION', '') ?? '';
@@ -125,7 +125,7 @@ class Device
                 $backblazeAcl = 'private';
                 return new Backblaze($root, $backblazeAccessKey, $backblazeSecretKey, $backblazeBucket, $backblazeRegion, $backblazeAcl);
 
-            case Storage::DEVICE_LINODE:
+            case UtopiaStorage::DEVICE_LINODE:
                 $linodeAccessKey = System::getEnv('OPR_EXECUTOR_STORAGE_LINODE_ACCESS_KEY', '') ?? '';
                 $linodeSecretKey = System::getEnv('OPR_EXECUTOR_STORAGE_LINODE_SECRET', '') ?? '';
                 $linodeRegion = System::getEnv('OPR_EXECUTOR_STORAGE_LINODE_REGION', '') ?? '';
@@ -133,7 +133,7 @@ class Device
                 $linodeAcl = 'private';
                 return new Linode($root, $linodeAccessKey, $linodeSecretKey, $linodeBucket, $linodeRegion, $linodeAcl);
 
-            case Storage::DEVICE_WASABI:
+            case UtopiaStorage::DEVICE_WASABI:
                 $wasabiAccessKey = System::getEnv('OPR_EXECUTOR_STORAGE_WASABI_ACCESS_KEY', '') ?? '';
                 $wasabiSecretKey = System::getEnv('OPR_EXECUTOR_STORAGE_WASABI_SECRET', '') ?? '';
                 $wasabiRegion = System::getEnv('OPR_EXECUTOR_STORAGE_WASABI_REGION', '') ?? '';

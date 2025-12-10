@@ -6,7 +6,7 @@ use OpenRuntimes\Executor\Logs;
 use Appwrite\Runtimes\Runtimes;
 use OpenRuntimes\Executor\Exception;
 use OpenRuntimes\Executor\Stats;
-use OpenRuntimes\Executor\Storage\Device as StorageDevice;
+use OpenRuntimes\Executor\Storage;
 use OpenRuntimes\Executor\Usage;
 use OpenRuntimes\Executor\Validator\TCP;
 use Swoole\Process;
@@ -28,7 +28,7 @@ class Docker extends Adapter
 {
     private Table $activeRuntimes;
     private Stats $stats;
-    private StorageDevice $storageDevice;
+    private Storage $storage;
     /**
      * @var string[]
      */
@@ -36,15 +36,15 @@ class Docker extends Adapter
 
     /**
      * @param Orchestration $orchestration
-     * @param StorageDevice $storageDevice
+     * @param Storage $storage
      * @param string[] $networks
      */
     public function __construct(
         private readonly Orchestration $orchestration,
-        StorageDevice $storageDevice,
+        Storage $storage,
         array $networks
     ) {
-        $this->storageDevice = $storageDevice;
+        $this->storage = $storage;
 
         $this->activeRuntimes = new Table(4096);
 
@@ -461,7 +461,7 @@ class Docker extends Adapter
         $tmpLogging = "/{$tmpFolder}logging"; // Build logs
         $tmpLogs = "/{$tmpFolder}logs"; // Runtime logs
 
-        $sourceDevice = $this->storageDevice->getStorageDevice("/", System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '') ?? '');
+        $sourceDevice = $this->storage->getDevice("/", System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '') ?? '');
         $localDevice = new Local();
 
         try {
@@ -588,7 +588,7 @@ class Docker extends Adapter
                 $size = $localDevice->getFileSize($tmpBuild);
                 $container['size'] = $size;
 
-                $destinationDevice = $this->storageDevice->getStorageDevice($destination, System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '') ?? '');
+                $destinationDevice = $this->storage->getDevice($destination, System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '') ?? '');
                 $path = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo($tmpBuild, PATHINFO_EXTENSION));
 
                 if (!$localDevice->transfer($tmpBuild, $path, $destinationDevice)) {
