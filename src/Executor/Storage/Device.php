@@ -49,16 +49,12 @@ class Device
             $bucket = $dsn->getPath() ?? '';
             $dsnRegion = $dsn->getParam('region');
             $insecure = $dsn->getParam('insecure', 'false') === 'true';
-            $url = System::getEnv('OPR_EXECUTOR_STORAGE_S3_ENDPOINT', '');
         } catch (\Exception $e) {
             Console::warning($e->getMessage() . ' - Invalid DSN. Defaulting to Local device.');
         }
 
         switch ($device) {
             case Storage::DEVICE_S3:
-                if (!empty($url)) {
-                    return new S3($root, $accessKey, $accessSecret, $url, $dsnRegion, $acl);
-                }
                 if (!empty($host)) {
                     $host = $insecure ? 'http://' . $host : $host;
                     return new S3(root: $root, accessKey: $accessKey, secretKey: $accessSecret, host: $host, region: $dsnRegion, acl: $acl);
