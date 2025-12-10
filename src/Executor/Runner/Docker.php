@@ -461,7 +461,7 @@ class Docker extends Adapter
         $tmpLogging = "/{$tmpFolder}logging"; // Build logs
         $tmpLogs = "/{$tmpFolder}logs"; // Runtime logs
 
-        $sourceDevice = $this->storageDevice->getStorageDevice("/");
+        $sourceDevice = $this->storageDevice->getStorageDevice("/", System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '') ?? '');
         $localDevice = new Local();
 
         try {
@@ -588,7 +588,7 @@ class Docker extends Adapter
                 $size = $localDevice->getFileSize($tmpBuild);
                 $container['size'] = $size;
 
-                $destinationDevice = $this->storageDevice->getStorageDevice($destination);
+                $destinationDevice = $this->storageDevice->getStorageDevice($destination, System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '') ?? '');
                 $path = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo($tmpBuild, PATHINFO_EXTENSION));
 
                 if (!$localDevice->transfer($tmpBuild, $path, $destinationDevice)) {
