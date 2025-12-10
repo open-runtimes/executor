@@ -23,10 +23,8 @@ class Device
      * @param string $root
      * @return StorageDevice
      */
-    public function getStorageDevice(string $root): StorageDevice
+    public function getStorageDevice(string $root, string $connection = ''): StorageDevice
     {
-        $connection = System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE', '') ?? '';
-
         // Fallback to environment variables if no connection string
         if (empty($connection)) {
             return $this->getStorageDeviceFromEnv($root);
