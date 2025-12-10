@@ -20,11 +20,12 @@ class StorageFactory
      * Get storage device by connection string
      *
      * @param string $root Root path for storage
-     * @param string $connection DSN connection string. If empty, the local device will be used.
+     * @param ?string $connection DSN connection string. If empty or null, the local device will be used.
      * @return Device
      */
-    public function getDevice(string $root, string $connection = ''): Device
+    public function getDevice(string $root, ?string $connection = ''): Device
     {
+        $connection = $connection ?? '';
         $acl = 'private';
         $deviceType = Storage::DEVICE_LOCAL;
         $accessKey = '';
@@ -43,12 +44,16 @@ class StorageFactory
             $bucket = $dsn->getPath() ?? '';
             $dsnRegion = $dsn->getParam('region');
             $insecure = $dsn->getParam('insecure', 'false') === 'true';
+            $url = $dsn->getParam('url', '');
         } catch (\Exception $e) {
             Console::warning($e->getMessage() . ' - Invalid DSN. Defaulting to Local device.');
         }
 
         switch ($deviceType) {
             case Storage::DEVICE_S3:
+                if (!empty($url)) {
+                    return new S3($root, $accessKey, $accessSecret, $url, $dsnRegion, $acl);
+                }
                 if (!empty($host)) {
                     $host = $insecure ? 'http://' . $host : $host;
                     $device = new S3(root: $root, accessKey: $accessKey, secretKey: $accessSecret, host: $host, region: $dsnRegion, acl: $acl);
