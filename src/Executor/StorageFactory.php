@@ -47,7 +47,7 @@ class StorageFactory
             $insecure = $dsn->getParam('insecure', 'false') === 'true';
             $url = $dsn->getParam('url', '');
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Console::warning($e->getMessage() . ' - Invalid DSN. Defaulting to Local device.');
         }
 
