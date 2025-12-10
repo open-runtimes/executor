@@ -56,34 +56,25 @@ class StorageFactory
                 }
                 if (!empty($host)) {
                     $host = $insecure ? 'http://' . $host : $host;
-                    $device = new S3(root: $root, accessKey: $accessKey, secretKey: $accessSecret, host: $host, region: $dsnRegion, acl: $acl);
-                } else {
-                    $device = new AWS(root: $root, accessKey: $accessKey, secretKey: $accessSecret, bucket: $bucket, region: $dsnRegion, acl: $acl);
+                    return new S3(root: $root, accessKey: $accessKey, secretKey: $accessSecret, host: $host, region: $dsnRegion, acl: $acl);
                 }
-                break;
+                return new AWS(root: $root, accessKey: $accessKey, secretKey: $accessSecret, bucket: $bucket, region: $dsnRegion, acl: $acl);
 
             case Storage::DEVICE_DO_SPACES:
-                $device = new DOSpaces($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
-                break;
+                return new DOSpaces($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
 
             case Storage::DEVICE_BACKBLAZE:
-                $device = new Backblaze($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
-                break;
+                return new Backblaze($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
 
             case Storage::DEVICE_LINODE:
-                $device = new Linode($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
-                break;
+                return new Linode($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
 
             case Storage::DEVICE_WASABI:
-                $device = new Wasabi($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
-                break;
+                return new Wasabi($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
 
             case Storage::DEVICE_LOCAL:
             default:
-                $device = new Local($root);
-                break;
+                return new Local($root);
         }
-
-        return $device;
     }
 }
