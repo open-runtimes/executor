@@ -33,6 +33,7 @@ class StorageFactory
         $bucket = '';
         $dsnRegion = '';
         $insecure = false;
+        $url = '';
 
         try {
             $dsn = new DSN($connection);
