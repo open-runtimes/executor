@@ -13,18 +13,22 @@ use Utopia\Console;
 
 class ExecutorTest extends TestCase
 {
-    protected Client $client;
     protected string $endpoint = 'http://executor/v1';
     protected string $key = 'executor-secret-key';
+    protected Client $client;
 
-    protected function setUp(): void
+    /**
+     * @var array<string, string>
+     */
+    protected array $baseHeaders = [
+        'content-type' => 'application/json',
+        'x-executor-response-format' => '0.11.0' // Enable array support for duplicate headers
+    ];
+
+    public function setUp(): void
     {
-        $this->client = new Client();
-
-        $this->client
-            ->setEndpoint($this->endpoint)
-            ->addHeader('Content-Type', 'application/json')
-            ->setKey($this->key);
+        $this->client = new Client($this->endpoint, $this->baseHeaders);
+        $this->client->setKey($this->key);
     }
 
     public function testLogStream(): void
@@ -1018,7 +1022,7 @@ class ExecutorTest extends TestCase
      *
      * @dataProvider provideScenarios
      */
-    public function testScenarios(string $image, string $entrypoint, string $folder, string $version, string $startCommand, string $buildCommand, callable $assertions, callable $body = null, bool $logging = true, string $mimeType = "application/json", float $cpus = 1, int $memory = 512, callable $buildAssertions = null): void
+    public function testScenarios(string $image, string $entrypoint, string $folder, string $version, string $startCommand, string $buildCommand, callable $assertions, ?callable $body = null, bool $logging = true, string $mimeType = "application/json", float $cpus = 1, int $memory = 512, ?callable $buildAssertions = null): void
     {
         /** Prepare deployment */
         $output = '';
