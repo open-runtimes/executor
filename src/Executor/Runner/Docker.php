@@ -28,7 +28,6 @@ class Docker extends Adapter
 {
     private Table $activeRuntimes;
     private Stats $stats;
-    private StorageFactory $storageFactory;
     /**
      * @var string[]
      */
@@ -36,16 +35,12 @@ class Docker extends Adapter
 
     /**
      * @param Orchestration $orchestration
-     * @param StorageFactory $storageFactory
      * @param string[] $networks
      */
     public function __construct(
         private readonly Orchestration $orchestration,
-        StorageFactory $storageFactory,
         array $networks
     ) {
-        $this->storageFactory = $storageFactory;
-
         $this->activeRuntimes = new Table(4096);
 
         $this->activeRuntimes->column('version', Table::TYPE_STRING, 32);
@@ -461,7 +456,7 @@ class Docker extends Adapter
         $tmpLogging = "/{$tmpFolder}logging"; // Build logs
         $tmpLogs = "/{$tmpFolder}logs"; // Runtime logs
 
-        $sourceDevice = $this->storageFactory->getDevice("/", System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE'));
+        $sourceDevice = StorageFactory::getDevice("/", System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE'));
         $localDevice = new Local();
 
         try {
@@ -588,7 +583,7 @@ class Docker extends Adapter
                 $size = $localDevice->getFileSize($tmpBuild);
                 $container['size'] = $size;
 
-                $destinationDevice = $this->storageFactory->getDevice($destination, System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE'));
+                $destinationDevice = StorageFactory::getDevice($destination, System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE'));
                 $path = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo($tmpBuild, PATHINFO_EXTENSION));
 
                 if (!$localDevice->transfer($tmpBuild, $path, $destinationDevice)) {

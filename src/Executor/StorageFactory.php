@@ -23,7 +23,7 @@ class StorageFactory
      * @param ?string $connection DSN connection string. If empty or null, the local device will be used.
      * @return Device
      */
-    public function getDevice(string $root, ?string $connection = ''): Device
+    public static function getDevice(string $root, ?string $connection = ''): Device
     {
         $connection = $connection ?? '';
         $acl = 'private';
