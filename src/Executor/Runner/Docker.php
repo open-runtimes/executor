@@ -3,14 +3,14 @@
 namespace OpenRuntimes\Executor\Runner;
 
 use OpenRuntimes\Executor\Logs;
-use Appwrite\Runtimes\Runtimes;
+use Appwrite\Runtimes\Runtimes as AppwriteRuntimes;
 use OpenRuntimes\Executor\Exception;
+use OpenRuntimes\Executor\Runner\Repository\Runtimes;
 use OpenRuntimes\Executor\Stats;
 use OpenRuntimes\Executor\StorageFactory;
 use OpenRuntimes\Executor\Usage;
 use OpenRuntimes\Executor\Validator\TCP;
 use Swoole\Process;
-use Swoole\Table;
 use Swoole\Timer;
 use Throwable;
 use Utopia\Console;
@@ -26,7 +26,6 @@ use function Swoole\Coroutine\batch;
 
 class Docker extends Adapter
 {
-    private Table $activeRuntimes;
     private Stats $stats;
     /**
      * @var string[]
@@ -35,28 +34,15 @@ class Docker extends Adapter
 
     /**
      * @param Orchestration $orchestration
+     * @param Runtimes $runtimes
      * @param string[] $networks
      */
     public function __construct(
         private readonly Orchestration $orchestration,
+        private readonly Runtimes $runtimes,
         array $networks
     ) {
-        $this->activeRuntimes = new Table(4096);
-
-        $this->activeRuntimes->column('version', Table::TYPE_STRING, 32);
-        $this->activeRuntimes->column('created', Table::TYPE_FLOAT);
-        $this->activeRuntimes->column('updated', Table::TYPE_FLOAT);
-        $this->activeRuntimes->column('name', Table::TYPE_STRING, 1024);
-        $this->activeRuntimes->column('hostname', Table::TYPE_STRING, 1024);
-        $this->activeRuntimes->column('status', Table::TYPE_STRING, 256);
-        $this->activeRuntimes->column('key', Table::TYPE_STRING, 1024);
-        $this->activeRuntimes->column('listening', Table::TYPE_INT, 1);
-        $this->activeRuntimes->column('image', Table::TYPE_STRING, 1024);
-        $this->activeRuntimes->column('initialised', Table::TYPE_INT, 0);
-        $this->activeRuntimes->create();
-
         $this->stats = new Stats();
-
         $this->init($networks);
     }
 
@@ -93,17 +79,17 @@ class Docker extends Adapter
             $runtimeVersions = \explode(',', System::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v5') ?? 'v5');
             foreach ($runtimeVersions as $runtimeVersion) {
                 Console::success("Pulling $runtimeVersion images...");
-                $runtimes = new Runtimes($runtimeVersion); // TODO: @Meldiron Make part of open runtimes
-                $runtimes = $runtimes->getAll(true, $allowList);
+                $images = new AppwriteRuntimes($runtimeVersion); // TODO: @Meldiron Make part of open runtimes
+                $images = $images->getAll(true, $allowList);
                 $callables = [];
-                foreach ($runtimes as $runtime) {
-                    $callables[] = function () use ($runtime) {
-                        Console::log('Warming up ' . $runtime['name'] . ' ' . $runtime['version'] . ' environment...');
-                        $response = $this->orchestration->pull($runtime['image']);
+                foreach ($images as $image) {
+                    $callables[] = function () use ($image) {
+                        Console::log('Warming up ' . $image['name'] . ' ' . $image['version'] . ' environment...');
+                        $response = $this->orchestration->pull($image['image']);
                         if ($response) {
-                            Console::info("Successfully Warmed up {$runtime['name']} {$runtime['version']}!");
+                            Console::info("Successfully Warmed up {$image['name']} {$image['version']}!");
                         } else {
-                            Console::warning("Failed to Warmup {$runtime['name']} {$runtime['version']}!");
+                            Console::warning("Failed to Warmup {$image['name']} {$image['version']}!");
                         }
                     };
                 }
@@ -122,17 +108,17 @@ class Docker extends Adapter
         Timer::tick($interval * 1000, function () {
             Console::info("Running maintenance task ...");
             // Stop idling runtimes
-            foreach ($this->activeRuntimes as $runtimeName => $runtime) {
+            foreach ($this->runtimes as $runtimeName => $runtime) {
                 $inactiveThreshold = \time() - \intval(System::getEnv('OPR_EXECUTOR_INACTIVE_THRESHOLD', '60'));
-                if ($runtime['updated'] < $inactiveThreshold) {
+                if ($runtime->updated < $inactiveThreshold) {
                     go(function () use ($runtimeName, $runtime) {
                         try {
-                            $this->orchestration->remove($runtime['name'], true);
-                            Console::success("Successfully removed {$runtime['name']}");
-                        } catch (\Throwable $th) {
+                            $this->orchestration->remove($runtime->name, true);
+                            Console::success("Successfully removed {$runtime->name}");
+                        } catch (Throwable $th) {
                             Console::error('Inactive Runtime deletion failed: ' . $th->getMessage());
                         } finally {
-                            $this->activeRuntimes->del($runtimeName);
+                            $this->runtimes->remove($runtimeName);
                         }
                     });
                 }
@@ -147,7 +133,7 @@ class Docker extends Adapter
                 if (\str_starts_with($entry, $prefix)) {
                     $isActive = false;
 
-                    foreach ($this->activeRuntimes as $runtimeName => $runtime) {
+                    foreach ($this->runtimes as $runtimeName => $runtime) {
                         if (\str_ends_with($entry, $runtimeName)) {
                             $isActive = true;
                             break;
@@ -229,9 +215,9 @@ class Docker extends Adapter
                 throw new Exception(Exception::RUNTIME_TIMEOUT);
             }
 
-            $runtime = $this->activeRuntimes->get($runtimeName);
+            $runtime = $this->runtimes->get($runtimeName);
             if (!empty($runtime)) {
-                $version = $runtime['version'];
+                $version = $runtime->version;
                 break;
             }
 
@@ -257,8 +243,8 @@ class Docker extends Adapter
             }
 
             // Ensure runtime is still present
-            $runtime = $this->activeRuntimes->get($runtimeName);
-            if (empty($runtime)) {
+            $runtime = $this->runtimes->get($runtimeName);
+            if ($runtime === null) {
                 return;
             }
 
@@ -276,10 +262,14 @@ class Docker extends Adapter
         $logsProcess = null;
 
         $streamInterval = 1000; // 1 second
-        $activeRuntimes = $this->activeRuntimes;
+        $activeRuntimes = $this->runtimes;
         $timerId = Timer::tick($streamInterval, function () use (&$logsProcess, &$logsChunk, $response, $activeRuntimes, $runtimeName) {
             $runtime = $activeRuntimes->get($runtimeName);
-            if ($runtime['initialised'] === 1) {
+            if ($runtime === null) {
+                return;
+            }
+
+            if ($runtime->initialised === 1) {
                 if (!empty($logsChunk)) {
                     $write = $response->write($logsChunk);
                     $logsChunk = '';
@@ -348,7 +338,7 @@ class Docker extends Adapter
     {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
-        if (!$this->activeRuntimes->exists($runtimeName)) {
+        if (!$this->runtimes->exists($runtimeName)) {
             throw new Exception(Exception::RUNTIME_NOT_FOUND);
         }
 
@@ -411,8 +401,9 @@ class Docker extends Adapter
         $runtimeName = System::getHostname() . '-' . $runtimeId;
         $runtimeHostname = \bin2hex(\random_bytes(16));
 
-        if ($this->activeRuntimes->exists($runtimeName)) {
-            if ($this->activeRuntimes->get($runtimeName)['status'] == 'pending') {
+        if ($this->runtimes->exists($runtimeName)) {
+            $existingRuntime = $this->runtimes->get($runtimeName);
+            if ($existingRuntime !== null && $existingRuntime->status === 'pending') {
                 throw new Exception(Exception::RUNTIME_CONFLICT, 'A runtime with the same ID is already being created. Attempt a execution soon.');
             }
 
@@ -424,18 +415,19 @@ class Docker extends Adapter
         $output = [];
         $startTime = \microtime(true);
 
-        $this->activeRuntimes->set($runtimeName, [
-            'version' => $version,
-            'listening' => 0,
-            'name' => $runtimeName,
-            'hostname' => $runtimeHostname,
-            'created' => $startTime,
-            'updated' => $startTime,
-            'status' => 'pending',
-            'key' => $secret,
-            'image' => $image,
-            'initialised' => 0,
-        ]);
+        $runtime = new Runtime(
+            version: $version,
+            created: $startTime,
+            updated: $startTime,
+            name: $runtimeName,
+            hostname: $runtimeHostname,
+            status: 'pending',
+            key: $secret,
+            listening: 0,
+            image: $image,
+            initialised: 0,
+        );
+        $this->runtimes->set($runtimeName, $runtime);
 
         /**
          * Temporary file paths in the executor
@@ -602,11 +594,14 @@ class Docker extends Adapter
                 'duration' => $duration,
             ]);
 
-            $activeRuntime = $this->activeRuntimes->get($runtimeName);
-            $activeRuntime['updated'] = \microtime(true);
-            $activeRuntime['status'] = 'Up ' . \round($duration, 2) . 's';
-            $activeRuntime['initialised'] = 1;
-            $this->activeRuntimes->set($runtimeName, $activeRuntime);
+            $runtime = $this->runtimes->get($runtimeName);
+            if ($runtime !== null) {
+                $runtime->updated = \microtime(true);
+                $runtime->status = 'Up ' . \round($duration, 2) . 's';
+                $runtime->initialised = 1;
+
+                $this->runtimes->set($runtimeName, $runtime);
+            }
         } catch (Throwable $th) {
             if ($version === 'v2') {
                 $message = !empty($output) ? $output : $th->getMessage();
@@ -651,7 +646,7 @@ class Docker extends Adapter
             }
 
             $localDevice->deletePath($tmpFolder);
-            $this->activeRuntimes->del($runtimeName);
+            $this->runtimes->remove($runtimeName);
 
             $message = '';
             foreach ($output as $chunk) {
@@ -672,7 +667,7 @@ class Docker extends Adapter
             }
 
             $localDevice->deletePath($tmpFolder);
-            $this->activeRuntimes->del($runtimeName);
+            $this->runtimes->remove($runtimeName);
         }
 
         // Remove weird symbol characters (for example from Next.js)
@@ -694,12 +689,12 @@ class Docker extends Adapter
     {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
-        if (!$this->activeRuntimes->exists($runtimeName)) {
+        if (!$this->runtimes->exists($runtimeName)) {
             throw new Exception(Exception::RUNTIME_NOT_FOUND);
         }
 
         $this->orchestration->remove($runtimeName, true);
-        $this->activeRuntimes->del($runtimeName);
+        $this->runtimes->remove($runtimeName);
     }
 
     /**
@@ -752,7 +747,7 @@ class Docker extends Adapter
         $prepareStart = \microtime(true);
 
         // Prepare runtime
-        if (!$this->activeRuntimes->exists($runtimeName)) {
+        if (!$this->runtimes->exists($runtimeName)) {
             if (empty($image) || empty($source)) {
                 throw new Exception(Exception::RUNTIME_NOT_FOUND, 'Runtime not found. Please start it first or provide runtime-related parameters.');
             }
@@ -843,11 +838,12 @@ class Docker extends Adapter
         // Lower timeout by time it took to prepare container
         $timeout -= (\microtime(true) - $prepareStart);
 
-        // Update swoole table
-        $runtime = $this->activeRuntimes->get($runtimeName) ?? [];
-
-        $runtime['updated'] = \time();
-        $this->activeRuntimes->set($runtimeName, $runtime);
+        // Update runtimes
+        $runtime = $this->runtimes->get($runtimeName);
+        if ($runtime !== null) {
+            $runtime->updated = \time();
+            $this->runtimes->set($runtimeName, $runtime);
+        }
 
         // Ensure runtime started
         $launchStart = \microtime(true);
@@ -857,7 +853,12 @@ class Docker extends Adapter
                 throw new Exception(Exception::RUNTIME_TIMEOUT);
             }
 
-            if ($this->activeRuntimes->get($runtimeName)['status'] !== 'pending') {
+            $runtimeStatus = $this->runtimes->get($runtimeName);
+            if ($runtimeStatus === null) {
+                throw new Exception(Exception::RUNTIME_NOT_FOUND, 'Runtime no longer exists.');
+            }
+
+            if ($runtimeStatus->status !== 'pending') {
                 break;
             }
 
@@ -868,9 +869,12 @@ class Docker extends Adapter
         $timeout -= (\microtime(true) - $launchStart);
 
         // Ensure we have secret
-        $runtime = $this->activeRuntimes->get($runtimeName);
-        $hostname = $runtime['hostname'];
-        $secret = $runtime['key'];
+        $runtime = $this->runtimes->get($runtimeName);
+        if ($runtime === null) {
+            throw new Exception(Exception::RUNTIME_NOT_FOUND, 'Runtime secret not found. Please re-create the runtime.', 500);
+        }
+        $hostname = $runtime->hostname;
+        $secret = $runtime->key;
         if (empty($secret)) {
             throw new \Exception('Runtime secret not found. Please re-create the runtime.', 500);
         }
@@ -1100,9 +1104,7 @@ class Docker extends Adapter
         // From here we calculate billable duration of execution
         $startTime = \microtime(true);
 
-        $listening = $runtime['listening'];
-
-        if (empty($listening)) {
+        if (empty($runtime->listening)) {
             // Wait for cold-start to finish (app listening on port)
             $pingStart = \microtime(true);
             $validator = new TCP();
@@ -1121,9 +1123,11 @@ class Docker extends Adapter
             }
 
             // Update swoole table
-            $runtime = $this->activeRuntimes->get($runtimeName);
-            $runtime['listening'] = 1;
-            $this->activeRuntimes->set($runtimeName, $runtime);
+            $runtime = $this->runtimes->get($runtimeName);
+            if ($runtime !== null) {
+                $runtime->listening = 1;
+                $this->runtimes->set($runtimeName, $runtime);
+            }
 
             // Lower timeout by time it took to cold-start
             $timeout -= (\microtime(true) - $pingStart);
@@ -1185,9 +1189,11 @@ class Docker extends Adapter
         ];
 
         // Update swoole table
-        $runtime = $this->activeRuntimes->get($runtimeName);
-        $runtime['updated'] = \microtime(true);
-        $this->activeRuntimes->set($runtimeName, $runtime);
+        $runtime = $this->runtimes->get($runtimeName);
+        if ($runtime !== null) {
+            $runtime->updated = \microtime(true);
+            $this->runtimes->set($runtimeName, $runtime);
+        }
 
         return $execution;
     }
@@ -1214,8 +1220,8 @@ class Docker extends Adapter
 
                     $activeRuntimeId = $container->getName();
 
-                    if (!$this->activeRuntimes->exists($activeRuntimeId)) {
-                        $this->activeRuntimes->del($activeRuntimeId);
+                    if ($this->runtimes->exists($activeRuntimeId)) {
+                        $this->runtimes->remove($activeRuntimeId);
                     }
 
                     Console::success('Removed container ' . $container->getName());
@@ -1297,19 +1303,20 @@ class Docker extends Adapter
     public function getRuntimes(): mixed
     {
         $runtimes = [];
-        foreach ($this->activeRuntimes as $runtime) {
-            $runtimes[] = $runtime;
+        foreach ($this->runtimes as $runtime) {
+            $runtimes[] = $runtime->toArray();
         }
         return $runtimes;
     }
 
     public function getRuntime(string $name): mixed
     {
-        if (!$this->activeRuntimes->exists($name)) {
+        $runtime = $this->runtimes->get($name);
+        if ($runtime === null) {
             throw new Exception(Exception::RUNTIME_NOT_FOUND);
         }
 
-        return $this->activeRuntimes->get($name);
+        return $runtime->toArray();
     }
 
     public function getStats(): Stats

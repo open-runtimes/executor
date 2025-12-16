@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "cb438943ec0d918fb3b69208b5dfcafe",
+    "content-hash": "d55421d3f52415a5e7136c944be8b709",
     "packages": [
         {
             "name": "appwrite/php-runtimes",
@@ -1216,20 +1216,20 @@
         },
         {
             "name": "ramsey/uuid",
-            "version": "4.9.1",
+            "version": "4.9.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ramsey/uuid.git",
-                "reference": "81f941f6f729b1e3ceea61d9d014f8b6c6800440"
+                "reference": "8429c78ca35a09f27565311b98101e2826affde0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ramsey/uuid/zipball/81f941f6f729b1e3ceea61d9d014f8b6c6800440",
-                "reference": "81f941f6f729b1e3ceea61d9d014f8b6c6800440",
+                "url": "https://api.github.com/repos/ramsey/uuid/zipball/8429c78ca35a09f27565311b98101e2826affde0",
+                "reference": "8429c78ca35a09f27565311b98101e2826affde0",
                 "shasum": ""
             },
             "require": {
-                "brick/math": "^0.8.8 || ^0.9 || ^0.10 || ^0.11 || ^0.12 || ^0.13 || ^0.14",
+                "brick/math": "^0.8.16 || ^0.9 || ^0.10 || ^0.11 || ^0.12 || ^0.13 || ^0.14",
                 "php": "^8.0",
                 "ramsey/collection": "^1.2 || ^2.0"
             },
@@ -1288,9 +1288,9 @@
             ],
             "support": {
                 "issues": "https://github.com/ramsey/uuid/issues",
-                "source": "https://github.com/ramsey/uuid/tree/4.9.1"
+                "source": "https://github.com/ramsey/uuid/tree/4.9.2"
             },
-            "time": "2025-09-04T20:59:21+00:00"
+            "time": "2025-12-14T04:43:48+00:00"
         },
         {
             "name": "symfony/deprecation-contracts",
@@ -2072,16 +2072,16 @@
         },
         {
             "name": "utopia-php/dsn",
-            "version": "0.1.0",
+            "version": "0.2.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/dsn.git",
-                "reference": "17a5935eab1b89fb4b95600db50a1b6d5faa6cea"
+                "reference": "42ee37a3d1785100b2f69091c9d4affadb6846eb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/dsn/zipball/17a5935eab1b89fb4b95600db50a1b6d5faa6cea",
-                "reference": "17a5935eab1b89fb4b95600db50a1b6d5faa6cea",
+                "url": "https://api.github.com/repos/utopia-php/dsn/zipball/42ee37a3d1785100b2f69091c9d4affadb6846eb",
+                "reference": "42ee37a3d1785100b2f69091c9d4affadb6846eb",
                 "shasum": ""
             },
             "require": {
@@ -2113,9 +2113,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/dsn/issues",
-                "source": "https://github.com/utopia-php/dsn/tree/0.1.0"
+                "source": "https://github.com/utopia-php/dsn/tree/0.2.1"
             },
-            "time": "2022-10-26T10:06:20+00:00"
+            "time": "2024-05-07T02:01:25+00:00"
         },
         {
             "name": "utopia-php/fetch",
@@ -2158,16 +2158,16 @@
         },
         {
             "name": "utopia-php/framework",
-            "version": "0.34.10",
+            "version": "0.34.11",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/http.git",
-                "reference": "334b99d47b08f016a160b67dcbee0390cc2b8544"
+                "reference": "2c652b60e388bafd07be936e4ca6658fadc6ef96"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/http/zipball/334b99d47b08f016a160b67dcbee0390cc2b8544",
-                "reference": "334b99d47b08f016a160b67dcbee0390cc2b8544",
+                "url": "https://api.github.com/repos/utopia-php/http/zipball/2c652b60e388bafd07be936e4ca6658fadc6ef96",
+                "reference": "2c652b60e388bafd07be936e4ca6658fadc6ef96",
                 "shasum": ""
             },
             "require": {
@@ -2201,9 +2201,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/http/issues",
-                "source": "https://github.com/utopia-php/http/tree/0.34.10"
+                "source": "https://github.com/utopia-php/http/tree/0.34.11"
             },
-            "time": "2025-09-03T17:59:15+00:00"
+            "time": "2025-12-11T13:03:54+00:00"
         },
         {
             "name": "utopia-php/logger",
