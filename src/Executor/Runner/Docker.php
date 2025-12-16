@@ -7,6 +7,7 @@ use Appwrite\Runtimes\Runtimes as AppwriteRuntimes;
 use OpenRuntimes\Executor\Exception;
 use OpenRuntimes\Executor\Runner\Repository\Runtimes;
 use OpenRuntimes\Executor\Stats;
+use OpenRuntimes\Executor\StorageFactory;
 use OpenRuntimes\Executor\Usage;
 use OpenRuntimes\Executor\Validator\TCP;
 use Swoole\Process;
@@ -400,28 +401,29 @@ class Docker extends Adapter
 
         if ($this->runtimes->exists($runtimeName)) {
             $existingRuntime = $this->runtimes->get($runtimeName);
-            if ($existingRuntime !== null && $existingRuntime->status === 'pending') {
+            if ($existingRuntime->status === 'pending') {
                 throw new Exception(Exception::RUNTIME_CONFLICT, 'A runtime with the same ID is already being created. Attempt a execution soon.');
             }
 
             throw new Exception(Exception::RUNTIME_CONFLICT);
         }
 
+        /** @var array<string, mixed> $container */
         $container = [];
         $output = [];
         $startTime = \microtime(true);
 
         $runtime = new Runtime(
-            $version,
-            $startTime,
-            $startTime,
-            $runtimeName,
-            $runtimeHostname,
-            'pending',
-            $secret,
-            0,
-            $image,
-            0,
+            version: $version,
+            created: $startTime,
+            updated: $startTime,
+            name: $runtimeName,
+            hostname: $runtimeHostname,
+            status: 'pending',
+            key: $secret,
+            listening: 0,
+            image: $image,
+            initialised: 0,
         );
         $this->runtimes->set($runtimeName, $runtime);
 
@@ -444,7 +446,7 @@ class Docker extends Adapter
         $tmpLogging = "/{$tmpFolder}logging"; // Build logs
         $tmpLogs = "/{$tmpFolder}logs"; // Runtime logs
 
-        $sourceDevice = $this->getStorageDevice("/");
+        $sourceDevice = StorageFactory::getDevice("/", System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE'));
         $localDevice = new Local();
 
         try {
@@ -571,7 +573,7 @@ class Docker extends Adapter
                 $size = $localDevice->getFileSize($tmpBuild);
                 $container['size'] = $size;
 
-                $destinationDevice = $this->getStorageDevice($destination);
+                $destinationDevice = StorageFactory::getDevice($destination, System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE'));
                 $path = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo($tmpBuild, PATHINFO_EXTENSION));
 
                 if (!$localDevice->transfer($tmpBuild, $path, $destinationDevice)) {
@@ -964,7 +966,11 @@ class Docker extends Adapter
             \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000" . $path);
             \curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
             \curl_setopt($ch, CURLOPT_NOBODY, \strtoupper($method) === 'HEAD');
-            \curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+
+            if (!empty($payload)) {
+                \curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+            }
+
             \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders) {
                 $len = strlen($header);

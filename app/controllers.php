@@ -20,7 +20,7 @@ use Utopia\Http\Validator\WhiteList;
 use Utopia\Orchestration\Adapter\DockerAPI;
 
 Http::get('/v1/runtimes/:runtimeId/logs')
-    ->groups(['api'])
+    ->groups(['api', 'runtimes'])
     ->desc("Get live stream of logs of a runtime")
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->param('timeout', '600', new Text(16), 'Maximum logs timeout.', true)
@@ -119,7 +119,7 @@ Http::get('/v1/runtimes')
     });
 
 Http::get('/v1/runtimes/:runtimeId')
-    ->groups(['api'])
+    ->groups(['api', 'runtimes'])
     ->desc("Get a runtime by its ID")
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->inject('runner')
@@ -130,7 +130,7 @@ Http::get('/v1/runtimes/:runtimeId')
     });
 
 Http::delete('/v1/runtimes/:runtimeId')
-    ->groups(['api'])
+    ->groups(['api', 'runtimes'])
     ->desc('Delete a runtime')
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->inject('response')
@@ -142,7 +142,7 @@ Http::delete('/v1/runtimes/:runtimeId')
     });
 
 Http::post('/v1/runtimes/:runtimeId/executions')
-    ->groups(['api'])
+    ->groups(['api', 'runtimes'])
     ->alias('/v1/runtimes/:runtimeId/execution')
     ->desc('Create an execution')
     // Execution-related
