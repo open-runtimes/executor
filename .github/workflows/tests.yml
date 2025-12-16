@@ -2,8 +2,29 @@ name: "Tests"
 
 on: [pull_request]
 jobs:
-  tests:
-    name: Tests
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out the repo
+      uses: actions/checkout@v2
+
+    - name: Run Unit Tests
+      run: |
+        docker run --rm \
+          -v $PWD:/app \
+          -w /app \
+          phpswoole/swoole:5.1.2-php8.3-alpine \
+          sh -c "
+            apk update && \
+            apk add zip unzip && \
+            composer install --profile --ignore-platform-reqs && \
+            composer test -- --testsuite=unit
+          "
+
+  executor-tests:
+    name: Executor Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -27,7 +48,7 @@ jobs:
         docker ps
         docker network ls
 
-    - name: Run Tests
+    - name: Run Executor Tests
       run: |
         docker run --rm \
           -v $PWD:/app \
@@ -40,5 +61,5 @@ jobs:
             apk update && \
             apk add docker-cli zip unzip && \
             composer install --profile --ignore-platform-reqs && \
-            composer test
+            composer test -- --testsuite=e2e
           "
