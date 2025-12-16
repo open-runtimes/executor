@@ -34,13 +34,15 @@ class Docker extends Adapter
 
     /**
      * @param Orchestration $orchestration
+     * @param Runtimes $runtimes
      * @param string[] $networks
      */
-    public function __construct(private readonly Orchestration $orchestration, private readonly Runtimes $runtimes, array $networks)
-    {
-
+    public function __construct(
+        private readonly Orchestration $orchestration,
+        private readonly Runtimes $runtimes,
+        array $networks
+    ) {
         $this->stats = new Stats();
-
         $this->init($networks);
     }
 
