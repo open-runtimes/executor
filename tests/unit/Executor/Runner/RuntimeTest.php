@@ -12,16 +12,16 @@ class RuntimeTest extends TestCase
         $time = microtime(true);
 
         $runtime = new Runtime(
-            'v5',
-            $time,
-            $time,
-            'runtime1',
-            'runtime1',
-            'pending',
-            'secret',
-            0,
-            'php',
-            0
+            version: 'v5',
+            created: $time,
+            updated: $time,
+            name: 'runtime1',
+            hostname: 'runtime1',
+            status: 'pending',
+            key: 'secret',
+            listening: 0,
+            image: 'php',
+            initialised: 0,
         );
 
         $this->assertSame('v5', $runtime->version);
@@ -68,16 +68,16 @@ class RuntimeTest extends TestCase
     {
         $time = microtime(true);
         $runtime = new Runtime(
-            'v5',
-            $time,
-            $time,
-            'runtime1',
-            'runtime1',
-            'pending',
-            'secret',
-            0,
-            'php',
-            0
+            version:'v5',
+            created: $time,
+            updated: $time,
+            name: 'runtime1',
+            hostname: 'runtime1',
+            status: 'pending',
+            key: 'secret',
+            listening: 0,
+            image: 'php',
+            initialised: 0,
         );
         $runtime = $runtime->toArray();
 

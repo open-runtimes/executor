@@ -12,16 +12,16 @@ class RuntimesTest extends TestCase
     {
         $repository = new Runtimes(16);
         $runtime = new Runtime(
-            'v1',
-            1000.0,
-            1001.0,
-            'runtime-one',
-            'runtime-one.host',
-            'pending',
-            'key-runtime-one',
-            0,
-            'image-runtime-one',
-            0
+            version: 'v1',
+            created: 1000.0,
+            updated: 1001.0,
+            name: 'runtime-one',
+            hostname: 'runtime-one.host',
+            status: 'pending',
+            key: 'key-runtime-one',
+            listening: 0,
+            image: 'image-runtime-one',
+            initialised: 0,
         );
 
         $repository->set('rt-1', $runtime);
@@ -45,16 +45,16 @@ class RuntimesTest extends TestCase
     {
         $repository = new Runtimes(16);
         $runtime = new Runtime(
-            'v2',
-            1010.0,
-            1011.0,
-            'runtime-two',
-            'runtime-two.host',
-            'pending',
-            'key-runtime-two',
-            0,
-            'image-runtime-two',
-            0
+            version: 'v2',
+            created: 1010.0,
+            updated: 1011.0,
+            name: 'runtime-two',
+            hostname: 'runtime-two.host',
+            status: 'pending',
+            key: 'key-runtime-two',
+            listening: 0,
+            image: 'image-runtime-two',
+            initialised: 0,
         );
 
         $repository->set('rt-2', $runtime);
@@ -70,28 +70,28 @@ class RuntimesTest extends TestCase
     {
         $repository = new Runtimes(16);
         $runtimeOne = new Runtime(
-            'v1',
-            1100.0,
-            1101.0,
-            'runtime-one',
-            'runtime-one.host',
-            'pending',
-            'key-runtime-one',
-            0,
-            'image-runtime-one',
-            0
+            version: 'v1',
+            created: 1100.0,
+            updated: 1101.0,
+            name: 'runtime-one',
+            hostname: 'runtime-one.host',
+            status: 'pending',
+            key: 'key-runtime-one',
+            listening: 0,
+            image: 'image-runtime-one',
+            initialised: 0,
         );
         $runtimeTwo = new Runtime(
-            'v2',
-            1200.0,
-            1201.0,
-            'runtime-two',
-            'runtime-two.host',
-            'pending',
-            'key-runtime-two',
-            0,
-            'image-runtime-two',
-            0
+            version: 'v2',
+            created: 1200.0,
+            updated: 1201.0,
+            name: 'runtime-two',
+            hostname: 'runtime-two.host',
+            status: 'pending',
+            key: 'key-runtime-two',
+            listening: 0,
+            image: 'image-runtime-two',
+            initialised: 0,
         );
 
         $repository->set('rt-1', $runtimeOne);
