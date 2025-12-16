@@ -401,7 +401,7 @@ class Docker extends Adapter
 
         if ($this->runtimes->exists($runtimeName)) {
             $existingRuntime = $this->runtimes->get($runtimeName);
-            if ($existingRuntime->status === 'pending') {
+            if ($existingRuntime !== null && $existingRuntime->status === 'pending') {
                 throw new Exception(Exception::RUNTIME_CONFLICT, 'A runtime with the same ID is already being created. Attempt a execution soon.');
             }
 
