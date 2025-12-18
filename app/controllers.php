@@ -10,13 +10,13 @@ use Utopia\System\System;
 use Utopia\Http\Http;
 use Utopia\Http\Request;
 use Utopia\Http\Response;
-use Utopia\Http\Validator\AnyOf;
-use Utopia\Http\Validator\Assoc;
-use Utopia\Http\Validator\Boolean;
-use Utopia\Http\Validator\FloatValidator;
-use Utopia\Http\Validator\Integer;
-use Utopia\Http\Validator\Text;
-use Utopia\Http\Validator\WhiteList;
+use Utopia\Validator\AnyOf;
+use Utopia\Validator\Assoc;
+use Utopia\Validator\Boolean;
+use Utopia\Validator\FloatValidator;
+use Utopia\Validator\Integer;
+use Utopia\Validator\Text;
+use Utopia\Validator\WhiteList;
 use Utopia\Orchestration\Adapter\DockerAPI;
 
 Http::get('/v1/runtimes/:runtimeId/logs')
