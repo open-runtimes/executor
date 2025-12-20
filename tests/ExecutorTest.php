@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests;
+namespace OpenRuntimes\Executor\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Swoole\Coroutine as Co;

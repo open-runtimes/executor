@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Unit\Executor\Runner\Repository;
+namespace OpenRuntimes\Executor\Tests\Unit\Executor\Runner\Repository;
 
 use OpenRuntimes\Executor\Runner\Repository\Runtimes;
 use OpenRuntimes\Executor\Runner\Runtime;

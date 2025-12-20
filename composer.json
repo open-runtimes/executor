@@ -5,8 +5,12 @@
   "license": "MIT",
   "autoload": {
     "psr-4": {
-      "OpenRuntimes\\": "src/",
-      "Tests\\": "tests"
+      "OpenRuntimes\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "OpenRuntimes\\Executor\\Tests\\": "tests/"
     }
   },
   "scripts": {

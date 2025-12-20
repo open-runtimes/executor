@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests;
+namespace OpenRuntimes\Executor\Tests;
 
 use Utopia\Fetch\Client as FetchClient;
 use OpenRuntimes\Executor\BodyMultipart;

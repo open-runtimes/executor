@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Unit\Executor\Runner;
+namespace OpenRuntimes\Executor\Tests\Unit\Executor\Runner;
 
 use OpenRuntimes\Executor\Runner\Runtime;
 use PHPUnit\Framework\TestCase;
