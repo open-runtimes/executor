@@ -308,16 +308,10 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     );
 
 Http::get('/v1/health')
-    ->desc("Get health status of host machine and runtimes.")
-    ->inject('runner')
+    ->desc("Get health status")
     ->inject('response')
-    ->action(function (Runner $runner, Response $response) {
-        $stats = $runner->getStats();
-        $output = [
-            'usage' => $stats->getHostUsage(),
-            'runtimes' => $stats->getContainerUsage(),
-        ];
-        $response->setStatusCode(Response::STATUS_CODE_OK)->json($output);
+    ->action(function (Response $response) {
+        $response->setStatusCode(Response::STATUS_CODE_OK)->text("OK");
     });
 
 Http::init()
