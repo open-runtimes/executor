@@ -308,7 +308,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     );
 
 Http::get('/v1/health')
-    ->groups(['api'])
     ->desc("Get health status of host machine and runtimes.")
     ->inject('runner')
     ->inject('response')

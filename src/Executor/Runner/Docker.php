@@ -27,46 +27,27 @@ use function Swoole\Coroutine\batch;
 class Docker extends Adapter
 {
     private Stats $stats;
-    /**
-     * @var string[]
-     */
-    private array $networks;
 
     /**
      * @param Orchestration $orchestration
      * @param Runtimes $runtimes
-     * @param string[] $networks
+     * @param NetworkManager $networkManager
      */
     public function __construct(
         private readonly Orchestration $orchestration,
         private readonly Runtimes $runtimes,
-        array $networks
+        private readonly NetworkManager $networkManager
     ) {
         $this->stats = new Stats();
-        $this->init($networks);
+        $this->init();
     }
 
     /**
-     * @param string[] $networks
      * @return void
      * @throws \Utopia\Http\Exception
      */
-    private function init(array $networks): void
+    private function init(): void
     {
-        /*
-         * Remove residual runtimes and networks
-         */
-        Console::info('Removing orphan runtimes and networks...');
-        $this->cleanUp();
-        Console::success("Orphan runtimes and networks removal finished.");
-
-        /**
-         * Create and store Docker Bridge networks used for communication between executor and runtimes
-         */
-        Console::info('Creating networks...');
-        $createdNetworks = $this->createNetworks($networks);
-        $this->networks = $createdNetworks;
-
         /**
          * Warmup: make sure images are ready to run fast 🚀
          */
@@ -170,10 +151,10 @@ class Docker extends Adapter
 
         Console::success('Stats interval started.');
 
-        Process::signal(SIGINT, fn () => $this->cleanUp($this->networks));
-        Process::signal(SIGQUIT, fn () => $this->cleanUp($this->networks));
-        Process::signal(SIGKILL, fn () => $this->cleanUp($this->networks));
-        Process::signal(SIGTERM, fn () => $this->cleanUp($this->networks));
+        Process::signal(SIGINT, fn () => $this->cleanUp());
+        Process::signal(SIGQUIT, fn () => $this->cleanUp());
+        Process::signal(SIGKILL, fn () => $this->cleanUp());
+        Process::signal(SIGTERM, fn () => $this->cleanUp());
     }
 
     /**
@@ -485,7 +466,7 @@ class Docker extends Adapter
             $codeMountPath = $version === 'v2' ? '/usr/code' : '/mnt/code';
             $workdir = $version === 'v2' ? '/usr/code' : '';
 
-            $network = $this->networks[array_rand($this->networks)];
+            $network = $this->networkManager->getAvailable()[array_rand($this->networkManager->getAvailable())];
 
             $volumes = [
                 \dirname($tmpSource) . ':/tmp:rw',
@@ -1199,10 +1180,9 @@ class Docker extends Adapter
     }
 
     /**
-     * @param string[] $networks
      * @return void
      */
-    private function cleanUp(array $networks = []): void
+    private function cleanUp(): void
     {
         Console::log('Cleaning up containers and networks...');
 
@@ -1233,71 +1213,9 @@ class Docker extends Adapter
         }
         batch($jobsRuntimes);
 
-        $jobsNetworks = [];
-        foreach ($networks as $network) {
-            $jobsNetworks[] = function () use ($network) {
-                try {
-                    $this->orchestration->removeNetwork($network);
-                    Console::success("Removed network: $network");
-                } catch (Exception $e) {
-                    Console::error("Failed to remove network $network: " . $e->getMessage());
-                }
-            };
-        }
-        batch($jobsNetworks);
+        $this->networkManager->removeAll();
 
         Console::success('Cleanup finished.');
-    }
-
-    /**
-     * @param string[] $networks
-     * @return string[]
-     */
-    private function createNetworks(array $networks): array
-    {
-        $jobs = [];
-        $createdNetworks = [];
-        foreach ($networks as $network) {
-            $jobs[] = function () use ($network, &$createdNetworks) {
-                if (!$this->orchestration->networkExists($network)) {
-                    try {
-                        $this->orchestration->createNetwork($network, false);
-                        Console::success("Created network: $network");
-                        $createdNetworks[] = $network;
-                    } catch (\Throwable $e) {
-                        Console::error("Failed to create network $network: " . $e->getMessage());
-                    }
-                } else {
-                    Console::info("Network $network already exists");
-                    $createdNetworks[] = $network;
-                }
-            };
-        }
-        batch($jobs);
-
-        $image = System::getEnv('OPR_EXECUTOR_IMAGE', '');
-        $containers = $this->orchestration->list(['label' => "com.openruntimes.executor.image=$image"]);
-
-        if (count($containers) < 1) {
-            $containerName = '';
-            Console::warning('No matching executor found. Please check the value of OPR_EXECUTOR_IMAGE. Executor will need to be connected to the runtime network manually.');
-        } else {
-            $containerName = $containers[0]->getName();
-            Console::success('Found matching executor. Executor will be connected to runtime network automatically.');
-        }
-
-        if (!empty($containerName)) {
-            foreach ($createdNetworks as $network) {
-                try {
-                    $this->orchestration->networkConnect($containerName, $network);
-                    Console::success("Successfully connected executor '$containerName' to network '$network'");
-                } catch (\Throwable $e) {
-                    Console::error("Failed to connect executor '$containerName' to network '$network': " . $e->getMessage());
-                }
-            }
-        }
-
-        return $createdNetworks;
     }
 
     public function getRuntimes(): mixed

@@ -1,6 +1,11 @@
 name: "Tests"
 
 on: [pull_request]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   unit-tests:
     name: Unit Tests
@@ -8,7 +13,7 @@ jobs:
 
     steps:
     - name: Check out the repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Run Unit Tests
       run: |
@@ -29,18 +34,12 @@ jobs:
 
     steps:
     - name: Check out the repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Start Test Stack
       run: |
-        export COMPOSE_INTERACTIVE_NO_CLI
-        export DOCKER_BUILDKIT=1
-        export COMPOSE_DOCKER_CLI_BUILD=1
-        export BUILDKIT_PROGRESS=plain
-        docker pull composer:2.0
         docker compose build
-        docker compose up -d
-        sleep 60
+        docker compose up -d --wait --wait-timeout 300
 
     - name: Doctor
       run: |

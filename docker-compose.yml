@@ -21,6 +21,12 @@ services:
       - runtimes
     ports:
       - 9900:80
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:80/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 120s
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./app:/usr/local/app:rw

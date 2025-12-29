@@ -22,6 +22,6 @@ COPY ./src /usr/local/src
 # Extensions and libraries
 COPY --from=composer /usr/local/src/vendor /usr/local/vendor
 
-HEALTHCHECK --interval=30s --timeout=15s --start-period=60s --retries=3 CMD curl -s -H "Authorization: Bearer ${OPR_EXECUTOR_SECRET}" --fail http://127.0.0.1:80/v1/health
+HEALTHCHECK --interval=30s --timeout=15s --start-period=60s --retries=3 CMD curl -sf http://127.0.0.1:80/v1/health
 
 CMD [ "php", "app/http.php" ]
