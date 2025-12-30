@@ -76,57 +76,6 @@ class Docker extends Adapter
 
         Console::success("Image pulling finished.");
 
-        /**
-         * Run a maintenance worker every X seconds to remove inactive runtimes
-         */
-        Console::info('Starting maintenance interval...');
-        $interval = (int)System::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'); // In seconds
-        Timer::tick($interval * 1000, function () {
-            Console::info("Running maintenance task ...");
-            // Stop idling runtimes
-            foreach ($this->runtimes as $runtimeName => $runtime) {
-                $inactiveThreshold = \time() - \intval(System::getEnv('OPR_EXECUTOR_INACTIVE_THRESHOLD', '60'));
-                if ($runtime->updated < $inactiveThreshold) {
-                    go(function () use ($runtimeName, $runtime) {
-                        try {
-                            $this->orchestration->remove($runtime->name, true);
-                            Console::success("Successfully removed {$runtime->name}");
-                        } catch (Throwable $th) {
-                            Console::error('Inactive Runtime deletion failed: ' . $th->getMessage());
-                        } finally {
-                            $this->runtimes->remove($runtimeName);
-                        }
-                    });
-                }
-            }
-
-            // Clear leftover build folders
-            $localDevice = new Local();
-            $tmpPath = DIRECTORY_SEPARATOR . 'tmp' . DIRECTORY_SEPARATOR;
-            $entries = $localDevice->getFiles($tmpPath);
-            $prefix = $tmpPath . System::getHostname() . '-';
-            foreach ($entries as $entry) {
-                if (\str_starts_with($entry, $prefix)) {
-                    $isActive = false;
-
-                    foreach ($this->runtimes as $runtimeName => $runtime) {
-                        if (\str_ends_with($entry, $runtimeName)) {
-                            $isActive = true;
-                            break;
-                        }
-                    }
-
-                    if (!$isActive) {
-                        $localDevice->deletePath($entry);
-                    }
-                }
-            }
-
-            Console::success("Maintanance task finished.");
-        });
-
-        Console::success('Maintenance interval started.');
-
         Process::signal(SIGINT, fn () => $this->cleanUp());
         Process::signal(SIGQUIT, fn () => $this->cleanUp());
         Process::signal(SIGKILL, fn () => $this->cleanUp());
@@ -599,7 +548,7 @@ class Docker extends Adapter
             // Silently try to kill container
             try {
                 $this->orchestration->remove($runtimeName, true);
-            } catch (Throwable $th) {
+            } catch (Throwable) {
             }
 
             $localDevice->deletePath($tmpFolder);
@@ -620,7 +569,7 @@ class Docker extends Adapter
             // Silently try to kill container
             try {
                 $this->orchestration->remove($runtimeName, true);
-            } catch (Throwable $th) {
+            } catch (Throwable) {
             }
 
             $localDevice->deletePath($tmpFolder);

@@ -67,31 +67,31 @@ class NetworkManager
     private function remove(string $network): void
     {
         if (!$this->orchestration->networkExists($network)) {
-            Console::error("Network {$network} does not exist");
+            Console::error("[NetworkManager] Network {$network} does not exist");
             return;
         }
 
         try {
             $this->orchestration->removeNetwork($network);
-            Console::success("Removed network: {$network}");
+            Console::success("[NetworkManager] Removed network: {$network}");
         } catch (\Throwable $e) {
-            Console::error("Failed to remove network {$network}: {$e->getMessage()}");
+            Console::error("[NetworkManager] Failed to remove network {$network}: {$e->getMessage()}");
         }
     }
 
     private function ensure(string $network): ?string
     {
         if ($this->orchestration->networkExists($network)) {
-            Console::info("Network {$network} already exists");
+            Console::info("[NetworkManager] Network {$network} already exists");
             return $network;
         }
 
         try {
             $this->orchestration->createNetwork($network, false);
-            Console::success("Created network: {$network}");
+            Console::success("[NetworkManager] Created network: {$network}");
             return $network;
         } catch (\Throwable $e) {
-            Console::error("Failed to create network {$network}: {$e->getMessage()}");
+            Console::error("[NetworkManager] Failed to create network {$network}: {$e->getMessage()}");
             return null;
         }
     }
