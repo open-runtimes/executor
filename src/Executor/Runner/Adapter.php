@@ -2,7 +2,6 @@
 
 namespace OpenRuntimes\Executor\Runner;
 
-use OpenRuntimes\Executor\Stats;
 use Utopia\Http\Response;
 use Utopia\Logger\Log;
 
@@ -115,6 +114,4 @@ abstract class Adapter
     abstract public function getRuntimes(): mixed;
 
     abstract public function getRuntime(string $name): mixed;
-
-    abstract public function getStats(): Stats;
 }

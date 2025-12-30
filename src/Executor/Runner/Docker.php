@@ -6,9 +6,7 @@ use OpenRuntimes\Executor\Logs;
 use Appwrite\Runtimes\Runtimes as AppwriteRuntimes;
 use OpenRuntimes\Executor\Exception;
 use OpenRuntimes\Executor\Runner\Repository\Runtimes;
-use OpenRuntimes\Executor\Stats;
 use OpenRuntimes\Executor\StorageFactory;
-use OpenRuntimes\Executor\Usage;
 use OpenRuntimes\Executor\Validator\TCP;
 use Swoole\Process;
 use Swoole\Timer;
@@ -26,8 +24,6 @@ use function Swoole\Coroutine\batch;
 
 class Docker extends Adapter
 {
-    private Stats $stats;
-
     /**
      * @param Orchestration $orchestration
      * @param Runtimes $runtimes
@@ -38,7 +34,6 @@ class Docker extends Adapter
         private readonly Runtimes $runtimes,
         private readonly NetworkManager $networkManager
     ) {
-        $this->stats = new Stats();
         $this->init();
     }
 
@@ -131,25 +126,6 @@ class Docker extends Adapter
         });
 
         Console::success('Maintenance interval started.');
-
-        /**
-         * Get usage stats every X seconds to update swoole table
-         */
-        Console::info('Starting stats interval...');
-        $getStats = function (): void {
-            // Get usage stats
-            $usage = new Usage($this->orchestration);
-            $usage->run();
-            $this->stats->updateStats($usage);
-        };
-
-        // Load initial stats in blocking way
-        $getStats();
-
-        // Setup infinite recursion in non-blocking way
-        \go(fn () => Timer::after(1000, fn () => $getStats()));
-
-        Console::success('Stats interval started.');
 
         Process::signal(SIGINT, fn () => $this->cleanUp());
         Process::signal(SIGQUIT, fn () => $this->cleanUp());
@@ -1235,10 +1211,5 @@ class Docker extends Adapter
         }
 
         return $runtime->toArray();
-    }
-
-    public function getStats(): Stats
-    {
-        return $this->stats;
     }
 }

@@ -139,7 +139,7 @@ docker compose down
 | GET |`/v1/runtimes/{runtimeId}`| Get a runtime by its ID | [JSON](#v1runtimesruntimeid) |
 | DELETE |`/v1/runtimes/{runtimeId}`| Delete a runtime | [JSON](#v1runtimesruntimeid) |
 | POST |`/v1/runtimes/{runtimeId}/executions`| Create an execution | [JSON](#v1runtimesruntimeidexecutions) |
-| GET |`/v1/health`| Get health status of host machine and runtimes | X |
+| GET |`/v1/health`| Get health status | X |
 
 #### /v1/runtimes/{runtimeId}/logs
 | Param | Type | Description | Required | Default |
