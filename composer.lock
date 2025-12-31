@@ -4,63 +4,8 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4063d6f18eb4607905171d077db0c819",
+    "content-hash": "080e0d692db872b8b5254793956a2917",
     "packages": [
-        {
-            "name": "appwrite/php-runtimes",
-            "version": "0.19.2",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/appwrite/runtimes.git",
-                "reference": "e5c142519df5aced37de9c302971c29c079ce3d9"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/appwrite/runtimes/zipball/e5c142519df5aced37de9c302971c29c079ce3d9",
-                "reference": "e5c142519df5aced37de9c302971c29c079ce3d9",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=8.0",
-                "utopia-php/system": "0.9.*"
-            },
-            "require-dev": {
-                "laravel/pint": "^1.15",
-                "phpstan/phpstan": "^1.10",
-                "phpunit/phpunit": "^9.3"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "Appwrite\\Runtimes\\": "src/Runtimes"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "BSD-3-Clause"
-            ],
-            "authors": [
-                {
-                    "name": "Eldad Fux",
-                    "email": "eldad@appwrite.io"
-                },
-                {
-                    "name": "Torsten Dittmann",
-                    "email": "torsten@appwrite.io"
-                }
-            ],
-            "description": "Appwrite repository for Cloud Function runtimes that contains the configurations and tests for all of the Appwrite runtime environments.",
-            "keywords": [
-                "appwrite",
-                "php",
-                "runtimes"
-            ],
-            "support": {
-                "issues": "https://github.com/appwrite/runtimes/issues",
-                "source": "https://github.com/appwrite/runtimes/tree/0.19.2"
-            },
-            "time": "2025-11-11T13:44:44+00:00"
-        },
         {
             "name": "brick/math",
             "version": "0.14.1",
@@ -1361,16 +1306,16 @@
         },
         {
             "name": "symfony/http-client",
-            "version": "v7.4.1",
+            "version": "v7.4.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/http-client.git",
-                "reference": "26cc224ea7103dda90e9694d9e139a389092d007"
+                "reference": "d01dfac1e0dc99f18da48b18101c23ce57929616"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/http-client/zipball/26cc224ea7103dda90e9694d9e139a389092d007",
-                "reference": "26cc224ea7103dda90e9694d9e139a389092d007",
+                "url": "https://api.github.com/repos/symfony/http-client/zipball/d01dfac1e0dc99f18da48b18101c23ce57929616",
+                "reference": "d01dfac1e0dc99f18da48b18101c23ce57929616",
                 "shasum": ""
             },
             "require": {
@@ -1438,7 +1383,7 @@
                 "http"
             ],
             "support": {
-                "source": "https://github.com/symfony/http-client/tree/v7.4.1"
+                "source": "https://github.com/symfony/http-client/tree/v7.4.3"
             },
             "funding": [
                 {
@@ -1458,7 +1403,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-12-04T21:12:57+00:00"
+            "time": "2025-12-23T14:50:43+00:00"
         },
         {
             "name": "symfony/http-client-contracts",
@@ -4547,5 +4492,5 @@
     "platform-overrides": {
         "php": "8.3"
     },
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.9.0"
 }

@@ -5,10 +5,10 @@
 
 x-logging: &x-logging
   logging:
-    driver: 'json-file'
+    driver: "json-file"
     options:
-      max-file: '5'
-      max-size: '10m'
+      max-file: "5"
+      max-size: "10m"
 
 services:
   openruntimes-executor:
@@ -40,7 +40,7 @@ services:
       - ./tests/resources/sites:/storage/sites:rw
     environment:
       - OPR_EXECUTOR_ENV
-      - OPR_EXECUTOR_RUNTIMES
+      - OPR_EXECUTOR_IMAGES
       - OPR_EXECUTOR_CONNECTION_STORAGE
       - OPR_EXECUTOR_INACTIVE_THRESHOLD
       - OPR_EXECUTOR_MAINTENANCE_INTERVAL

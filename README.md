@@ -49,7 +49,7 @@ services:
       - ./functions:/storage/functions:rw
     environment:
       - OPR_EXECUTOR_ENV
-      - OPR_EXECUTOR_RUNTIMES
+      - OPR_EXECUTOR_IMAGES
       - OPR_EXECUTOR_CONNECTION_STORAGE
       - OPR_EXECUTOR_INACTIVE_THRESHOLD
       - OPR_EXECUTOR_MAINTENANCE_INTERVAL
@@ -79,9 +79,8 @@ volumes:
 
 ```
 OPR_EXECUTOR_ENV=development
-OPR_EXECUTOR_RUNTIMES=php-8.0
+OPR_EXECUTOR_IMAGES=openruntimes/php:v5-8.3
 OPR_EXECUTOR_CONNECTION_STORAGE=file://localhost
-OPR_EXECUTOR_IMAGE_PULL=enabled
 OPR_EXECUTOR_INACTIVE_THRESHOLD=60
 OPR_EXECUTOR_MAINTENANCE_INTERVAL=60
 OPR_EXECUTOR_NETWORK=openruntimes-runtimes
@@ -192,7 +191,7 @@ docker compose down
 | Variable name                    | Description                                                                                                                                   |
 |------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
 | OPR_EXECUTOR_ENV                 | Environment mode of the executor, ex. `development`                                                                                           |
-| OPR_EXECUTOR_RUNTIMES            | Comma-separated list of supported runtimes `(ex: php-8.1,dart-2.18,deno-1.24,..)`. These runtimes should be available as container images.    |
+| OPR_EXECUTOR_IMAGES            | Comma-separated list of supported images `(ex: openruntimes/php:v5-8.1,openruntimes/php:v2-8.1,..)`. |
 | OPR_EXECUTOR_CONNECTION_STORAGE  | DSN string that represents a connection to your storage device, ex: `file://localhost` for local storage                                      |
 | OPR_EXECUTOR_INACTIVE_THRESHOLD   | Threshold time (in seconds) for detecting inactive runtimes, ex: `60`                                                                         |
 | OPR_EXECUTOR_MAINTENANCE_INTERVAL| Interval (in seconds) at which the Executor performs maintenance tasks, ex: `60`                                                              |
@@ -205,7 +204,6 @@ docker compose down
 | OPR_EXECUTOR_RUNTIME_VERSIONS    | Version tag for runtime environments, ex: `v5`                                                                                                |
 | OPR_EXECUTOR_RETRY_ATTEMPTS      | Number of retry attempts for failed executions, ex: `5`                                                                                       |
 | OPR_EXECUTOR_RETRY_DELAY_MS      | Delay (in milliseconds) between retry attempts, ex: `500`                                                                                    |
-| OPR_EXECUTOR_IMAGE_PULL      | Pull open runtimes images before executor starts. Takes `disabled` and `enabled` |
 
 ## Contributing
 
