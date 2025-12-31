@@ -1,6 +1,13 @@
 <?php
 
+use OpenRuntimes\Executor\Runner\Docker;
+use OpenRuntimes\Executor\Runner\ImagePuller;
+use OpenRuntimes\Executor\Runner\Maintenance;
+use OpenRuntimes\Executor\Runner\Network;
+use OpenRuntimes\Executor\Runner\Repository\Runtimes;
 use Utopia\Config\Config;
+use Utopia\DI\Container;
+use Utopia\DI\Dependency;
 use Utopia\Logger\Log;
 use Utopia\Logger\Logger;
 use Utopia\Logger\Adapter\AppSignal;
@@ -10,7 +17,8 @@ use Utopia\Logger\Adapter\Sentry;
 use Utopia\DSN\DSN;
 use Utopia\Http\Http;
 use Utopia\Http\Route;
-use Utopia\Registry\Registry;
+use Utopia\Orchestration\Adapter\DockerAPI;
+use Utopia\Orchestration\Orchestration;
 use Utopia\System\System;
 
 const MAX_LOG_SIZE = 5 * 1024 * 1024;
@@ -18,70 +26,128 @@ const MAX_BUILD_LOG_SIZE = 1 * 1000 * 1000;
 
 Config::load('errors', __DIR__ . '/config/errors.php');
 
-// Setup Registry
-$register = new Registry();
+// Setup DI Container
+$container = new Container();
 
-$register->set('logger', function () {
-    $providerName = System::getEnv('OPR_EXECUTOR_LOGGING_PROVIDER', '');
-    $providerConfig = System::getEnv('OPR_EXECUTOR_LOGGING_CONFIG', '');
+$runtimes = new Runtimes();
+$runtimesDep = new Dependency();
+$runtimesDep
+    ->setName('runtimes')
+    ->setCallback(fn () => $runtimes);
+$container->set($runtimesDep);
 
-    try {
-        $loggingProvider = new DSN($providerConfig ?? '');
+$orchestration = new Dependency();
+$orchestration
+    ->setName('orchestration')
+    ->setCallback(fn () => new Orchestration(new DockerAPI(
+        System::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', ''),
+        System::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '')
+    )));
+$container->set($orchestration);
 
-        $providerName = $loggingProvider->getScheme();
-        $providerConfig = match ($providerName) {
-            'sentry' => ['key' => $loggingProvider->getPassword(), 'projectId' => $loggingProvider->getUser() ?? '', 'host' => 'https://' . $loggingProvider->getHost()],
-            'logowl' => ['ticket' => $loggingProvider->getUser() ?? '', 'host' => $loggingProvider->getHost()],
-            default => ['key' => $loggingProvider->getHost()],
-        };
-    } catch (Throwable) {
-        $configChunks = \explode(";", ($providerConfig ?? ''));
+$network = new Dependency();
+$network
+    ->setName('network')
+    ->inject('orchestration')
+    ->setCallback(fn (Orchestration $orchestration) => new Network($orchestration));
+$container->set($network);
 
-        $providerConfig = match ($providerName) {
-            'sentry' => ['key' => $configChunks[0], 'projectId' => $configChunks[1] ?? '', 'host' => '',],
-            'logowl' => ['ticket' => $configChunks[0] ?? '', 'host' => ''],
-            default => ['key' => $providerConfig],
-        };
-    }
+$imagePuller = new Dependency();
+$imagePuller
+    ->setName('imagePuller')
+    ->inject('orchestration')
+    ->setCallback(fn (Orchestration $orchestration) => new ImagePuller($orchestration));
+$container->set($imagePuller);
 
-    $logger = null;
+$maintenance = new Dependency();
+$maintenance
+    ->setName('maintenance')
+    ->inject('orchestration')
+    ->inject('runtimes')
+    ->setCallback(fn (Orchestration $orchestration, Runtimes $runtimes) => new Maintenance(
+        $orchestration,
+        $runtimes
+    ));
+$container->set($maintenance);
 
-    if (!empty($providerName) && is_array($providerConfig) && Logger::hasProvider($providerName)) {
-        $adapter = match ($providerName) {
-            'sentry' => new Sentry($providerConfig['projectId'] ?? '', $providerConfig['key'] ?? '', $providerConfig['host'] ?? ''),
-            'logowl' => new LogOwl($providerConfig['ticket'] ?? '', $providerConfig['host'] ?? ''),
-            'raygun' => new Raygun($providerConfig['key'] ?? ''),
-            'appsignal' => new AppSignal($providerConfig['key'] ?? ''),
-            default => throw new Exception('Provider "' . $providerName . '" not supported.')
-        };
+$runner = new Dependency();
+$runner
+    ->setName('runner')
+    ->inject('orchestration')
+    ->inject('runtimes')
+    ->inject('networks')
+    ->setCallback(fn (Orchestration $orchestration, Runtimes $runtimes, array $networks) => new Docker(
+        $orchestration,
+        $runtimes,
+        $networks
+    ));
+$container->set($runner);
 
-        $logger = new Logger($adapter);
-    }
+$logger = new Dependency();
+$logger
+    ->setName('logger')
+    ->setCallback(function () {
+        $providerName = System::getEnv('OPR_EXECUTOR_LOGGING_PROVIDER', '');
+        $providerConfig = System::getEnv('OPR_EXECUTOR_LOGGING_CONFIG', '');
 
-    return $logger;
-});
+        try {
+            $loggingProvider = new DSN($providerConfig ?? '');
 
-/** Resources */
-Http::setResource('log', function (?Route $route) {
-    $log = new Log();
+            $providerName = $loggingProvider->getScheme();
+            $providerConfig = match ($providerName) {
+                'sentry' => ['key' => $loggingProvider->getPassword(), 'projectId' => $loggingProvider->getUser() ?? '', 'host' => 'https://' . $loggingProvider->getHost()],
+                'logowl' => ['ticket' => $loggingProvider->getUser() ?? '', 'host' => $loggingProvider->getHost()],
+                default => ['key' => $loggingProvider->getHost()],
+            };
+        } catch (Throwable) {
+            $configChunks = \explode(";", ($providerConfig ?? ''));
 
-    $log->setNamespace("executor");
-    $log->setEnvironment(Http::isProduction() ? Log::ENVIRONMENT_PRODUCTION : Log::ENVIRONMENT_STAGING);
+            $providerConfig = match ($providerName) {
+                'sentry' => ['key' => $configChunks[0], 'projectId' => $configChunks[1] ?? '', 'host' => '',],
+                'logowl' => ['ticket' => $configChunks[0] ?? '', 'host' => ''],
+                default => ['key' => $providerConfig],
+            };
+        }
 
-    $version = (string) System::getEnv('OPR_EXECUTOR_VERSION', 'UNKNOWN');
-    $log->setVersion($version);
+        $logger = null;
 
-    $server = System::getEnv('OPR_EXECUTOR_LOGGING_IDENTIFIER', \gethostname() ?: 'UNKNOWN');
-    $log->setServer($server);
+        if (!empty($providerName) && is_array($providerConfig) && Logger::hasProvider($providerName)) {
+            $adapter = match ($providerName) {
+                'sentry' => new Sentry($providerConfig['projectId'] ?? '', $providerConfig['key'] ?? '', $providerConfig['host'] ?? ''),
+                'logowl' => new LogOwl($providerConfig['ticket'] ?? '', $providerConfig['host'] ?? ''),
+                'raygun' => new Raygun($providerConfig['key'] ?? ''),
+                'appsignal' => new AppSignal($providerConfig['key'] ?? ''),
+                default => throw new Exception('Provider "' . $providerName . '" not supported.')
+            };
 
-    if ($route) {
-        $log->addTag('method', $route->getMethod());
-        $log->addTag('url', $route->getPath());
-    }
+            $logger = new Logger($adapter);
+        }
 
-    return $log;
-}, ['route']);
+        return $logger;
+    });
+$container->set($logger);
 
-Http::setResource('register', fn () => $register);
+$log = new Dependency();
+$log
+    ->setName('log')
+    ->inject('route')
+    ->setCallback(function (?Route $route) {
+        $log = new Log();
 
-Http::setResource('logger', fn (Registry $register) => $register->get('logger'), ['register']);
+        $log->setNamespace("executor");
+        $log->setEnvironment(Http::isProduction() ? Log::ENVIRONMENT_PRODUCTION : Log::ENVIRONMENT_STAGING);
+
+        $version = (string) System::getEnv('OPR_EXECUTOR_VERSION', 'UNKNOWN');
+        $log->setVersion($version);
+
+        $server = System::getEnv('OPR_EXECUTOR_LOGGING_IDENTIFIER', \gethostname() ?: 'UNKNOWN');
+        $log->setServer($server);
+
+        if ($route) {
+            $log->addTag('method', $route->getMethod());
+            $log->addTag('url', $route->getPath());
+        }
+
+        return $log;
+    });
+$container->set($log);

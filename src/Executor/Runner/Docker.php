@@ -25,13 +25,16 @@ class Docker extends Adapter
     /**
      * @param Orchestration $orchestration
      * @param Runtimes $runtimes
-     * @param NetworkManager $networkManager
+     * @param array<string> $networks
      */
     public function __construct(
         private readonly Orchestration $orchestration,
         private readonly Runtimes $runtimes,
-        private readonly NetworkManager $networkManager
+        private readonly array $networks
     ) {
+        if (empty($networks)) {
+            throw new \InvalidArgumentException('Networks cannot be empty');
+        }
     }
 
     /**
@@ -343,7 +346,7 @@ class Docker extends Adapter
             $codeMountPath = $version === 'v2' ? '/usr/code' : '/mnt/code';
             $workdir = $version === 'v2' ? '/usr/code' : '';
 
-            $network = $this->networkManager->getAvailable()[array_rand($this->networkManager->getAvailable())];
+            $network = $this->networks[array_rand($this->networks)];
 
             $volumes = [
                 \dirname($tmpSource) . ':/tmp:rw',
@@ -1089,8 +1092,6 @@ class Docker extends Adapter
             };
         }
         batch($jobsRuntimes);
-
-        $this->networkManager->removeAll();
 
         Console::success('Cleanup finished.');
     }
