@@ -86,6 +86,20 @@ final class Runtimes implements Iterator
         return $this->runtimes->del($id);
     }
 
+    /**
+     * List all runtimes.
+     *
+     * @return array<Runtime> An array of Runtime objects.
+     */
+    public function list(): array
+    {
+        $runtimes = [];
+        foreach ($this->runtimes as $runtimeKey => $runtime) {
+            $runtimes[$runtimeKey] = Runtime::fromArray($runtime);
+        }
+        return $runtimes;
+    }
+
     // Iterator traits
     public function current(): Runtime
     {

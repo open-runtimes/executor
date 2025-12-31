@@ -8,6 +8,7 @@ require_once __DIR__ . '/error.php';
 require_once __DIR__ . '/controllers.php';
 
 use OpenRuntimes\Executor\Runner\Docker;
+use OpenRuntimes\Executor\Runner\Maintenance;
 use OpenRuntimes\Executor\Runner\Repository\Runtimes;
 use OpenRuntimes\Executor\Runner\NetworkManager;
 use Swoole\Runtime;
@@ -45,6 +46,7 @@ run(function () use ($settings) {
         System::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', ''),
         System::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '')
     ));
+    $runtimes = new Runtimes();
 
     /* Create desired networks if they don't exist */
     $networks = explode(',', System::getEnv('OPR_EXECUTOR_NETWORK') ?: 'openruntimes-runtimes');
@@ -55,8 +57,14 @@ run(function () use ($settings) {
     $selfContainer = $orchestration->list(['name' => $hostname])[0] ?? throw new \RuntimeException('Own container not found');
     $networkManager->connectAll($selfContainer);
 
+    /* Start maintenance task */
+    $maintenance = new Maintenance($orchestration, $runtimes);
+    $maintenance->start(
+        (int)System::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'),
+        (int)System::getEnv('OPR_EXECUTOR_INACTIVE_THRESHOLD', '60')
+    );
+
     /* Runner service, used to manage runtimes */
-    $runtimes = new Runtimes();
     $runner = new Docker($orchestration, $runtimes, $networkManager);
     Http::setResource('runner', fn () => $runner);
 
