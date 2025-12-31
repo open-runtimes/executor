@@ -3,12 +3,10 @@
 namespace OpenRuntimes\Executor\Runner;
 
 use OpenRuntimes\Executor\Logs;
-use Appwrite\Runtimes\Runtimes as AppwriteRuntimes;
 use OpenRuntimes\Executor\Exception;
 use OpenRuntimes\Executor\Runner\Repository\Runtimes;
 use OpenRuntimes\Executor\StorageFactory;
 use OpenRuntimes\Executor\Validator\TCP;
-use Swoole\Process;
 use Swoole\Timer;
 use Throwable;
 use Utopia\Console;
@@ -34,52 +32,6 @@ class Docker extends Adapter
         private readonly Runtimes $runtimes,
         private readonly NetworkManager $networkManager
     ) {
-        $this->init();
-    }
-
-    /**
-     * @return void
-     * @throws \Utopia\Http\Exception
-     */
-    private function init(): void
-    {
-        /**
-         * Warmup: make sure images are ready to run fast 🚀
-         */
-        $allowList = empty(System::getEnv('OPR_EXECUTOR_RUNTIMES')) ? [] : \explode(',', System::getEnv('OPR_EXECUTOR_RUNTIMES'));
-
-        if (System::getEnv('OPR_EXECUTOR_IMAGE_PULL', 'enabled') === 'disabled') {
-            // Useful to prevent auto-pulling from remote when testing local images
-            Console::info("Skipping image pulling");
-        } else {
-            $runtimeVersions = \explode(',', System::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v5') ?? 'v5');
-            foreach ($runtimeVersions as $runtimeVersion) {
-                Console::success("Pulling $runtimeVersion images...");
-                $images = new AppwriteRuntimes($runtimeVersion); // TODO: @Meldiron Make part of open runtimes
-                $images = $images->getAll(true, $allowList);
-                $callables = [];
-                foreach ($images as $image) {
-                    $callables[] = function () use ($image) {
-                        Console::log('Warming up ' . $image['name'] . ' ' . $image['version'] . ' environment...');
-                        $response = $this->orchestration->pull($image['image']);
-                        if ($response) {
-                            Console::info("Successfully Warmed up {$image['name']} {$image['version']}!");
-                        } else {
-                            Console::warning("Failed to Warmup {$image['name']} {$image['version']}!");
-                        }
-                    };
-                }
-
-                batch($callables);
-            }
-        }
-
-        Console::success("Image pulling finished.");
-
-        Process::signal(SIGINT, fn () => $this->cleanUp());
-        Process::signal(SIGQUIT, fn () => $this->cleanUp());
-        Process::signal(SIGKILL, fn () => $this->cleanUp());
-        Process::signal(SIGTERM, fn () => $this->cleanUp());
     }
 
     /**
@@ -1107,7 +1059,7 @@ class Docker extends Adapter
     /**
      * @return void
      */
-    private function cleanUp(): void
+    public function cleanUp(): void
     {
         Console::log('Cleaning up containers and networks...');
 

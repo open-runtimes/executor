@@ -20,7 +20,6 @@
     "ext-curl": "*",
     "ext-json": "*",
     "ext-swoole": "*",
-    "appwrite/php-runtimes": "0.19.*",
     "utopia-php/config": "^0.2.2",
     "utopia-php/console": "0.0.*",
     "utopia-php/dsn": "0.2.*",

@@ -8,9 +8,11 @@ require_once __DIR__ . '/error.php';
 require_once __DIR__ . '/controllers.php';
 
 use OpenRuntimes\Executor\Runner\Docker;
+use OpenRuntimes\Executor\Runner\ImagePuller;
 use OpenRuntimes\Executor\Runner\Maintenance;
 use OpenRuntimes\Executor\Runner\Repository\Runtimes;
 use OpenRuntimes\Executor\Runner\NetworkManager;
+use Swoole\Process;
 use Swoole\Runtime;
 use Utopia\Console;
 use Utopia\Http\Http;
@@ -57,6 +59,10 @@ run(function () use ($settings) {
     $selfContainer = $orchestration->list(['name' => $hostname])[0] ?? throw new \RuntimeException('Own container not found');
     $networkManager->connectAll($selfContainer);
 
+    /* Pull images */
+    $imagePuller = new ImagePuller($orchestration);
+    $imagePuller->pull(explode(',', System::getEnv('OPR_EXECUTOR_IMAGES') ?: ''));
+
     /* Start maintenance task */
     $maintenance = new Maintenance($orchestration, $runtimes);
     $maintenance->start(
@@ -70,6 +76,12 @@ run(function () use ($settings) {
 
     $server = new Server('0.0.0.0', '80', $settings);
     $http = new Http($server, 'UTC');
+
+    Process::signal(SIGTERM, function () use ($maintenance, $runner) {
+        // This doesn't actually work. We need to fix utopia-php/http@0.34.x
+        $maintenance->stop();
+        $runner->cleanUp();
+    });
 
     Console::success('Executor is ready.');
 
