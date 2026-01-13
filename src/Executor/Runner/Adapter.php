@@ -3,7 +3,6 @@
 namespace OpenRuntimes\Executor\Runner;
 
 use Utopia\Http\Response;
-use Utopia\Logger\Log;
 
 abstract class Adapter
 {
@@ -11,10 +10,9 @@ abstract class Adapter
      * @param string $runtimeId
      * @param int $timeout
      * @param Response $response
-     * @param Log $log
      * @return void
      */
-    abstract public function getLogs(string $runtimeId, int $timeout, Response $response, Log $log): void;
+    abstract public function getLogs(string $runtimeId, int $timeout, Response $response): void;
 
     /**
      * @param string $runtimeId
@@ -40,7 +38,6 @@ abstract class Adapter
      * @param int $memory
      * @param string $version
      * @param string $restartPolicy
-     * @param Log $log
      * @return mixed
      */
     abstract public function createRuntime(
@@ -59,16 +56,14 @@ abstract class Adapter
         int $memory,
         string $version,
         string $restartPolicy,
-        Log $log,
         string $region = '',
     ): mixed;
 
     /**
      * @param string $runtimeId
-     * @param Log $log
      * @return void
      */
-    abstract public function deleteRuntime(string $runtimeId, Log $log): void;
+    abstract public function deleteRuntime(string $runtimeId): void;
 
     /**
      * @param string $runtimeId
@@ -87,7 +82,6 @@ abstract class Adapter
      * @param string $runtimeEntrypoint
      * @param bool $logging
      * @param string $restartPolicy
-     * @param Log $log
      * @return mixed
      */
     abstract public function createExecution(
@@ -107,7 +101,6 @@ abstract class Adapter
         string $runtimeEntrypoint,
         bool $logging,
         string $restartPolicy,
-        Log $log,
         string $region = '',
     ): mixed;
 
