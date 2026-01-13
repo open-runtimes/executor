@@ -38,10 +38,9 @@ class Docker extends Adapter
      * @param string $runtimeId
      * @param int $timeout
      * @param Response $response
-     * @param Log $log
      * @return void
      */
-    public function getLogs(string $runtimeId, int $timeout, Response $response, Log $log): void
+    public function getLogs(string $runtimeId, int $timeout, Response $response): void
     {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
@@ -234,7 +233,6 @@ class Docker extends Adapter
      * @param int $memory
      * @param string $version
      * @param string $restartPolicy
-     * @param Log $log
      * @return mixed
      */
     public function createRuntime(
@@ -253,7 +251,6 @@ class Docker extends Adapter
         int $memory,
         string $version,
         string $restartPolicy,
-        Log $log,
         string $region = '',
     ): mixed {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
@@ -540,10 +537,9 @@ class Docker extends Adapter
 
     /**
      * @param string $runtimeId
-     * @param Log $log
      * @return void
      */
-    public function deleteRuntime(string $runtimeId, Log $log): void
+    public function deleteRuntime(string $runtimeId): void
     {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
@@ -572,7 +568,6 @@ class Docker extends Adapter
      * @param string $runtimeEntrypoint
      * @param bool $logging
      * @param string $restartPolicy
-     * @param Log $log
      * @return mixed
      * @throws Exception
      */
@@ -593,7 +588,6 @@ class Docker extends Adapter
         string $runtimeEntrypoint,
         bool $logging,
         string $restartPolicy,
-        Log $log,
         string $region = '',
     ): mixed {
         $runtimeName = System::getHostname() . '-' . $runtimeId;

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "080e0d692db872b8b5254793956a2917",
+    "content-hash": "e210d16c714cdaf4f2628e234d2d52fe",
     "packages": [
         {
             "name": "brick/math",
@@ -2101,60 +2101,6 @@
                 "source": "https://github.com/utopia-php/http/tree/0.34.12"
             },
             "time": "2025-12-18T08:19:56+00:00"
-        },
-        {
-            "name": "utopia-php/logger",
-            "version": "0.6.2",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/utopia-php/logger.git",
-                "reference": "25b5bd2ad8bb51292f76332faa7034644fd0941d"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/logger/zipball/25b5bd2ad8bb51292f76332faa7034644fd0941d",
-                "reference": "25b5bd2ad8bb51292f76332faa7034644fd0941d",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=8.0"
-            },
-            "require-dev": {
-                "laravel/pint": "1.2.*",
-                "phpstan/phpstan": "1.9.x-dev",
-                "phpunit/phpunit": "^9.3",
-                "vimeo/psalm": "4.0.1"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "Utopia\\Logger\\": "src/Logger"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "description": "Utopia Logger library is simple and lite library for logging information, such as errors or warnings. This library is aiming to be as simple and easy to learn and use.",
-            "keywords": [
-                "appsignal",
-                "errors",
-                "framework",
-                "logger",
-                "logging",
-                "logs",
-                "php",
-                "raygun",
-                "sentry",
-                "upf",
-                "utopia",
-                "warnings"
-            ],
-            "support": {
-                "issues": "https://github.com/utopia-php/logger/issues",
-                "source": "https://github.com/utopia-php/logger/tree/0.6.2"
-            },
-            "time": "2024-10-14T16:02:49+00:00"
         },
         {
             "name": "utopia-php/orchestration",

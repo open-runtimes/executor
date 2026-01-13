@@ -5,7 +5,6 @@ require_once __DIR__ . '/init.php';
 use OpenRuntimes\Executor\Exception;
 use OpenRuntimes\Executor\BodyMultipart;
 use OpenRuntimes\Executor\Runner\Adapter as Runner;
-use Utopia\Logger\Log;
 use Utopia\System\System;
 use Utopia\Http\Http;
 use Utopia\Http\Request;
@@ -25,15 +24,14 @@ Http::get('/v1/runtimes/:runtimeId/logs')
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->param('timeout', '600', new Text(16), 'Maximum logs timeout.', true)
     ->inject('response')
-    ->inject('log')
     ->inject('runner')
-    ->action(function (string $runtimeId, string $timeoutStr, Response $response, Log $log, Runner $runner) {
+    ->action(function (string $runtimeId, string $timeoutStr, Response $response, Runner $runner) {
         $timeout = \intval($timeoutStr);
 
         $response->sendHeader('Content-Type', 'text/event-stream');
         $response->sendHeader('Cache-Control', 'no-cache');
 
-        $runner->getLogs($runtimeId, $timeout, $response, $log);
+        $runner->getLogs($runtimeId, $timeout, $response);
 
         $response->end();
     });
@@ -69,9 +67,8 @@ Http::post('/v1/runtimes')
     ->param('version', 'v5', new WhiteList(\explode(',', System::getEnv('OPR_EXECUTOR_RUNTIME_VERSIONS', 'v5') ?? 'v5')), 'Runtime Open Runtime version.', true)
     ->param('restartPolicy', DockerAPI::RESTART_NO, new WhiteList([DockerAPI::RESTART_NO, DockerAPI::RESTART_ALWAYS, DockerAPI::RESTART_ON_FAILURE, DockerAPI::RESTART_UNLESS_STOPPED], true), 'Define restart policy for the runtime once an exit code is returned. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)
     ->inject('response')
-    ->inject('log')
     ->inject('runner')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, string $outputDirectory, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Response $response, Log $log, Runner $runner) {
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, string $outputDirectory, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Response $response, Runner $runner) {
         $secret = \bin2hex(\random_bytes(16));
 
         /**
@@ -105,7 +102,7 @@ Http::post('/v1/runtimes')
 
         $variables = array_map(fn ($v) => strval($v), $variables);
 
-        $container = $runner->createRuntime($runtimeId, $secret, $image, $entrypoint, $source, $destination, $variables, $runtimeEntrypoint, $command, $timeout, $remove, $cpus, $memory, $version, $restartPolicy, $log);
+        $container = $runner->createRuntime($runtimeId, $secret, $image, $entrypoint, $source, $destination, $variables, $runtimeEntrypoint, $command, $timeout, $remove, $cpus, $memory, $version, $restartPolicy);
         $response->setStatusCode(Response::STATUS_CODE_CREATED)->json($container);
     });
 
@@ -134,10 +131,9 @@ Http::delete('/v1/runtimes/:runtimeId')
     ->desc('Delete a runtime')
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->inject('response')
-    ->inject('log')
     ->inject('runner')
-    ->action(function (string $runtimeId, Response $response, Log $log, Runner $runner) {
-        $runner->deleteRuntime($runtimeId, $log);
+    ->action(function (string $runtimeId, Response $response, Runner $runner) {
+        $runner->deleteRuntime($runtimeId);
         $response->setStatusCode(Response::STATUS_CODE_OK)->send();
     });
 
@@ -165,7 +161,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->param('restartPolicy', DockerAPI::RESTART_NO, new WhiteList([DockerAPI::RESTART_NO, DockerAPI::RESTART_ALWAYS, DockerAPI::RESTART_ON_FAILURE, DockerAPI::RESTART_UNLESS_STOPPED], true), 'Define restart policy once exit code is returned by command. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)
     ->inject('response')
     ->inject('request')
-    ->inject('log')
     ->inject('runner')
     ->action(
         function (
@@ -187,7 +182,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             string $restartPolicy,
             Response $response,
             Request $request,
-            Log $log,
             Runner $runner
         ) {
             // Extra parsers and validators to support both JSON and multipart
@@ -258,7 +252,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 $runtimeEntrypoint,
                 $logging,
                 $restartPolicy,
-                $log
             );
 
             // Backwards compatibility for headers

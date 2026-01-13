@@ -55,8 +55,6 @@ services:
       - OPR_EXECUTOR_MAINTENANCE_INTERVAL
       - OPR_EXECUTOR_NETWORK
       - OPR_EXECUTOR_SECRET
-      - OPR_EXECUTOR_LOGGING_PROVIDER
-      - OPR_EXECUTOR_LOGGING_CONFIG
       - OPR_EXECUTOR_DOCKER_HUB_USERNAME
       - OPR_EXECUTOR_DOCKER_HUB_PASSWORD
       - OPR_EXECUTOR_RUNTIME_VERSIONS
@@ -85,9 +83,6 @@ OPR_EXECUTOR_INACTIVE_THRESHOLD=60
 OPR_EXECUTOR_MAINTENANCE_INTERVAL=60
 OPR_EXECUTOR_NETWORK=openruntimes-runtimes
 OPR_EXECUTOR_SECRET=executor-secret-key
-OPR_EXECUTOR_LOGGING_PROVIDER=
-OPR_EXECUTOR_LOGGING_CONFIG=
-OPR_EXECUTOR_LOGGING_IDENTIFIER=
 OPR_EXECUTOR_DOCKER_HUB_USERNAME=
 OPR_EXECUTOR_DOCKER_HUB_PASSWORD=
 OPR_EXECUTOR_RUNTIME_VERSIONS=v5
@@ -197,8 +192,6 @@ docker compose down
 | OPR_EXECUTOR_MAINTENANCE_INTERVAL| Interval (in seconds) at which the Executor performs maintenance tasks, ex: `60`                                                              |
 | OPR_EXECUTOR_NETWORK             | Network used by the executor for runtimes, ex: `openruntimes-runtimes`                                                                        |
 | OPR_EXECUTOR_SECRET              | Secret key used by the executor for authentication                                                                                            |
-| OPR_EXECUTOR_LOGGING_PROVIDER     | Deprecated: use `OPR_EXECUTOR_LOGGING_CONFIG` with DSN instead. External logging provider used by the executor, ex: `sentry`               |
-| OPR_EXECUTOR_LOGGING_CONFIG       | External logging provider DSN used by the executor, ex: `sentry://PROJECT_ID:SENTRY_API_KEY@SENTRY_HOST/`                                  |
 | OPR_EXECUTOR_DOCKER_HUB_USERNAME | Username for Docker Hub authentication (if applicable)                                                                                        |
 | OPR_EXECUTOR_DOCKER_HUB_PASSWORD | Password for Docker Hub authentication (if applicable)                                                                                        |
 | OPR_EXECUTOR_RUNTIME_VERSIONS    | Version tag for runtime environments, ex: `v5`                                                                                                |
