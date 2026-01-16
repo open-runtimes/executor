@@ -11,7 +11,7 @@
 >
     <testsuites>
         <testsuite name="e2e">
-            <file>./tests/ExecutorTest.php</file>
+            <directory>./tests/e2e</directory>
         </testsuite>
         <testsuite name="unit">
             <directory>./tests/unit</directory>

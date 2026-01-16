@@ -1,0 +1,121 @@
+name: "CI"
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out the repo
+      uses: actions/checkout@v6
+
+    - name: Run Format
+      run: |
+        docker run --rm -v $PWD:/app composer:2.8 sh -c \
+        "composer install --profile --ignore-platform-reqs && composer format:check"
+
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out the repo
+      uses: actions/checkout@v6
+
+    - name: Run Analyze
+      run: |
+        docker run --rm -v $PWD:/app composer:2.8 sh -c \
+        "composer install --profile --ignore-platform-reqs && composer analyze"
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out the repo
+      uses: actions/checkout@v6
+
+    - name: Run Unit Tests
+      run: |
+        docker run --rm \
+          -v $PWD:/app \
+          -w /app \
+          phpswoole/swoole:5.1.2-php8.3-alpine \
+          sh -c "
+            apk update && \
+            apk add zip unzip && \
+            composer install --profile --ignore-platform-reqs && \
+            composer test:unit
+          "
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out the repo
+      uses: actions/checkout@v6
+
+    - name: Build Docker image
+      run: docker compose build
+
+    - name: Save Docker image
+      run: docker save -o executor-image.tar executor-openruntimes-executor
+
+    - name: Upload Docker image artifact
+      uses: actions/upload-artifact@v6
+      with:
+        name: executor-image
+        path: executor-image.tar
+        retention-days: 1
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+    - name: Check out the repo
+      uses: actions/checkout@v6
+
+    - name: Download Docker image artifact
+      uses: actions/download-artifact@v7
+      with:
+        name: executor-image
+
+    - name: Load Docker image
+      run: docker load -i executor-image.tar
+
+    - name: Start Test Stack
+      run: docker compose up -d --wait --wait-timeout 300
+
+    - name: Doctor
+      run: |
+        docker compose logs
+        docker ps
+        docker network ls
+
+    - name: Run E2E Tests
+      run: |
+        docker run --rm \
+          -v $PWD:/app \
+          -v /tmp:/tmp \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          --network executor_runtimes \
+          -w /app \
+          phpswoole/swoole:5.1.2-php8.3-alpine \
+          sh -c "
+            apk update && \
+            apk add docker-cli zip unzip && \
+            composer install --profile --ignore-platform-reqs && \
+            composer test:e2e
+          "
