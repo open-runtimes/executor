@@ -11,7 +11,7 @@ use OpenRuntimes\Executor\Runner\Docker;
 use OpenRuntimes\Executor\Runner\ImagePuller;
 use OpenRuntimes\Executor\Runner\Maintenance;
 use OpenRuntimes\Executor\Runner\Repository\Runtimes;
-use OpenRuntimes\Executor\Runner\NetworkManager;
+use OpenRuntimes\Executor\Runner\Network;
 use Swoole\Process;
 use Swoole\Runtime;
 use Utopia\Console;
@@ -50,14 +50,16 @@ run(function () use ($settings) {
     ));
     $runtimes = new Runtimes();
 
-    /* Create desired networks if they don't exist */
-    $networks = explode(',', System::getEnv('OPR_EXECUTOR_NETWORK') ?: 'openruntimes-runtimes');
-    $networkManager = new NetworkManager($orchestration, $networks);
-
-    /* Add the current executor to the networks */
+    /* Fetch own container information */
     $hostname = gethostname() ?: throw new \RuntimeException('Could not determine hostname');
     $selfContainer = $orchestration->list(['name' => $hostname])[0] ?? throw new \RuntimeException('Own container not found');
-    $networkManager->connectAll($selfContainer);
+
+    /* Create desired networks if they don't exist */
+    $network = new Network($orchestration);
+    $network->setup(
+        explode(',', System::getEnv('OPR_EXECUTOR_NETWORK') ?: 'openruntimes-runtimes'),
+        $selfContainer->getName()
+    );
 
     /* Pull images */
     $imagePuller = new ImagePuller($orchestration);
@@ -71,16 +73,17 @@ run(function () use ($settings) {
     );
 
     /* Runner service, used to manage runtimes */
-    $runner = new Docker($orchestration, $runtimes, $networkManager);
+    $runner = new Docker($orchestration, $runtimes, $network->getAvailable());
     Http::setResource('runner', fn () => $runner);
 
     $server = new Server('0.0.0.0', '80', $settings);
     $http = new Http($server, 'UTC');
 
-    Process::signal(SIGTERM, function () use ($maintenance, $runner) {
+    Process::signal(SIGTERM, function () use ($maintenance, $runner, $network) {
         // This doesn't actually work. We need to fix utopia-php/http@0.34.x
         $maintenance->stop();
-        $runner->cleanUp();
+        $network->cleanup();
+        $runner->cleanup();
     });
 
     Console::success('Executor is ready.');
