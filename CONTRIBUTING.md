@@ -76,7 +76,18 @@ Next start the Docker Compose stack that includes executor server with nessessar
 docker compose up -d
 ```
 
-You can now use `http://localhost:9800/v1/` endpoint to communicate with Open Runtimes Executor. You can see 'Getting Started' section of README to learn about endpoints.
+For development with live reload, use Docker Compose watch which automatically syncs code changes to the container:
+
+```bash
+docker compose watch
+```
+
+The `docker-compose.override.yml` file configures the development environment:
+- Changes to `app/` and `src/` sync and restart the container
+- Changes to `tests/` and `phpunit.xml` sync without restart
+- Changes to `composer.json` or `composer.lock` trigger a full rebuild
+
+You can now use `http://localhost:9900/v1/` endpoint to communicate with Open Runtimes Executor. You can see 'Getting Started' section of README to learn about endpoints.
 
 ## Testing
 
@@ -97,19 +108,19 @@ To run tests, you need to start Docker Compose stack, and then run PHPUnit:
 ```bash
 docker compose up -d
 # Wait for ~5 seconds for executor to start
-docker run --rm -v $PWD:/app --network executor_runtimes -w /app phpswoole/swoole:5.1.2-php8.3-alpine sh -c \ "composer test"
+docker run --rm -v $PWD:/app --network executor_runtimes -w /app phpswoole/swoole:5.1.2-php8.3-alpine sh -c \ "composer test:e2e"
 ```
 
-To run linter, you need to run Pint:
+To format, you can run Pint with:
 
 ```bash
 composer format
 ```
 
-To run static code analysis, you need to run PHPStan:
+To run static code analysis, you can run PHPStan with:
 
 ```bash
-composer check
+composer analyze
 ```
 
 ## Introducing New Features
