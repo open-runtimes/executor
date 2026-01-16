@@ -625,7 +625,7 @@ class Docker extends Adapter
                 \curl_setopt($ch, CURLOPT_POST, true);
                 \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
                 \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+                \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, (int)Http::getEnv('OPR_EXECUTOR_CONNECT_TIMEOUT', '10'));
 
                 \curl_setopt($ch, CURLOPT_HTTPHEADER, [
                     'Content-Type: application/json',
@@ -749,7 +749,7 @@ class Docker extends Adapter
             \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
             \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
-            \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+            \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, (int)Http::getEnv('OPR_EXECUTOR_CONNECT_TIMEOUT', '10'));
 
             \curl_setopt($ch, CURLOPT_HTTPHEADER, [
                 'Content-Type: application/json',
@@ -854,7 +854,7 @@ class Docker extends Adapter
             });
 
             \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout + 5); // Gives extra 5s after safe timeout to recieve response
-            \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+            \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, (int)Http::getEnv('OPR_EXECUTOR_CONNECT_TIMEOUT', '5'));
             if ($logging === true) {
                 $headers['x-open-runtimes-logging'] = 'enabled';
             } else {
