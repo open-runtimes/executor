@@ -6,14 +6,16 @@
   "autoload": {
     "psr-4": {
       "OpenRuntimes\\": "src/",
-      "Tests\\": "tests"
+      "Tests\\E2E\\": "tests/e2e",
+      "Tests\\Unit\\": "tests/unit"
     }
   },
   "scripts": {
-    "lint": "./vendor/bin/pint --test --config pint.json",
     "format": "./vendor/bin/pint --config pint.json",
-    "check": "./vendor/bin/phpstan analyse --level 8 --memory-limit=2G -c phpstan.neon app src tests",
-    "test": "./vendor/bin/phpunit --configuration phpunit.xml --debug"
+    "format:check": "./vendor/bin/pint --test --config pint.json",
+    "analyze": "./vendor/bin/phpstan analyse --level 8 --memory-limit=2G -c phpstan.neon app src tests",
+    "test:unit": "./vendor/bin/phpunit --configuration phpunit.xml --debug --testsuite=unit",
+    "test:e2e": "./vendor/bin/phpunit --configuration phpunit.xml --debug --testsuite=e2e"
   },
   "require": {
     "php": ">=8.3.0",

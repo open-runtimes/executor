@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests;
+namespace Tests\E2E;
 
 use PHPUnit\Framework\TestCase;
 use Swoole\Coroutine as Co;
