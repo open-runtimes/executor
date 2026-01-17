@@ -8,7 +8,7 @@ use Utopia\System\System;
 Http::error()
     ->inject('error')
     ->inject('response')
-    ->action(function (Throwable $error, Response $response) {
+    ->action(function (Throwable $error, Response $response): void {
         // Show all Executor\Exceptions, or everything if in development
         $public = $error instanceof Exception || Http::isDevelopment();
         $exception = $public ? $error : new Exception(Exception::GENERAL_UNKNOWN);

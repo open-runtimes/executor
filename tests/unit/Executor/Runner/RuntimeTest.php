@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Unit\Executor\Runner;
 
 use OpenRuntimes\Executor\Runner\Runtime;
 use PHPUnit\Framework\TestCase;
 
-class RuntimeTest extends TestCase
+final class RuntimeTest extends TestCase
 {
     public function testConstructor(): void
     {

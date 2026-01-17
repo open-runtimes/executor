@@ -13,9 +13,11 @@
   "scripts": {
     "format": "./vendor/bin/pint --config pint.json",
     "format:check": "./vendor/bin/pint --test --config pint.json",
-    "analyze": "./vendor/bin/phpstan analyse --level 8 --memory-limit=2G -c phpstan.neon app src tests",
+    "analyze": "./vendor/bin/phpstan analyse --memory-limit=1G -c phpstan.neon app src tests",
     "test:unit": "./vendor/bin/phpunit --configuration phpunit.xml --debug --testsuite=unit",
-    "test:e2e": "./vendor/bin/phpunit --configuration phpunit.xml --debug --testsuite=e2e"
+    "test:e2e": "./vendor/bin/phpunit --configuration phpunit.xml --debug --testsuite=e2e",
+    "refactor": "./vendor/bin/rector",
+    "refactor:check": "./vendor/bin/rector --dry-run"
   },
   "require": {
     "php": ">=8.3.0",
@@ -35,9 +37,10 @@
   },
   "require-dev": {
     "laravel/pint": "1.*",
-    "phpstan/phpstan": "1.*",
+    "phpstan/phpstan": "2.*",
     "phpunit/phpunit": "9.*",
-    "swoole/ide-helper": "5.1.2"
+    "swoole/ide-helper": "5.1.2",
+    "rector/rector": "2.3.1"
   },
   "config": {
     "platform": {

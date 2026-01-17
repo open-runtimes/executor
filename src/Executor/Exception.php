@@ -13,28 +13,33 @@ class Exception extends \RuntimeException
      * <ENTITY>_<ERROR_TYPE>
      */
     public const string GENERAL_UNKNOWN         = 'general_unknown';
+
     public const string GENERAL_ROUTE_NOT_FOUND = 'general_route_not_found';
+
     public const string GENERAL_UNAUTHORIZED    = 'general_unauthorized';
 
     public const string EXECUTION_BAD_REQUEST = 'execution_bad_request';
+
     public const string EXECUTION_TIMEOUT     = 'execution_timeout';
+
     public const string EXECUTION_BAD_JSON    = 'execution_bad_json';
 
     public const string RUNTIME_NOT_FOUND    = 'runtime_not_found';
+
     public const string RUNTIME_CONFLICT     = 'runtime_conflict';
+
     public const string RUNTIME_FAILED       = 'runtime_failed';
+
     public const string RUNTIME_TIMEOUT      = 'runtime_timeout';
 
     public const string LOGS_TIMEOUT = 'logs_timeout';
 
     public const string COMMAND_TIMEOUT = 'command_timeout';
+
     public const string COMMAND_FAILED = 'command_failed';
 
-    /**
-     * Properties
-     */
-    protected readonly string $type;
     protected readonly string $short;
+
     protected readonly bool $publish;
 
     /**
@@ -46,15 +51,13 @@ class Exception extends \RuntimeException
      * @param \Throwable|null $previous The previous exception.
      */
     public function __construct(
-        string $type = Exception::GENERAL_UNKNOWN,
+        protected readonly string $type = Exception::GENERAL_UNKNOWN,
         ?string $message = null,
         ?int $code = null,
         ?\Throwable $previous = null
     ) {
         $errors = Config::getParam('errors');
-
-        $this->type = $type;
-        $error = $errors[$type] ?? [];
+        $error = $errors[$this->type] ?? [];
 
         $this->message = $message ?? $error['message'];
         $this->code = $code ?? $error['code'] ?: 500;
@@ -67,8 +70,6 @@ class Exception extends \RuntimeException
 
     /**
      * Get the type of the exception.
-     *
-     * @return string
      */
     public function getType(): string
     {
@@ -77,8 +78,6 @@ class Exception extends \RuntimeException
 
     /**
      * Get the short version of the exception.
-     *
-     * @return string
      */
     public function getShort(): string
     {
@@ -87,8 +86,6 @@ class Exception extends \RuntimeException
 
     /**
      * Check whether the error message is publishable to logging systems (e.g. Sentry).
-     *
-     * @return bool
      */
     public function isPublishable(): bool
     {

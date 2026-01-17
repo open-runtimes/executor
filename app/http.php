@@ -32,7 +32,7 @@ Http::onStart()
     ->inject('network')
     ->inject('imagePuller')
     ->inject('maintenance')
-    ->action(function (Orchestration $orchestration, Network $network, ImagePuller $imagePuller, Maintenance $maintenance) {
+    ->action(function (Orchestration $orchestration, Network $network, ImagePuller $imagePuller, Maintenance $maintenance): void {
         /* Fetch own container information */
         $hostname = gethostname() ?: throw new \RuntimeException('Could not determine hostname');
         $selfContainer = $orchestration->list(['name' => $hostname])[0] ?? throw new \RuntimeException('Own container not found');
@@ -58,11 +58,11 @@ Http::onStart()
 
 Http::onRequest()
     ->inject('response')
-    ->action(function (Response $response) {
+    ->action(function (Response $response): void {
         $response->addHeader('Server', 'Executor');
     });
 
-run(function () use ($settings) {
+run(function () use ($settings): void {
     $server = new Server('0.0.0.0', '80', $settings);
     $http = new Http($server, 'UTC');
     $http->start();

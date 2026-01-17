@@ -25,7 +25,7 @@ Http::get('/v1/runtimes/:runtimeId/logs')
     ->param('timeout', '600', new Text(16), 'Maximum logs timeout.', true)
     ->inject('response')
     ->inject('runner')
-    ->action(function (string $runtimeId, string $timeoutStr, Response $response, Runner $runner) {
+    ->action(function (string $runtimeId, string $timeoutStr, Response $response, Runner $runner): void {
         $timeout = \intval($timeoutStr);
 
         $response->sendHeader('Content-Type', 'text/event-stream');
@@ -43,7 +43,7 @@ Http::post('/v1/runtimes/:runtimeId/commands')
     ->param('timeout', 600, new Integer(), 'Commands execution time in seconds.', true)
     ->inject('response')
     ->inject('runner')
-    ->action(function (string $runtimeId, string $command, int $timeout, Response $response, Runner $runner) {
+    ->action(function (string $runtimeId, string $command, int $timeout, Response $response, Runner $runner): void {
         $output = $runner->executeCommand($runtimeId, $command, $timeout);
         $response->setStatusCode(Response::STATUS_CODE_OK)->json([ 'output' => $output ]);
     });
@@ -68,7 +68,7 @@ Http::post('/v1/runtimes')
     ->param('restartPolicy', DockerAPI::RESTART_NO, new WhiteList([DockerAPI::RESTART_NO, DockerAPI::RESTART_ALWAYS, DockerAPI::RESTART_ON_FAILURE, DockerAPI::RESTART_UNLESS_STOPPED], true), 'Define restart policy for the runtime once an exit code is returned. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)
     ->inject('response')
     ->inject('runner')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, string $outputDirectory, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Response $response, Runner $runner) {
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, string $outputDirectory, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Response $response, Runner $runner): void {
         $secret = \bin2hex(\random_bytes(16));
 
         /**
@@ -90,7 +90,7 @@ Http::post('/v1/runtimes')
             default => [],
         });
 
-        if (!empty($outputDirectory)) {
+        if ($outputDirectory !== '' && $outputDirectory !== '0') {
             $variables = \array_merge($variables, [
                 'OPEN_RUNTIMES_OUTPUT_DIRECTORY' => $outputDirectory
             ]);
@@ -100,7 +100,7 @@ Http::post('/v1/runtimes')
             'CI' => 'true'
         ]);
 
-        $variables = array_map(fn ($v) => strval($v), $variables);
+        $variables = array_map(strval(...), $variables);
 
         $container = $runner->createRuntime($runtimeId, $secret, $image, $entrypoint, $source, $destination, $variables, $runtimeEntrypoint, $command, $timeout, $remove, $cpus, $memory, $version, $restartPolicy);
         $response->setStatusCode(Response::STATUS_CODE_CREATED)->json($container);
@@ -111,7 +111,7 @@ Http::get('/v1/runtimes')
     ->desc("List currently active runtimes")
     ->inject('runner')
     ->inject('response')
-    ->action(function (Runner $runner, Response $response) {
+    ->action(function (Runner $runner, Response $response): void {
         $response->setStatusCode(Response::STATUS_CODE_OK)->json($runner->getRuntimes());
     });
 
@@ -121,7 +121,7 @@ Http::get('/v1/runtimes/:runtimeId')
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->inject('runner')
     ->inject('response')
-    ->action(function (string $runtimeId, Runner $runner, Response $response) {
+    ->action(function (string $runtimeId, Runner $runner, Response $response): void {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
         $response->setStatusCode(Response::STATUS_CODE_OK)->json($runner->getRuntime($runtimeName));
     });
@@ -132,7 +132,7 @@ Http::delete('/v1/runtimes/:runtimeId')
     ->param('runtimeId', '', new Text(64), 'Runtime unique ID.')
     ->inject('response')
     ->inject('runner')
-    ->action(function (string $runtimeId, Response $response, Runner $runner) {
+    ->action(function (string $runtimeId, Response $response, Runner $runner): void {
         $runner->deleteRuntime($runtimeId);
         $response->setStatusCode(Response::STATUS_CODE_OK)->send();
     });
@@ -183,39 +183,18 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             Response $response,
             Request $request,
             Runner $runner
-        ) {
-            // Extra parsers and validators to support both JSON and multipart
-            $intParams = ['timeout', 'memory'];
-            foreach ($intParams as $intParam) {
-                if (!empty($$intParam) && !is_numeric($$intParam)) {
-                    $$intParam = \intval($$intParam);
-                }
+        ): void {
+            // Parse JSON strings for assoc params when coming from multipart
+            if (\is_string($headers)) {
+                $headers = \json_decode($headers, true) ?? [];
             }
 
-            $floatParams = ['cpus'];
-            foreach ($floatParams as $floatPram) {
-                if (!empty($$floatPram) && !is_numeric($$floatPram)) {
-                    $$floatPram = \floatval($$floatPram);
-                }
+            if (\is_string($variables)) {
+                $variables = \json_decode($variables, true) ?? [];
             }
 
-            /**
-             * @var array<string, mixed> $headers
-             * @var array<string, mixed> $variables
-             */
-            $assocParams = ['headers', 'variables'];
-            foreach ($assocParams as $assocParam) {
-                if (!empty($$assocParam) && !is_array($$assocParam)) {
-                    $$assocParam = \json_decode($$assocParam, true);
-                }
-            }
-
-            $booleanParams = ['logging'];
-            foreach ($booleanParams as $booleamParam) {
-                if (!empty($$booleamParam) && !is_bool($$booleamParam)) {
-                    $$booleamParam = $$booleamParam === "true" ? true : false;
-                }
-            }
+            /** @var array<string, mixed> $headers */
+            /** @var array<string, mixed> $variables */
 
             // 'headers' validator
             $validator = new Assoc();
@@ -229,11 +208,11 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 throw new Exception(Exception::EXECUTION_BAD_REQUEST, $validator->getDescription());
             }
 
-            if (empty($payload)) {
+            if (in_array($payload, [null, '', '0'], true)) {
                 $payload = '';
             }
 
-            $variables = array_map(fn ($v) => strval($v), $variables);
+            $variables = array_map(strval(...), $variables);
 
             $execution = $runner->createExecution(
                 $runtimeId,
@@ -303,16 +282,16 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 Http::get('/v1/health')
     ->desc("Get health status")
     ->inject('response')
-    ->action(function (Response $response) {
+    ->action(function (Response $response): void {
         $response->setStatusCode(Response::STATUS_CODE_OK)->text("OK");
     });
 
 Http::init()
     ->groups(['api'])
     ->inject('request')
-    ->action(function (Request $request) {
+    ->action(function (Request $request): void {
         $secretKey = \explode(' ', $request->getHeader('authorization', ''))[1] ?? '';
-        if (empty($secretKey) || $secretKey !== System::getEnv('OPR_EXECUTOR_SECRET', '')) {
+        if ($secretKey === '' || $secretKey === '0' || $secretKey !== System::getEnv('OPR_EXECUTOR_SECRET', '')) {
             throw new Exception(Exception::GENERAL_UNAUTHORIZED, 'Missing executor key');
         }
     });

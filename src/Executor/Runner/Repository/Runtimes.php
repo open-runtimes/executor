@@ -9,7 +9,7 @@ use Swoole\Table;
 /**
  * @implements Iterator<string, Runtime>
  */
-final class Runtimes implements Iterator
+final readonly class Runtimes implements Iterator
 {
     private Table $runtimes;
 
@@ -49,6 +49,7 @@ final class Runtimes implements Iterator
         if ($runtime === false) {
             return null;
         }
+
         return Runtime::fromArray($runtime);
     }
 
@@ -68,7 +69,6 @@ final class Runtimes implements Iterator
      *
      * @param  string  $id The ID of the runtime to update.
      * @param  Runtime $runtime The updated runtime object.
-     * @return void
      */
     public function set(string $id, Runtime $runtime): void
     {
@@ -97,6 +97,7 @@ final class Runtimes implements Iterator
         foreach ($this->runtimes as $runtimeKey => $runtime) {
             $runtimes[$runtimeKey] = Runtime::fromArray($runtime);
         }
+
         return $runtimes;
     }
 

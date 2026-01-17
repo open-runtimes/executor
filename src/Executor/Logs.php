@@ -15,7 +15,7 @@ class Logs
     {
         $output = [];
 
-        $dir = "/tmp/$containerId/logging";
+        $dir = sprintf('/tmp/%s/logging', $containerId);
         $logsFile = $dir . "/logs.txt";
         $timingsFile = $dir . "/timings.txt";
 
@@ -66,7 +66,7 @@ class Logs
             $datetime = new DateTime("now", new DateTimeZone("UTC")); // Date used for tracking absolute log timing
         }
 
-        if (empty($timing)) {
+        if ($timing === '' || $timing === '0') {
             return [];
         }
 
@@ -74,7 +74,11 @@ class Logs
 
         $rows = \explode("\n", $timing);
         foreach ($rows as $row) {
-            if (empty($row)) {
+            if ($row === '') {
+                continue;
+            }
+
+            if ($row === '0') {
                 continue;
             }
 
@@ -105,7 +109,7 @@ class Logs
     public static function getLogOffset(string $logs): int
     {
         $contentSplit = \explode("\n", $logs, 2); // Find first linebreak to identify prefix
-        $offset = \strlen($contentSplit[0] ?? ''); // Ignore script addition "Script started on..."
+        $offset = \strlen($contentSplit[0]); // Ignore script addition "Script started on..."
         $offset += 1; // Consider linebreak an intro too
 
         return $offset;

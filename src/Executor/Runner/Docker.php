@@ -23,8 +23,6 @@ use function Swoole\Coroutine\batch;
 class Docker extends Adapter
 {
     /**
-     * @param Orchestration $orchestration
-     * @param Runtimes $runtimes
      * @param string[] $networks
      */
     public function __construct(
@@ -34,18 +32,12 @@ class Docker extends Adapter
     ) {
     }
 
-    /**
-     * @param string $runtimeId
-     * @param int $timeout
-     * @param Response $response
-     * @return void
-     */
     public function getLogs(string $runtimeId, int $timeout, Response $response): void
     {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
-        $tmpFolder = "tmp/$runtimeName/";
-        $tmpLogging = "/{$tmpFolder}logging"; // Build logs
+        $tmpFolder = sprintf('tmp/%s/', $runtimeName);
+        $tmpLogging = sprintf('/%slogging', $tmpFolder); // Build logs
 
         // TODO: Combine 3 checks below into one
 
@@ -73,7 +65,7 @@ class Docker extends Adapter
             }
 
             $runtime = $this->runtimes->get($runtimeName);
-            if (!empty($runtime)) {
+            if ($runtime instanceof \OpenRuntimes\Executor\Runner\Runtime) {
                 $version = $runtime->version;
                 break;
             }
@@ -94,14 +86,14 @@ class Docker extends Adapter
 
             if (\file_exists($tmpLogging . '/logs.txt') && \file_exists($tmpLogging . '/timings.txt')) {
                 $timings = \file_get_contents($tmpLogging . '/timings.txt') ?: '';
-                if (\strlen($timings) > 0) {
+                if ($timings !== '') {
                     break;
                 }
             }
 
             // Ensure runtime is still present
             $runtime = $this->runtimes->get($runtimeName);
-            if ($runtime === null) {
+            if (!$runtime instanceof \OpenRuntimes\Executor\Runner\Runtime) {
                 return;
             }
 
@@ -120,9 +112,9 @@ class Docker extends Adapter
 
         $streamInterval = 1000; // 1 second
         $activeRuntimes = $this->runtimes;
-        $timerId = Timer::tick($streamInterval, function () use (&$logsProcess, &$logsChunk, $response, $activeRuntimes, $runtimeName) {
+        $timerId = Timer::tick($streamInterval, function () use (&$logsProcess, &$logsChunk, $response, $activeRuntimes, $runtimeName): void {
             $runtime = $activeRuntimes->get($runtimeName);
-            if ($runtime === null) {
+            if (!$runtime instanceof \OpenRuntimes\Executor\Runner\Runtime) {
                 return;
             }
 
@@ -143,10 +135,8 @@ class Docker extends Adapter
             $write = $response->write($logsChunk);
             $logsChunk = '';
 
-            if (!$write) {
-                if (!empty($logsProcess)) {
-                    \proc_terminate($logsProcess, 9);
-                }
+            if (!$write && !empty($logsProcess)) {
+                \proc_terminate($logsProcess, 9);
             }
         });
 
@@ -157,13 +147,14 @@ class Docker extends Adapter
         $datetime = new \DateTime("now", new \DateTimeZone("UTC")); // Date used for tracking absolute log timing
 
         $output = ''; // Unused, just a refference for stdout
-        Console::execute('tail -F ' . $tmpLogging . '/timings.txt', '', $output, $timeout, function (string $timingChunk, mixed $process) use ($tmpLogging, &$logsChunk, &$logsProcess, &$datetime, &$offset, $introOffset) {
+        Console::execute('tail -F ' . $tmpLogging . '/timings.txt', '', $output, $timeout, function (string $timingChunk, mixed $process) use ($tmpLogging, &$logsChunk, &$logsProcess, &$datetime, &$offset, $introOffset): void {
             $logsProcess = $process;
 
             if (!\file_exists($tmpLogging . '/logs.txt')) {
                 if (!empty($logsProcess)) {
                     \proc_terminate($logsProcess, 9);
                 }
+
                 return;
             }
 
@@ -218,22 +209,7 @@ class Docker extends Adapter
     }
 
     /**
-     * @param string $runtimeId
-     * @param string $secret
-     * @param string $image
-     * @param string $entrypoint
-     * @param string $source
-     * @param string $destination
      * @param string[] $variables
-     * @param string $runtimeEntrypoint
-     * @param string $command
-     * @param int $timeout
-     * @param bool $remove
-     * @param float $cpus
-     * @param int $memory
-     * @param string $version
-     * @param string $restartPolicy
-     * @return mixed
      */
     public function createRuntime(
         string $runtimeId,
@@ -258,7 +234,7 @@ class Docker extends Adapter
 
         if ($this->runtimes->exists($runtimeName)) {
             $existingRuntime = $this->runtimes->get($runtimeName);
-            if ($existingRuntime !== null && $existingRuntime->status === 'pending') {
+            if ($existingRuntime instanceof \OpenRuntimes\Executor\Runner\Runtime && $existingRuntime->status === 'pending') {
                 throw new Exception(Exception::RUNTIME_CONFLICT, 'A runtime with the same ID is already being created. Attempt a execution soon.');
             }
 
@@ -293,15 +269,15 @@ class Docker extends Adapter
         }
 
         $sourceFile = "code.tar.gz";
-        if (!empty($source) && \pathinfo($source, PATHINFO_EXTENSION) === 'tar') {
+        if ($source !== '' && $source !== '0' && \pathinfo($source, PATHINFO_EXTENSION) === 'tar') {
             $sourceFile = "code.tar";
         }
 
-        $tmpFolder = "tmp/$runtimeName/";
-        $tmpSource = "/{$tmpFolder}src/$sourceFile";
-        $tmpBuild = "/{$tmpFolder}builds/$buildFile";
-        $tmpLogging = "/{$tmpFolder}logging"; // Build logs
-        $tmpLogs = "/{$tmpFolder}logs"; // Runtime logs
+        $tmpFolder = sprintf('tmp/%s/', $runtimeName);
+        $tmpSource = sprintf('/%ssrc/%s', $tmpFolder, $sourceFile);
+        $tmpBuild = sprintf('/%sbuilds/%s', $tmpFolder, $buildFile);
+        $tmpLogging = sprintf('/%slogging', $tmpFolder); // Build logs
+        $tmpLogs = sprintf('/%slogs', $tmpFolder); // Runtime logs
 
         $sourceDevice = StorageFactory::getDevice("/", System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE'));
         $localDevice = new Local();
@@ -310,10 +286,9 @@ class Docker extends Adapter
             /**
              * Copy code files from source to a temporary location on the executor
              */
-            if (!empty($source)) {
-                if (!$sourceDevice->transfer($source, $tmpSource, $localDevice)) {
-                    throw new \Exception('Failed to copy source code to temporary directory');
-                };
+            if ($source !== '' && $source !== '0' && !$sourceDevice->transfer($source, $tmpSource, $localDevice)) {
+                throw new \Exception('Failed to copy source code to temporary directory');
+                ;
             }
 
             /**
@@ -327,12 +302,8 @@ class Docker extends Adapter
                 ->setCpus($cpus)
                 ->setMemory($memory);
 
-            if (empty($runtimeEntrypoint)) {
-                if ($version === 'v2' && empty($command)) {
-                    $runtimeEntrypointCommands = [];
-                } else {
-                    $runtimeEntrypointCommands = ['tail', '-f', '/dev/null'];
-                }
+            if ($runtimeEntrypoint === '' || $runtimeEntrypoint === '0') {
+                $runtimeEntrypointCommands = $version === 'v2' && ($command === '' || $command === '0') ? [] : ['tail', '-f', '/dev/null'];
             } else {
                 $runtimeEntrypointCommands = ['bash', '-c', $runtimeEntrypoint];
             }
@@ -369,14 +340,14 @@ class Docker extends Adapter
                 restart: $restartPolicy
             );
 
-            if (empty($containerId)) {
+            if ($containerId === '' || $containerId === '0') {
                 throw new \Exception('Failed to create runtime');
             }
 
             /**
              * Execute any commands if they were provided
              */
-            if (!empty($command)) {
+            if ($command !== '' && $command !== '0') {
                 if ($version === 'v2') {
                     $commands = [
                         'sh',
@@ -401,7 +372,7 @@ class Docker extends Adapter
                     );
 
                     if (!$status) {
-                        throw new Exception(Exception::RUNTIME_FAILED, "Failed to create runtime: $stdout");
+                        throw new Exception(Exception::RUNTIME_FAILED, 'Failed to create runtime: ' . $stdout);
                     }
 
                     if ($version === 'v2') {
@@ -421,7 +392,7 @@ class Docker extends Adapter
             /**
              * Move built code to expected build directory
              */
-            if (!empty($destination)) {
+            if ($destination !== '' && $destination !== '0') {
                 // Check if the build was successful by checking if file exists
                 if (!$localDevice->exists($tmpBuild)) {
                     throw new \Exception('Something went wrong when starting runtime.');
@@ -450,16 +421,16 @@ class Docker extends Adapter
             ]);
 
             $runtime = $this->runtimes->get($runtimeName);
-            if ($runtime !== null) {
+            if ($runtime instanceof \OpenRuntimes\Executor\Runner\Runtime) {
                 $runtime->updated = \microtime(true);
                 $runtime->status = 'Up ' . \round($duration, 2) . 's';
                 $runtime->initialised = 1;
 
                 $this->runtimes->set($runtimeName, $runtime);
             }
-        } catch (Throwable $th) {
+        } catch (Throwable $throwable) {
             if ($version === 'v2') {
-                $message = !empty($output) ? $output : $th->getMessage();
+                $message = $throwable->getMessage();
                 try {
                     $logs = '';
                     $status = $this->orchestration->execute(
@@ -469,24 +440,24 @@ class Docker extends Adapter
                         timeout: 15
                     );
 
-                    if (!empty($logs)) {
+                    if ($logs !== '' && $logs !== '0') {
                         $message = $logs;
                     }
 
                     $message = \mb_substr($message, -MAX_BUILD_LOG_SIZE); // Limit to 1MB
-                } catch (Throwable $err) {
+                } catch (Throwable) {
                     // Ignore, use fallback error message
                 }
 
-                $output = [
+                $output = [[
                     'timestamp' => Logs::getTimestamp(),
                     'content' => $message
-                ];
+                ]];
             } else {
                 $output = Logs::get($runtimeName);
-                $output = \count($output) > 0 ? $output : [[
+                $output = $output !== [] ? $output : [[
                     'timestamp' => Logs::getTimestamp(),
-                    'content' => $th->getMessage()
+                    'content' => $throwable->getMessage()
                 ]];
             }
 
@@ -508,7 +479,7 @@ class Docker extends Adapter
                 $message .= $chunk['content'];
             }
 
-            throw new \Exception($message, $th->getCode() ?: 500, $th);
+            throw new \Exception($message, $throwable->getCode() ?: 500, $throwable);
         }
 
         // Container cleanup
@@ -527,7 +498,7 @@ class Docker extends Adapter
 
         // Remove weird symbol characters (for example from Next.js)
         if (\is_array($container['output'])) {
-            foreach ($container['output'] as $index => &$chunk) {
+            foreach ($container['output'] as &$chunk) {
                 $chunk['content'] = \mb_convert_encoding($chunk['content'] ?? '', 'UTF-8', 'UTF-8');
             }
         }
@@ -535,10 +506,6 @@ class Docker extends Adapter
         return $container;
     }
 
-    /**
-     * @param string $runtimeId
-     * @return void
-     */
     public function deleteRuntime(string $runtimeId): void
     {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
@@ -552,23 +519,6 @@ class Docker extends Adapter
     }
 
     /**
-     * @param string $runtimeId
-     * @param string|null $payload
-     * @param string $path
-     * @param string $method
-     * @param mixed $headers
-     * @param int $timeout
-     * @param string $image
-     * @param string $source
-     * @param string $entrypoint
-     * @param mixed $variables
-     * @param float $cpus
-     * @param int $memory
-     * @param string $version
-     * @param string $runtimeEntrypoint
-     * @param bool $logging
-     * @param string $restartPolicy
-     * @return mixed
      * @throws Exception
      */
     public function createExecution(
@@ -600,12 +550,12 @@ class Docker extends Adapter
 
         // Prepare runtime
         if (!$this->runtimes->exists($runtimeName)) {
-            if (empty($image) || empty($source)) {
+            if ($image === '' || $image === '0' || ($source === '' || $source === '0')) {
                 throw new Exception(Exception::RUNTIME_NOT_FOUND, 'Runtime not found. Please start it first or provide runtime-related parameters.');
             }
 
             // Prepare request to executor
-            $sendCreateRuntimeRequest = function () use ($runtimeId, $image, $source, $entrypoint, $variables, $cpus, $memory, $version, $restartPolicy, $runtimeEntrypoint) {
+            $sendCreateRuntimeRequest = function () use ($runtimeId, $image, $source, $entrypoint, $variables, $cpus, $memory, $version, $restartPolicy, $runtimeEntrypoint): array {
                 $ch = \curl_init();
 
                 $body = \json_encode([
@@ -623,7 +573,7 @@ class Docker extends Adapter
 
                 \curl_setopt($ch, CURLOPT_URL, "http://127.0.0.1/v1/runtimes");
                 \curl_setopt($ch, CURLOPT_POST, true);
-                \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+                \curl_setopt($ch, CURLOPT_POSTFIELDS, $body ?: '');
                 \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                 \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
 
@@ -661,11 +611,7 @@ class Docker extends Adapter
                 ['errNo' => $errNo, 'error' => $error, 'statusCode' => $statusCode, 'executorResponse' => $executorResponse] = \call_user_func($sendCreateRuntimeRequest);
 
                 if ($errNo === 0) {
-                    if (\is_string($executorResponse)) {
-                        $body = \json_decode($executorResponse, true);
-                    } else {
-                        $body = [];
-                    }
+                    $body = \is_string($executorResponse) ? \json_decode($executorResponse, true) : [];
 
                     if ($statusCode >= 500) {
                         // If the runtime has not yet attempted to start, it will return 500
@@ -692,7 +638,7 @@ class Docker extends Adapter
 
         // Update runtimes
         $runtime = $this->runtimes->get($runtimeName);
-        if ($runtime !== null) {
+        if ($runtime instanceof \OpenRuntimes\Executor\Runner\Runtime) {
             $runtime->updated = \time();
             $this->runtimes->set($runtimeName, $runtime);
         }
@@ -706,7 +652,7 @@ class Docker extends Adapter
             }
 
             $runtimeStatus = $this->runtimes->get($runtimeName);
-            if ($runtimeStatus === null) {
+            if (!$runtimeStatus instanceof \OpenRuntimes\Executor\Runner\Runtime) {
                 throw new Exception(Exception::RUNTIME_NOT_FOUND, 'Runtime no longer exists.');
             }
 
@@ -722,12 +668,13 @@ class Docker extends Adapter
 
         // Ensure we have secret
         $runtime = $this->runtimes->get($runtimeName);
-        if ($runtime === null) {
+        if (!$runtime instanceof \OpenRuntimes\Executor\Runner\Runtime) {
             throw new Exception(Exception::RUNTIME_NOT_FOUND, 'Runtime secret not found. Please re-create the runtime.', 500);
         }
+
         $hostname = $runtime->hostname;
         $secret = $runtime->key;
-        if (empty($secret)) {
+        if ($secret === '' || $secret === '0') {
             throw new \Exception('Runtime secret not found. Please re-create the runtime.', 500);
         }
 
@@ -746,9 +693,9 @@ class Docker extends Adapter
 
             \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000/");
             \curl_setopt($ch, CURLOPT_POST, true);
-            \curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+            \curl_setopt($ch, CURLOPT_POSTFIELDS, $body ?: '');
             \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+            \curl_setopt($ch, CURLOPT_TIMEOUT, (int) $timeout);
             \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
 
             \curl_setopt($ch, CURLOPT_HTTPHEADER, [
@@ -818,15 +765,15 @@ class Docker extends Adapter
             }
 
             \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000" . $path);
-            \curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+            \curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method ?: 'GET');
             \curl_setopt($ch, CURLOPT_NOBODY, \strtoupper($method) === 'HEAD');
 
-            if (!empty($payload)) {
+            if (!in_array($payload, [null, '', '0'], true)) {
                 \curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
             }
 
             \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders) {
+            \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders): int {
                 $len = strlen($header);
                 $header = explode(':', $header, 2);
                 if (count($header) < 2) { // ignore invalid headers
@@ -836,7 +783,7 @@ class Docker extends Adapter
                 $key = strtolower(trim($header[0]));
                 $value = trim($header[1]);
 
-                if (\in_array($key, ['x-open-runtimes-log-id'])) {
+                if ($key === 'x-open-runtimes-log-id') {
                     $value = \urldecode($value);
                 }
 
@@ -853,13 +800,9 @@ class Docker extends Adapter
                 return $len;
             });
 
-            \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout + 5); // Gives extra 5s after safe timeout to recieve response
+            \curl_setopt($ch, CURLOPT_TIMEOUT, (int) $timeout + 5); // Gives extra 5s after safe timeout to recieve response
             \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-            if ($logging === true) {
-                $headers['x-open-runtimes-logging'] = 'enabled';
-            } else {
-                $headers['x-open-runtimes-logging'] = 'disabled';
-            }
+            $headers['x-open-runtimes-logging'] = $logging ? 'enabled' : 'disabled';
 
             $headers['Authorization'] = 'Basic ' . \base64_encode('opr:' . $secret);
             $headers['x-open-runtimes-secret'] = $secret;
@@ -898,11 +841,12 @@ class Docker extends Adapter
             // Extract logs and errors from file based on fileId in header
             $fileId = $responseHeaders['x-open-runtimes-log-id'] ?? '';
             if (\is_array($fileId)) {
-                $fileId = $fileId[0] ?? '';
+                $fileId = $fileId[0];
             }
+
             $logs = '';
             $errors = '';
-            if (!empty($fileId)) {
+            if ($fileId !== '' && $fileId !== '0') {
                 $logFile = '/tmp/' . $runtimeName . '/logs/' . $fileId . '_logs.log';
                 $errorFile = '/tmp/' . $runtimeName . '/logs/' . $fileId . '_errors.log';
 
@@ -956,7 +900,7 @@ class Docker extends Adapter
         // From here we calculate billable duration of execution
         $startTime = \microtime(true);
 
-        if (empty($runtime->listening)) {
+        if ($runtime->listening === 0) {
             // Wait for cold-start to finish (app listening on port)
             $pingStart = \microtime(true);
             $validator = new TCP();
@@ -976,7 +920,7 @@ class Docker extends Adapter
 
             // Update swoole table
             $runtime = $this->runtimes->get($runtimeName);
-            if ($runtime !== null) {
+            if ($runtime instanceof \OpenRuntimes\Executor\Runner\Runtime) {
                 $runtime->listening = 1;
                 $this->runtimes->set($runtimeName, $runtime);
             }
@@ -1042,7 +986,7 @@ class Docker extends Adapter
 
         // Update swoole table
         $runtime = $this->runtimes->get($runtimeName);
-        if ($runtime !== null) {
+        if ($runtime instanceof \OpenRuntimes\Executor\Runner\Runtime) {
             $runtime->updated = \microtime(true);
             $this->runtimes->set($runtimeName, $runtime);
         }
@@ -1050,22 +994,19 @@ class Docker extends Adapter
         return $execution;
     }
 
-    /**
-     * @return void
-     */
     public function cleanup(): void
     {
         Console::log('Cleaning up containers and networks...');
 
         $functionsToRemove = $this->orchestration->list(['label' => 'openruntimes-executor=' . System::getHostname()]);
 
-        if (\count($functionsToRemove) === 0) {
+        if ($functionsToRemove === []) {
             Console::info('No containers found to clean up.');
         }
 
         $jobsRuntimes = [];
         foreach ($functionsToRemove as $container) {
-            $jobsRuntimes[] = function () use ($container) {
+            $jobsRuntimes[] = function () use ($container): void {
                 try {
                     $this->orchestration->remove($container->getId(), true);
 
@@ -1076,12 +1017,13 @@ class Docker extends Adapter
                     }
 
                     Console::success('Removed container ' . $container->getName());
-                } catch (\Throwable $th) {
+                } catch (\Throwable $throwable) {
                     Console::error('Failed to remove container: ' . $container->getName());
-                    Console::error($th);
+                    Console::error($throwable);
                 }
             };
         }
+
         batch($jobsRuntimes);
 
         Console::success('Cleanup finished.');
@@ -1093,13 +1035,14 @@ class Docker extends Adapter
         foreach ($this->runtimes as $runtime) {
             $runtimes[] = $runtime->toArray();
         }
+
         return $runtimes;
     }
 
     public function getRuntime(string $name): mixed
     {
         $runtime = $this->runtimes->get($name);
-        if ($runtime === null) {
+        if (!$runtime instanceof \OpenRuntimes\Executor\Runner\Runtime) {
             throw new Exception(Exception::RUNTIME_NOT_FOUND);
         }
 
