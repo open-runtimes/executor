@@ -20,25 +20,25 @@ readonly class ImagePuller
      */
     public function pull(array $images): void
     {
-        if (empty($images)) {
+        if ($images === []) {
             Console::log('[ImagePuller] No images to pull.');
             return;
         }
 
-        $jobs = array_map(fn ($image) => function () use ($image) {
+        $jobs = array_map(fn ($image): \Closure => function () use ($image) {
             if (!$this->orchestration->pull($image)) {
-                Console::error("[ImagePuller] Failed to pull image $image");
+                Console::error('[ImagePuller] Failed to pull image ' . $image);
                 return;
             }
 
             return true;
         }, $images);
 
-        go(function () use ($jobs) {
+        go(function () use ($jobs): void {
             $results = batch($jobs);
             $success = \count(array_filter($results));
 
-            Console::info("[ImagePuller] Pulled $success/". \count($jobs) . " images.");
+            Console::info(sprintf('[ImagePuller] Pulled %d/', $success). \count($jobs) . " images.");
         });
 
         Console::info('[ImagePuller] Started pulling images.');

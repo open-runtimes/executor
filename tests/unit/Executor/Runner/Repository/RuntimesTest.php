@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Unit\Executor\Runner\Repository;
 
 use OpenRuntimes\Executor\Runner\Repository\Runtimes;
 use OpenRuntimes\Executor\Runner\Runtime;
 use PHPUnit\Framework\TestCase;
 
-class RuntimesTest extends TestCase
+final class RuntimesTest extends TestCase
 {
     public function testSet(): void
     {
@@ -38,7 +40,7 @@ class RuntimesTest extends TestCase
     public function testEmpty(): void
     {
         $repository = new Runtimes(16);
-        $this->assertNull($repository->get('missing'));
+        $this->assertNotInstanceOf(\OpenRuntimes\Executor\Runner\Runtime::class, $repository->get('missing'));
     }
 
     public function testRemove(): void
@@ -61,7 +63,7 @@ class RuntimesTest extends TestCase
 
         $this->assertTrue($repository->remove('rt-2'));
         $this->assertFalse($repository->exists('rt-2'));
-        $this->assertNull($repository->get('rt-2'));
+        $this->assertNotInstanceOf(\OpenRuntimes\Executor\Runner\Runtime::class, $repository->get('rt-2'));
 
         $this->assertFalse($repository->remove('rt-2'));
     }

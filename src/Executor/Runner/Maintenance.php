@@ -19,8 +19,8 @@ class Maintenance
     private int|false $timerId = false;
 
     public function __construct(
-        private Orchestration $orchestration,
-        private Runtimes $runtimes
+        private readonly Orchestration $orchestration,
+        private readonly Runtimes $runtimes
     ) {
     }
 
@@ -35,7 +35,7 @@ class Maintenance
 
         $intervalMs = $intervalSeconds * 1000;
         $this->timerId = Timer::tick($intervalMs, fn () => $this->tick($inactiveSeconds));
-        Console::info("[Maintenance] Started task on interval $intervalSeconds seconds.");
+        Console::info(sprintf('[Maintenance] Started task on interval %d seconds.', $intervalSeconds));
     }
 
     /**
@@ -57,12 +57,12 @@ class Maintenance
      */
     private function tick(int $inactiveSeconds): void
     {
-        Console::info("[Maintenance] Running task with threshold $inactiveSeconds seconds.");
+        Console::info(sprintf('[Maintenance] Running task with threshold %d seconds.', $inactiveSeconds));
 
         $threshold = \time() - $inactiveSeconds;
         $candidates = array_filter(
             $this->runtimes->list(),
-            fn ($runtime) => $runtime->updated < $threshold
+            fn (\OpenRuntimes\Executor\Runner\Runtime $runtime): bool => $runtime->updated < $threshold
         );
 
         // Remove from in-memory state before removing the container.
@@ -71,15 +71,16 @@ class Maintenance
         foreach ($keys as $key) {
             $this->runtimes->remove($key);
         }
+
         // Then, remove forcefully terminate the associated running container.
         $jobs = array_map(
-            fn ($candidate) => fn () => $this->orchestration->remove($candidate->name, force: true),
+            fn (\OpenRuntimes\Executor\Runner\Runtime $candidate): \Closure => fn (): bool => $this->orchestration->remove($candidate->name, force: true),
             $candidates
         );
         $results = batch($jobs);
         $removed = \count(array_filter($results));
 
-        Console::info("[Maintenance] Removed {$removed}/" . \count($candidates) . " inactive runtimes.");
+        Console::info(sprintf('[Maintenance] Removed %d/', $removed) . \count($candidates) . " inactive runtimes.");
 
         $this->cleanupTmp();
     }
@@ -101,7 +102,7 @@ class Maintenance
             }
 
             if ($localDevice->deletePath($entry)) {
-                Console::info("[Maintenance] Removed {$entry}.");
+                Console::info(sprintf('[Maintenance] Removed %s.', $entry));
             }
         }
     }

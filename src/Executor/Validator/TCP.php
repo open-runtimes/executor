@@ -37,7 +37,7 @@ class TCP extends Validator
             [ $ip, $port ] = \explode(':', $value);
             $port = \intval($port);
 
-            if (empty($port) || empty($ip)) {
+            if ($port === 0 || ($ip === '' || $ip === '0')) {
                 return false;
             }
 
@@ -48,10 +48,10 @@ class TCP extends Validator
 
             if (!$socket) {
                 return false;
-            } else {
-                \fclose($socket);
-                return true;
             }
+
+            \fclose($socket);
+            return true;
         } catch (\RuntimeException) {
             return false;
         }

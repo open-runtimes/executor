@@ -36,6 +36,19 @@ jobs:
         docker run --rm -v $PWD:/app composer:2.8 sh -c \
         "composer install --profile --ignore-platform-reqs && composer analyze"
 
+  refactor:
+    name: Refactor
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out the repo
+      uses: actions/checkout@v6
+
+    - name: Run Refactor
+      run: |
+        docker run --rm -v $PWD:/app composer:2.8 sh -c \
+        "composer install --profile --ignore-platform-reqs && composer refactor:check"
+
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest

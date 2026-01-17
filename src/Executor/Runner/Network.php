@@ -27,16 +27,17 @@ class Network
         foreach ($networks as $network) {
             /* Ensure network exists */
             if ($this->orchestration->networkExists($network)) {
-                Console::info("[Network] Network {$network} already exists");
+                Console::info(sprintf('[Network] Network %s already exists', $network));
             } else {
                 try {
                     $this->orchestration->createNetwork($network, false);
-                    Console::success("[Network] Created network: {$network}");
+                    Console::success('[Network] Created network: ' . $network);
                 } catch (\Throwable $e) {
-                    Console::error("[Network] Failed to create network {$network}: {$e->getMessage()}");
+                    Console::error(sprintf('[Network] Failed to create network %s: %s', $network, $e->getMessage()));
                     continue;
                 }
             }
+
             $this->available[] = $network;
 
             /* Add the container */
@@ -44,7 +45,7 @@ class Network
                 $this->orchestration->networkConnect($container, $network);
                 $this->container = $container;
             } catch (\Throwable $e) {
-                Console::error("[Network] Failed to connect container {$container} to network {$network}: {$e->getMessage()}");
+                Console::error(sprintf('[Network] Failed to connect container %s to network %s: %s', $container, $network, $e->getMessage()));
             }
         }
     }
@@ -60,19 +61,19 @@ class Network
                 try {
                     $this->orchestration->networkDisconnect($this->container, $network);
                 } catch (\Throwable $e) {
-                    Console::error("[Network] Failed to disconnect container {$this->container} from network {$network}: {$e->getMessage()}");
+                    Console::error(sprintf('[Network] Failed to disconnect container %s from network %s: %s', $this->container, $network, $e->getMessage()));
                 }
             }
 
             /* Ensure network exists */
             if ($this->orchestration->networkExists($network)) {
-                Console::info("[Network] Network {$network} already exists");
+                Console::info(sprintf('[Network] Network %s already exists', $network));
             } else {
                 try {
                     $this->orchestration->removeNetwork($network);
-                    Console::success("[Network] Deleted network: {$network}");
+                    Console::success('[Network] Deleted network: ' . $network);
                 } catch (\Throwable $e) {
-                    Console::error("[Network] Failed to delete network {$network}: {$e->getMessage()}");
+                    Console::error(sprintf('[Network] Failed to delete network %s: %s', $network, $e->getMessage()));
                 }
             }
         }

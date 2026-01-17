@@ -8,15 +8,12 @@ class BodyMultipart
      * @var array<string, mixed> $parts
      */
     private array $parts = [];
+
     private string $boundary = "";
 
     public function __construct(?string $boundary = null)
     {
-        if (is_null($boundary)) {
-            $this->boundary = self::generateBoundary();
-        } else {
-            $this->boundary = $boundary;
-        }
+        $this->boundary = is_null($boundary) ? self::generateBoundary() : $boundary;
     }
 
     public static function generateBoundary(): string
@@ -31,11 +28,15 @@ class BodyMultipart
         $sections = \explode('--' . $this->boundary, $body);
 
         foreach ($sections as $section) {
-            if (empty($section)) {
+            if ($section === '') {
                 continue;
             }
 
-            if (strpos($section, $eol) === 0) {
+            if ($section === '0') {
+                continue;
+            }
+
+            if (str_starts_with($section, $eol)) {
                 $section = substr($section, \strlen($eol));
             }
 
@@ -43,7 +44,7 @@ class BodyMultipart
                 $section = substr($section, 0, -1 * \strlen($eol));
             }
 
-            if ($section == '--') {
+            if ($section === '--') {
                 continue;
             }
 
@@ -58,32 +59,31 @@ class BodyMultipart
 
             $partName = "";
             foreach ($partHeaders as $partHeader) {
-                if (!empty($partName)) {
+                if ($partName !== '' && $partName !== '0') {
                     break;
                 }
 
                 $partHeaderArray = \explode(':', $partHeader, 2);
 
-                $partHeaderName = \strtolower($partHeaderArray[0] ?? '');
+                $partHeaderName = \strtolower($partHeaderArray[0]);
                 $partHeaderValue = $partHeaderArray[1] ?? '';
-                if ($partHeaderName == "content-disposition") {
+                if ($partHeaderName === "content-disposition") {
                     $dispositionChunks = \explode("; ", $partHeaderValue);
                     foreach ($dispositionChunks as $dispositionChunk) {
                         $dispositionChunkValues = \explode("=", $dispositionChunk, 2);
-                        if (\count($dispositionChunkValues) >= 2) {
-                            if ($dispositionChunkValues[0] === "name") {
-                                $partName = \trim($dispositionChunkValues[1], "\"");
-                                break;
-                            }
+                        if (\count($dispositionChunkValues) >= 2 && $dispositionChunkValues[0] === "name") {
+                            $partName = \trim($dispositionChunkValues[1], '"');
+                            break;
                         }
                     }
                 }
             }
 
-            if (!empty($partName)) {
+            if ($partName !== '' && $partName !== '0') {
                 $this->parts[$partName] = $partBody;
             }
         }
+
         return $this;
     }
 
@@ -147,8 +147,6 @@ class BodyMultipart
             $query .= '--' . $this->boundary;
         }
 
-        $query .= "--" . $eol;
-
-        return $query;
+        return $query . ("--" . $eol);
     }
 }

@@ -24,12 +24,8 @@ class Client extends FetchClient
     /**
      * Wrapper method for client calls to make requests to the executor
      *
-     * @param string $method
-     * @param string $path
      * @param array<string, string> $headers
      * @param array<string, mixed> $params
-     * @param bool $decode
-     * @param ?callable $callback
      * @return array<string, mixed>
      */
     public function call(string $method, string $path = '', array $headers = [], array $params = [], bool $decode = true, ?callable $callback = null): array
@@ -42,6 +38,7 @@ class Client extends FetchClient
         foreach ($this->baseHeaders as $key => $value) {
             $client->addHeader($key, $value);
         }
+
         foreach ($headers as $key => $value) {
             $client->addHeader($key, $value);
         }
@@ -51,7 +48,7 @@ class Client extends FetchClient
             method: $method,
             body: $method !== FetchClient::METHOD_GET ? $params : [],
             query: $method === FetchClient::METHOD_GET ? $params : [],
-            chunks: $callback ? function ($chunk) use ($callback) {
+            chunks: $callback ? function ($chunk) use ($callback): void {
                 $callback($chunk->getData());
             } : null
         );
@@ -83,14 +80,12 @@ class Client extends FetchClient
             }
         }
 
-        $result = [
+        return [
             'headers' => array_merge(
                 $response->getHeaders(),
                 ['status-code' => $response->getStatusCode()]
             ),
             'body' => $body
         ];
-
-        return $result;
     }
 }
