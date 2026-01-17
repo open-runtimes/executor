@@ -1,0 +1,27 @@
+# Development overrides - use with `docker compose watch`
+services:
+  openruntimes-executor:
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./tests/resources/functions:/storage/functions:rw
+      - ./tests/resources/sites:/storage/sites:rw
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./app
+          target: /usr/local/app
+        - action: sync+restart
+          path: ./src
+          target: /usr/local/src
+        - action: sync
+          path: ./tests
+          target: /usr/local/tests
+        - action: sync
+          path: ./phpunit.xml
+          target: /usr/local/phpunit.xml
+        - action: rebuild
+          path: ./composer.json
+        - action: rebuild
+          path: ./composer.lock
