@@ -13,7 +13,7 @@ use Utopia\Console;
 // TODO: Lengthy log test
 // TODO: Lengthy body test
 
-final class ExecutorTest extends TestCase
+class ExecutorTest extends TestCase
 {
     protected string $endpoint = 'http://executor/v1';
 
@@ -393,8 +393,8 @@ final class ExecutorTest extends TestCase
         $this->assertEquals(201, $response['headers']['status-code']);
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions');
-        $this->assertEquals(200, $response['headers']['status-code']);
-        $this->assertEquals(200, $response['body']['statusCode']);
+        $this->assertEquals(200, $response['headers']['status-code'], 'Failed to execute runtime, response ' . json_encode($response, JSON_PRETTY_PRINT));
+        $this->assertEquals(200, $response['body']['statusCode'], 'Failed execute runtime, response ' . json_encode($response, JSON_PRETTY_PRINT));
         $this->assertEquals('aValue', \json_decode((string) $response['body']['headers'], true)['x-key']);
 
         /** Execute on cold-started runtime */
