@@ -33,7 +33,7 @@
     "utopia-php/preloader": "0.2.*",
     "utopia-php/registry": "0.5.*",
     "utopia-php/storage": "0.18.*",
-    "utopia-php/system": "0.9.*"
+    "utopia-php/system": "0.10.*"
   },
   "require-dev": {
     "laravel/pint": "1.*",
