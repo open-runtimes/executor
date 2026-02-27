@@ -202,9 +202,9 @@ class Docker extends Adapter
             $this->orchestration->execute($runtimeName, $commands, $output, [], $timeout);
             return $output;
         } catch (TimeoutException $e) {
-            throw new Exception(Exception::COMMAND_TIMEOUT, previous: $e);
+            throw new Exception(Exception::COMMAND_TIMEOUT, $e->getCode(), previous: $e);
         } catch (OrchestrationException $e) {
-            throw new Exception(Exception::COMMAND_FAILED, previous: $e);
+            throw new Exception(Exception::COMMAND_FAILED, $e->getCode(), previous: $e);
         }
     }
 
@@ -497,10 +497,8 @@ class Docker extends Adapter
         }
 
         // Remove weird symbol characters (for example from Next.js)
-        if (\is_array($container['output'])) {
-            foreach ($container['output'] as &$chunk) {
-                $chunk['content'] = \mb_convert_encoding($chunk['content'] ?? '', 'UTF-8', 'UTF-8');
-            }
+        foreach ($container['output'] as &$chunk) {
+            $chunk['content'] = \mb_convert_encoding($chunk['content'] ?? '', 'UTF-8', 'UTF-8');
         }
 
         return $container;
