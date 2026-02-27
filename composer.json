@@ -39,8 +39,8 @@
     "laravel/pint": "1.*",
     "phpstan/phpstan": "2.*",
     "phpunit/phpunit": "9.*",
-    "swoole/ide-helper": "5.1.2",
-    "rector/rector": "2.3.8"
+    "rector/rector": "2.3.8",
+    "swoole/ide-helper": "5.1.2"
   },
   "config": {
     "platform": {

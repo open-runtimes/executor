@@ -202,9 +202,9 @@ class Docker extends Adapter
             $this->orchestration->execute($runtimeName, $commands, $output, [], $timeout);
             return $output;
         } catch (TimeoutException $e) {
-            throw new Exception(Exception::COMMAND_TIMEOUT, $e->getCode(), previous: $e);
+            throw new Exception(Exception::COMMAND_TIMEOUT, $e->getMessage(), $e->getCode(), $e);
         } catch (OrchestrationException $e) {
-            throw new Exception(Exception::COMMAND_FAILED, $e->getCode(), previous: $e);
+            throw new Exception(Exception::COMMAND_FAILED, $e->getMessage(), $e->getCode(), $e);
         }
     }
 
