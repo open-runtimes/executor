@@ -3,7 +3,7 @@
 namespace OpenRuntimes\Executor\Runner;
 
 use OpenRuntimes\Executor\Logs;
-use OpenRuntimes\Executor\Exception;
+use OpenRuntimes\Executor\Exception as ExecutorException;
 use OpenRuntimes\Executor\Runner\Repository\Runtimes;
 use OpenRuntimes\Executor\StorageFactory;
 use OpenRuntimes\Executor\Validator\TCP;
@@ -61,7 +61,7 @@ class Docker extends Adapter
         $checkStart = \microtime(true);
         while (true) {
             if (\microtime(true) - $checkStart >= 10) { // Enforced timeout of 10s
-                throw new Exception(Exception::RUNTIME_TIMEOUT);
+                throw new ExecutorException(ExecutorException::RUNTIME_TIMEOUT);
             }
 
             $runtime = $this->runtimes->get($runtimeName);
@@ -81,7 +81,7 @@ class Docker extends Adapter
         $checkStart = \microtime(true);
         while (true) {
             if (\microtime(true) - $checkStart >= $timeout) {
-                throw new Exception(Exception::LOGS_TIMEOUT);
+                throw new ExecutorException(ExecutorException::LOGS_TIMEOUT);
             }
 
             if (\file_exists($tmpLogging . '/logs.txt') && \file_exists($tmpLogging . '/timings.txt')) {
@@ -187,7 +187,7 @@ class Docker extends Adapter
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
         if (!$this->runtimes->exists($runtimeName)) {
-            throw new Exception(Exception::RUNTIME_NOT_FOUND);
+            throw new ExecutorException(ExecutorException::RUNTIME_NOT_FOUND);
         }
 
         $commands = [
@@ -202,9 +202,9 @@ class Docker extends Adapter
             $this->orchestration->execute($runtimeName, $commands, $output, [], $timeout);
             return $output;
         } catch (TimeoutException $e) {
-            throw new Exception(Exception::COMMAND_TIMEOUT, previous: $e);
+            throw new ExecutorException(ExecutorException::COMMAND_TIMEOUT, previous: $e);
         } catch (OrchestrationException $e) {
-            throw new Exception(Exception::COMMAND_FAILED, previous: $e);
+            throw new ExecutorException(ExecutorException::COMMAND_FAILED, previous: $e);
         }
     }
 
@@ -235,10 +235,10 @@ class Docker extends Adapter
         if ($this->runtimes->exists($runtimeName)) {
             $existingRuntime = $this->runtimes->get($runtimeName);
             if ($existingRuntime instanceof \OpenRuntimes\Executor\Runner\Runtime && $existingRuntime->status === 'pending') {
-                throw new Exception(Exception::RUNTIME_CONFLICT, 'A runtime with the same ID is already being created. Attempt a execution soon.');
+                throw new ExecutorException(ExecutorException::RUNTIME_CONFLICT, 'A runtime with the same ID is already being created. Attempt a execution soon.');
             }
 
-            throw new Exception(Exception::RUNTIME_CONFLICT);
+            throw new ExecutorException(ExecutorException::RUNTIME_CONFLICT);
         }
 
         /** @var array<string, mixed> $container */
@@ -372,7 +372,7 @@ class Docker extends Adapter
                     );
 
                     if (!$status) {
-                        throw new Exception(Exception::RUNTIME_FAILED, 'Failed to create runtime: ' . $stdout);
+                        throw new ExecutorException(ExecutorException::RUNTIME_FAILED, 'Failed to create runtime: ' . $stdout);
                     }
 
                     if ($version === 'v2') {
@@ -385,7 +385,7 @@ class Docker extends Adapter
                         $output = Logs::get($runtimeName);
                     }
                 } catch (Throwable $err) {
-                    throw new Exception(Exception::RUNTIME_FAILED, $err->getMessage(), null, $err);
+                    throw new ExecutorException(ExecutorException::RUNTIME_FAILED, $err->getMessage(), null, $err);
                 }
             }
 
@@ -497,10 +497,8 @@ class Docker extends Adapter
         }
 
         // Remove weird symbol characters (for example from Next.js)
-        if (\is_array($container['output'])) {
-            foreach ($container['output'] as &$chunk) {
-                $chunk['content'] = \mb_convert_encoding($chunk['content'] ?? '', 'UTF-8', 'UTF-8');
-            }
+        foreach ($container['output'] as &$chunk) {
+            $chunk['content'] = \mb_convert_encoding($chunk['content'] ?? '', 'UTF-8', 'UTF-8');
         }
 
         return $container;
@@ -511,7 +509,7 @@ class Docker extends Adapter
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
         if (!$this->runtimes->exists($runtimeName)) {
-            throw new Exception(Exception::RUNTIME_NOT_FOUND);
+            throw new ExecutorException(ExecutorException::RUNTIME_NOT_FOUND);
         }
 
         $this->orchestration->remove($runtimeName, true);
@@ -519,7 +517,7 @@ class Docker extends Adapter
     }
 
     /**
-     * @throws Exception
+     * @throws ExecutorException
      */
     public function createExecution(
         string $runtimeId,
@@ -551,7 +549,7 @@ class Docker extends Adapter
         // Prepare runtime
         if (!$this->runtimes->exists($runtimeName)) {
             if ($image === '' || $image === '0' || ($source === '' || $source === '0')) {
-                throw new Exception(Exception::RUNTIME_NOT_FOUND, 'Runtime not found. Please start it first or provide runtime-related parameters.');
+                throw new ExecutorException(ExecutorException::RUNTIME_NOT_FOUND, 'Runtime not found. Please start it first or provide runtime-related parameters.');
             }
 
             // Prepare request to executor
@@ -605,7 +603,7 @@ class Docker extends Adapter
             while (true) {
                 // If timeout is passed, stop and return error
                 if (\microtime(true) - $prepareStart >= $timeout) {
-                    throw new Exception(Exception::RUNTIME_TIMEOUT);
+                    throw new ExecutorException(ExecutorException::RUNTIME_TIMEOUT);
                 }
 
                 ['errNo' => $errNo, 'error' => $error, 'statusCode' => $statusCode, 'executorResponse' => $executorResponse] = \call_user_func($sendCreateRuntimeRequest);
@@ -648,12 +646,12 @@ class Docker extends Adapter
         while (true) {
             // If timeout is passed, stop and return error
             if (\microtime(true) - $launchStart >= $timeout) {
-                throw new Exception(Exception::RUNTIME_TIMEOUT);
+                throw new ExecutorException(ExecutorException::RUNTIME_TIMEOUT);
             }
 
             $runtimeStatus = $this->runtimes->get($runtimeName);
             if (!$runtimeStatus instanceof \OpenRuntimes\Executor\Runner\Runtime) {
-                throw new Exception(Exception::RUNTIME_NOT_FOUND, 'Runtime no longer exists.');
+                throw new ExecutorException(ExecutorException::RUNTIME_NOT_FOUND, 'Runtime no longer exists.');
             }
 
             if ($runtimeStatus->status !== 'pending') {
@@ -669,7 +667,7 @@ class Docker extends Adapter
         // Ensure we have secret
         $runtime = $this->runtimes->get($runtimeName);
         if (!$runtime instanceof \OpenRuntimes\Executor\Runner\Runtime) {
-            throw new Exception(Exception::RUNTIME_NOT_FOUND, 'Runtime secret not found. Please re-create the runtime.', 500);
+            throw new ExecutorException(ExecutorException::RUNTIME_NOT_FOUND, 'Runtime secret not found. Please re-create the runtime.', 500);
         }
 
         $hostname = $runtime->hostname;
@@ -907,7 +905,7 @@ class Docker extends Adapter
             while (true) {
                 // If timeout is passed, stop and return error
                 if (\microtime(true) - $pingStart >= $timeout) {
-                    throw new Exception(Exception::RUNTIME_TIMEOUT);
+                    throw new ExecutorException(ExecutorException::RUNTIME_TIMEOUT);
                 }
 
                 $online = $validator->isValid($hostname . ':' . 3000);
@@ -957,7 +955,7 @@ class Docker extends Adapter
         if ($executionResponse['errNo'] !== CURLE_OK) {
             // Intended timeout error for v2 functions
             if ($version === 'v2' && $executionResponse['errNo'] === SOCKET_ETIMEDOUT) {
-                throw new Exception(Exception::EXECUTION_TIMEOUT, $executionResponse['error'], 400);
+                throw new ExecutorException(ExecutorException::EXECUTION_TIMEOUT, $executionResponse['error'], 400);
             }
 
             throw new \Exception('Internal curl error has occurred within the executor! Error Number: ' . $executionResponse['errNo'], 500);
@@ -1043,7 +1041,7 @@ class Docker extends Adapter
     {
         $runtime = $this->runtimes->get($name);
         if (!$runtime instanceof \OpenRuntimes\Executor\Runner\Runtime) {
-            throw new Exception(Exception::RUNTIME_NOT_FOUND);
+            throw new ExecutorException(ExecutorException::RUNTIME_NOT_FOUND);
         }
 
         return $runtime->toArray();

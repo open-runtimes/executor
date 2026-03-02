@@ -33,14 +33,14 @@
     "utopia-php/preloader": "0.2.*",
     "utopia-php/registry": "0.5.*",
     "utopia-php/storage": "0.18.*",
-    "utopia-php/system": "0.9.*"
+    "utopia-php/system": "0.10.*"
   },
   "require-dev": {
     "laravel/pint": "1.*",
     "phpstan/phpstan": "2.*",
     "phpunit/phpunit": "9.*",
-    "swoole/ide-helper": "5.1.2",
-    "rector/rector": "2.3.1"
+    "rector/rector": "2.3.8",
+    "swoole/ide-helper": "5.1.2"
   },
   "config": {
     "platform": {
