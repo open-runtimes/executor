@@ -159,6 +159,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
     ->param('runtimeEntrypoint', '', new Text(1024, 0), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('logging', true, new Boolean(true), 'Whether executions will be logged.', true)
     ->param('restartPolicy', DockerAPI::RESTART_NO, new WhiteList([DockerAPI::RESTART_NO, DockerAPI::RESTART_ALWAYS, DockerAPI::RESTART_ON_FAILURE, DockerAPI::RESTART_UNLESS_STOPPED], true), 'Define restart policy once exit code is returned by command. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)
+    ->param('stream', false, new Boolean(true), 'Whether to stream the response. If the runtime responds with content-type: text/event-stream, chunks are forwarded in real-time.', true)
     ->inject('response')
     ->inject('request')
     ->inject('runner')
@@ -180,6 +181,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             string $runtimeEntrypoint,
             bool $logging,
             string $restartPolicy,
+            bool $stream,
             Response $response,
             Request $request,
             Runner $runner
@@ -214,6 +216,32 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             $variables = array_map(strval(...), $variables);
 
+            // Streaming path: if $stream=true, pass a callback and pipe SSE chunks directly
+            $streamingDetected = false;
+            $streamCallback = null;
+
+            if ($stream) {
+                $streamCallback = function (?string $data, ?array $runtimeHeaders) use ($response, &$streamingDetected): void {
+                    if ($runtimeHeaders !== null) {
+                        // Headers signal — fired once before any body chunk (only when SSE detected).
+                        // This is the only opportunity to set response headers before body starts.
+                        $streamingDetected = true;
+                        $statusCode = \intval($runtimeHeaders['x-open-runtimes-status-code'] ?? 200);
+                        $response->setStatusCode($statusCode);
+                        foreach ($runtimeHeaders as $key => $value) {
+                            if (\str_starts_with($key, 'x-open-runtimes-')) {
+                                continue;
+                            }
+                            $response->addHeader($key, \is_array($value) ? \implode(', ', $value) : $value);
+                        }
+                        $response->addHeader('x-open-runtimes-streaming', 'true');
+                    }
+                    if ($data !== null) {
+                        $response->write($data);
+                    }
+                };
+            }
+
             $execution = $runner->createExecution(
                 $runtimeId,
                 $payload,
@@ -231,7 +259,14 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 $runtimeEntrypoint,
                 $logging,
                 $restartPolicy,
+                streamCallback: $streamCallback,
             );
+
+            // If streaming was detected (SSE), body was already forwarded — close and return.
+            if ($streamingDetected) {
+                $response->end();
+                return;
+            }
 
             // Backwards compatibility for headers
             $responseFormat = $request->getHeader('x-executor-response-format', '0.10.0'); // Last version without support for array value for headers

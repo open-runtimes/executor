@@ -539,6 +539,7 @@ class Docker extends Adapter
         bool $logging,
         string $restartPolicy,
         string $region = '',
+        ?callable $streamCallback = null,
     ): mixed {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
@@ -751,7 +752,7 @@ class Docker extends Adapter
             ];
         };
 
-        $executeV5 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName, $logging): array {
+        $executeV5 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName, $logging, $streamCallback): array {
             $statusCode = 0;
             $errNo = -1;
             $executorResponse = '';
@@ -759,6 +760,7 @@ class Docker extends Adapter
             $ch = \curl_init();
 
             $responseHeaders = [];
+            $isStreaming = false;
 
             if (!(\str_starts_with($path, '/'))) {
                 $path = '/' . $path;
@@ -772,8 +774,7 @@ class Docker extends Adapter
                 \curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
             }
 
-            \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders): int {
+            \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders, &$isStreaming): int {
                 $len = strlen($header);
                 $header = explode(':', $header, 2);
                 if (count($header) < 2) { // ignore invalid headers
@@ -785,6 +786,10 @@ class Docker extends Adapter
 
                 if ($key === 'x-open-runtimes-log-id') {
                     $value = \urldecode($value);
+                }
+
+                if ($key === 'content-type' && \str_contains(\strtolower($value), 'text/event-stream')) {
+                    $isStreaming = true;
                 }
 
                 if (\array_key_exists($key, $responseHeaders)) {
@@ -799,6 +804,26 @@ class Docker extends Adapter
 
                 return $len;
             });
+
+            if ($streamCallback !== null) {
+                $headersFired = false;
+                \curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($curl, $data) use ($streamCallback, &$headersFired, &$responseHeaders, &$isStreaming, &$executorResponse): int {
+                    if ($isStreaming) {
+                        // SSE path: forward chunks to caller
+                        if (!$headersFired) {
+                            $streamCallback(null, $responseHeaders); // headers signal (fired once)
+                            $headersFired = true;
+                        }
+                        $streamCallback($data, null);
+                    } else {
+                        // Non-SSE fallback: accumulate body like CURLOPT_RETURNTRANSFER
+                        $executorResponse .= $data;
+                    }
+                    return \strlen($data);
+                });
+            } else {
+                \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            }
 
             \curl_setopt($ch, CURLOPT_TIMEOUT, (int) $timeout + 5); // Gives extra 5s after safe timeout to recieve response
             \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
@@ -816,7 +841,14 @@ class Docker extends Adapter
             \curl_setopt($ch, CURLOPT_HEADEROPT, CURLHEADER_UNIFIED);
             \curl_setopt($ch, CURLOPT_HTTPHEADER, $headersArr);
 
-            $executorResponse = \curl_exec($ch);
+            // When CURLOPT_WRITEFUNCTION is set, curl_exec returns true (not the body).
+            // $executorResponse is either accumulated in the WRITEFUNCTION callback (non-SSE),
+            // or empty (SSE path, where body was forwarded via $streamCallback).
+            if ($streamCallback === null) {
+                $executorResponse = \curl_exec($ch);
+            } else {
+                \curl_exec($ch);
+            }
 
             $statusCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
