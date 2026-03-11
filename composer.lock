@@ -1972,12 +1972,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/di.git",
-                "reference": "0c7671d69ba95d3f7801d4a993ec6b6c78a4cf9b"
+                "reference": "3d8a454963a1db81cd63bc4f0f74c1488716e6b8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/di/zipball/0c7671d69ba95d3f7801d4a993ec6b6c78a4cf9b",
-                "reference": "0c7671d69ba95d3f7801d4a993ec6b6c78a4cf9b",
+                "url": "https://api.github.com/repos/utopia-php/di/zipball/3d8a454963a1db81cd63bc4f0f74c1488716e6b8",
+                "reference": "3d8a454963a1db81cd63bc4f0f74c1488716e6b8",
                 "shasum": ""
             },
             "require": {
@@ -2025,7 +2025,7 @@
                 "source": "https://github.com/utopia-php/di/tree/chore/extract-http-di-resources",
                 "issues": "https://github.com/utopia-php/di/issues"
             },
-            "time": "2026-03-10T07:15:52+00:00"
+            "time": "2026-03-11T10:23:32+00:00"
         },
         {
             "name": "utopia-php/dsn",
@@ -2119,12 +2119,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/http.git",
-                "reference": "bf94cd26e7cd76ad0b5b6ef83efbc8ca41795164"
+                "reference": "82d74810b34f3b6faa82071c06068edd4e70b4e9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/http/zipball/bf94cd26e7cd76ad0b5b6ef83efbc8ca41795164",
-                "reference": "bf94cd26e7cd76ad0b5b6ef83efbc8ca41795164",
+                "url": "https://api.github.com/repos/utopia-php/http/zipball/82d74810b34f3b6faa82071c06068edd4e70b4e9",
+                "reference": "82d74810b34f3b6faa82071c06068edd4e70b4e9",
                 "shasum": ""
             },
             "require": {
@@ -2162,7 +2162,7 @@
                 "issues": "https://github.com/utopia-php/http/issues",
                 "source": "https://github.com/utopia-php/http/tree/feat/use-di-resource-container"
             },
-            "time": "2026-03-10T06:20:15+00:00"
+            "time": "2026-03-11T10:24:11+00:00"
         },
         {
             "name": "utopia-php/orchestration",
