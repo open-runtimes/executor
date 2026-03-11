@@ -26,9 +26,10 @@
     "ext-swoole": "*",
     "utopia-php/config": "^0.2.2",
     "utopia-php/console": "0.0.*",
+    "utopia-php/di": "dev-chore/extract-http-di-resources as 0.1.0",
     "utopia-php/dsn": "0.2.*",
     "utopia-php/fetch": "0.4.*",
-    "utopia-php/framework": "0.34.*",
+    "utopia-php/framework": "dev-feat/use-di-resource-container as 0.34.14",
     "utopia-php/orchestration": "0.19.*",
     "utopia-php/preloader": "0.2.*",
     "utopia-php/registry": "0.5.*",
@@ -42,6 +43,16 @@
     "rector/rector": "2.3.8",
     "swoole/ide-helper": "5.1.2"
   },
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/utopia-php/http"
+    },
+    {
+      "type": "vcs",
+      "url": "https://github.com/utopia-php/di"
+    }
+  ],
   "config": {
     "platform": {
       "php": "8.3"

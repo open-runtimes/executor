@@ -6,7 +6,7 @@ use OpenRuntimes\Executor\Runner\Maintenance;
 use OpenRuntimes\Executor\Runner\Network;
 use OpenRuntimes\Executor\Runner\Repository\Runtimes;
 use OpenRuntimes\Executor\Runner\Adapter;
-use Utopia\Http\Http;
+use Utopia\DI\Container;
 use Utopia\Orchestration\Adapter\DockerAPI;
 use Utopia\Orchestration\Orchestration;
 use Utopia\System\System;
@@ -18,21 +18,22 @@ const MAX_BUILD_LOG_SIZE = 1000 * 1000;
 
 Config::load('errors', __DIR__ . '/config/errors.php');
 
+$container = new Container();
 $registry = new Registry();
 
 $registry->set('runtimes', fn (): \OpenRuntimes\Executor\Runner\Repository\Runtimes => new Runtimes());
 
-Http::setResource('runtimes', fn () => $registry->get('runtimes'));
+$container->setResource('runtimes', fn () => $registry->get('runtimes'));
 
-Http::setResource('orchestration', fn (): Orchestration => new Orchestration(new DockerAPI(
+$container->setResource('orchestration', fn (): Orchestration => new Orchestration(new DockerAPI(
     System::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', ''),
     System::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '')
 )));
 
-Http::setResource('network', fn (Orchestration $orchestration): Network => new Network($orchestration), ['orchestration']);
+$container->setResource('network', fn (Orchestration $orchestration): Network => new Network($orchestration), ['orchestration']);
 
-Http::setResource('imagePuller', fn (Orchestration $orchestration): ImagePuller => new ImagePuller($orchestration), ['orchestration']);
+$container->setResource('imagePuller', fn (Orchestration $orchestration): ImagePuller => new ImagePuller($orchestration), ['orchestration']);
 
-Http::setResource('maintenance', fn (Orchestration $orchestration, Runtimes $runtimes): Maintenance => new Maintenance($orchestration, $runtimes), ['orchestration', 'runtimes']);
+$container->setResource('maintenance', fn (Orchestration $orchestration, Runtimes $runtimes): Maintenance => new Maintenance($orchestration, $runtimes), ['orchestration', 'runtimes']);
 
-Http::setResource('runner', fn (Orchestration $orchestration, Runtimes $runtimes, array $networks): Adapter => new Docker($orchestration, $runtimes, $networks), ['orchestration', 'runtimes', 'networks']);
+$container->setResource('runner', fn (Orchestration $orchestration, Runtimes $runtimes, array $networks): Adapter => new Docker($orchestration, $runtimes, $networks), ['orchestration', 'runtimes', 'networks']);
