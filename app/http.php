@@ -10,6 +10,7 @@ use OpenRuntimes\Executor\Runner\Network;
 use Swoole\Runtime;
 use Utopia\Console;
 use Utopia\DI\Container;
+use Utopia\DI\Dependency;
 use Utopia\Http\Http;
 use Utopia\Http\Response;
 use Utopia\Http\Adapter\Swoole\Server;
@@ -46,7 +47,7 @@ Http::onStart()
             explode(',', System::getEnv('OPR_EXECUTOR_NETWORK') ?: 'openruntimes-runtimes'),
             $selfContainer->getName()
         );
-        $container->setResource('networks', fn (): array => $network->getAvailable());
+        $container->set('networks', new Dependency([], fn (): array => $network->getAvailable()));
 
         /* Pull images */
         $imagePuller->pull(explode(',', System::getEnv('OPR_EXECUTOR_IMAGES') ?: ''));

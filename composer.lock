@@ -1972,16 +1972,17 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/di.git",
-                "reference": "3d8a454963a1db81cd63bc4f0f74c1488716e6b8"
+                "reference": "f4bbf60d05edb2342ea09d44e90573180c212ec7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/di/zipball/3d8a454963a1db81cd63bc4f0f74c1488716e6b8",
-                "reference": "3d8a454963a1db81cd63bc4f0f74c1488716e6b8",
+                "url": "https://api.github.com/repos/utopia-php/di/zipball/f4bbf60d05edb2342ea09d44e90573180c212ec7",
+                "reference": "f4bbf60d05edb2342ea09d44e90573180c212ec7",
                 "shasum": ""
             },
             "require": {
-                "php": ">=8.2"
+                "php": ">=8.2",
+                "psr/container": "^2.0"
             },
             "require-dev": {
                 "laravel/pint": "^1.27",
@@ -2005,7 +2006,18 @@
                     "vendor/bin/pint --test"
                 ],
                 "analyze": [
-                    "vendor/bin/phpstan analyse -c phpstan.neon"
+                    "vendor/bin/phpstan analyse --memory-limit=512M"
+                ],
+                "refactor": [
+                    "tools/rector/vendor/bin/rector process --config=rector.php"
+                ],
+                "refactor:check": [
+                    "tools/rector/vendor/bin/rector process --dry-run --config=rector.php"
+                ],
+                "fix": [
+                    "@refactor",
+                    "@analyze",
+                    "@format"
                 ],
                 "test": [
                     "vendor/bin/phpunit --configuration phpunit.xml"
@@ -2016,16 +2028,18 @@
             ],
             "description": "A simple and lite library for managing dependency injections",
             "keywords": [
-                "framework",
-                "http",
+                "container",
+                "dependency-injection",
+                "di",
                 "php",
+                "psr-11",
                 "utopia"
             ],
             "support": {
                 "source": "https://github.com/utopia-php/di/tree/chore/extract-http-di-resources",
                 "issues": "https://github.com/utopia-php/di/issues"
             },
-            "time": "2026-03-11T10:23:32+00:00"
+            "time": "2026-03-12T05:13:45+00:00"
         },
         {
             "name": "utopia-php/dsn",
@@ -2119,12 +2133,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/http.git",
-                "reference": "82d74810b34f3b6faa82071c06068edd4e70b4e9"
+                "reference": "5bc45e3cbc41d5bf8d475aa8109b8c48a9da4996"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/http/zipball/82d74810b34f3b6faa82071c06068edd4e70b4e9",
-                "reference": "82d74810b34f3b6faa82071c06068edd4e70b4e9",
+                "url": "https://api.github.com/repos/utopia-php/http/zipball/5bc45e3cbc41d5bf8d475aa8109b8c48a9da4996",
+                "reference": "5bc45e3cbc41d5bf8d475aa8109b8c48a9da4996",
                 "shasum": ""
             },
             "require": {
@@ -2134,6 +2148,7 @@
                 "utopia-php/validators": "0.2.*"
             },
             "require-dev": {
+                "doctrine/instantiator": "^1.5",
                 "laravel/pint": "1.*",
                 "phpbench/phpbench": "^1.2",
                 "phpstan/phpstan": "1.*",
@@ -2162,7 +2177,7 @@
                 "issues": "https://github.com/utopia-php/http/issues",
                 "source": "https://github.com/utopia-php/http/tree/feat/use-di-resource-container"
             },
-            "time": "2026-03-11T10:24:11+00:00"
+            "time": "2026-03-12T06:04:20+00:00"
         },
         {
             "name": "utopia-php/orchestration",
