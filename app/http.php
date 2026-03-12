@@ -47,7 +47,10 @@ Http::onStart()
             explode(',', System::getEnv('OPR_EXECUTOR_NETWORK') ?: 'openruntimes-runtimes'),
             $selfContainer->getName()
         );
-        $container->set('networks', new Dependency([], fn (): array => $network->getAvailable()));
+        $container->set(
+            'networks',
+            new Dependency([], fn (): array => $network->getAvailable())
+        );
 
         /* Pull images */
         $imagePuller->pull(explode(',', System::getEnv('OPR_EXECUTOR_IMAGES') ?: ''));

@@ -22,19 +22,49 @@ Config::load('errors', __DIR__ . '/config/errors.php');
 $container = new Container();
 $registry = new Registry();
 
-$registry->set('runtimes', fn (): \OpenRuntimes\Executor\Runner\Repository\Runtimes => new Runtimes());
+$registry->set('runtimes', fn (): Runtimes => new Runtimes());
 
-$container->set('runtimes', new Dependency([], fn (): Runtimes => $registry->get('runtimes')));
+$container->set(
+    'runtimes',
+    new Dependency([], fn (): Runtimes => $registry->get('runtimes'))
+);
 
-$container->set('orchestration', new Dependency([], fn (): Orchestration => new Orchestration(new DockerAPI(
-    System::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', ''),
-    System::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '')
-))));
+$container->set(
+    'orchestration',
+    new Dependency([], fn (): Orchestration => new Orchestration(new DockerAPI(
+        System::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', ''),
+        System::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '')
+    )))
+);
 
-$container->set('network', new Dependency(['orchestration'], fn (Orchestration $orchestration): Network => new Network($orchestration)));
+$container->set(
+    'network',
+    new Dependency(
+        ['orchestration'],
+        fn (Orchestration $orchestration): Network => new Network($orchestration)
+    )
+);
 
-$container->set('imagePuller', new Dependency(['orchestration'], fn (Orchestration $orchestration): ImagePuller => new ImagePuller($orchestration)));
+$container->set(
+    'imagePuller',
+    new Dependency(
+        ['orchestration'],
+        fn (Orchestration $orchestration): ImagePuller => new ImagePuller($orchestration)
+    )
+);
 
-$container->set('maintenance', new Dependency(['orchestration', 'runtimes'], fn (Orchestration $orchestration, Runtimes $runtimes): Maintenance => new Maintenance($orchestration, $runtimes)));
+$container->set(
+    'maintenance',
+    new Dependency(
+        ['orchestration', 'runtimes'],
+        fn (Orchestration $orchestration, Runtimes $runtimes): Maintenance => new Maintenance($orchestration, $runtimes)
+    )
+);
 
-$container->set('runner', new Dependency(['orchestration', 'runtimes', 'networks'], fn (Orchestration $orchestration, Runtimes $runtimes, array $networks): Adapter => new Docker($orchestration, $runtimes, $networks)));
+$container->set(
+    'runner',
+    new Dependency(
+        ['orchestration', 'runtimes', 'networks'],
+        fn (Orchestration $orchestration, Runtimes $runtimes, array $networks): Adapter => new Docker($orchestration, $runtimes, $networks)
+    )
+);
