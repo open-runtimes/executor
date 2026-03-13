@@ -222,8 +222,8 @@ class ExecutorTest extends TestCase
 
         /** Ensure build folder cleanup */
         $tmpFolderPath = '/tmp/executor-test-build-' . $runtimeId;
-        $this->assertDirectoryNotExists($tmpFolderPath);
-        $this->assertFileNotExists($tmpFolderPath);
+        $this->assertDirectoryDoesNotExist($tmpFolderPath);
+        $this->assertFileDoesNotExist($tmpFolderPath);
 
         /** List runtimes */
         $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
