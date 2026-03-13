@@ -2133,12 +2133,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/http.git",
-                "reference": "b872c6b88bc6fdce5eea1908a6d9eecb21d10ec5"
+                "reference": "f119f26e62bc260df7d00e956fbac9add199b22b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/http/zipball/b872c6b88bc6fdce5eea1908a6d9eecb21d10ec5",
-                "reference": "b872c6b88bc6fdce5eea1908a6d9eecb21d10ec5",
+                "url": "https://api.github.com/repos/utopia-php/http/zipball/f119f26e62bc260df7d00e956fbac9add199b22b",
+                "reference": "f119f26e62bc260df7d00e956fbac9add199b22b",
                 "shasum": ""
             },
             "require": {
@@ -2177,7 +2177,7 @@
                 "issues": "https://github.com/utopia-php/http/issues",
                 "source": "https://github.com/utopia-php/http/tree/feat/use-di-resource-container"
             },
-            "time": "2026-03-13T05:51:10+00:00"
+            "time": "2026-03-13T11:03:30+00:00"
         },
         {
             "name": "utopia-php/orchestration",

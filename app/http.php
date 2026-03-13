@@ -74,7 +74,7 @@ run(function () use ($settings): void {
     /** @var Container $container */
     global $container;
 
-    $server = new Server('0.0.0.0', '80', $settings);
-    $http = new Http($server, 'UTC', $container);
+    $server = new Server('0.0.0.0', '80', $settings, $container);
+    $http = new Http($server, 'UTC');
     $http->start();
 });
