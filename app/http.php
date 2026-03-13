@@ -10,7 +10,6 @@ use OpenRuntimes\Executor\Runner\Network;
 use Swoole\Runtime;
 use Utopia\Console;
 use Utopia\DI\Container;
-use Utopia\DI\Dependency;
 use Utopia\Http\Http;
 use Utopia\Http\Response;
 use Utopia\Http\Adapter\Swoole\Server;
@@ -49,7 +48,8 @@ Http::onStart()
         );
         $container->set(
             'networks',
-            new Dependency([], fn (): array => $network->getAvailable())
+            fn (): array => $network->getAvailable(),
+            []
         );
 
         /* Pull images */

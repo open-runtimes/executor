@@ -7,7 +7,6 @@ use OpenRuntimes\Executor\Runner\Network;
 use OpenRuntimes\Executor\Runner\Repository\Runtimes;
 use OpenRuntimes\Executor\Runner\Adapter;
 use Utopia\DI\Container;
-use Utopia\DI\Dependency;
 use Utopia\Orchestration\Adapter\DockerAPI;
 use Utopia\Orchestration\Orchestration;
 use Utopia\System\System;
@@ -26,45 +25,39 @@ $registry->set('runtimes', fn (): Runtimes => new Runtimes());
 
 $container->set(
     'runtimes',
-    new Dependency([], fn (): Runtimes => $registry->get('runtimes'))
+    fn (): Runtimes => $registry->get('runtimes'),
+    []
 );
 
 $container->set(
     'orchestration',
-    new Dependency([], fn (): Orchestration => new Orchestration(new DockerAPI(
+    fn (): Orchestration => new Orchestration(new DockerAPI(
         System::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', ''),
         System::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '')
-    )))
+    )),
+    []
 );
 
 $container->set(
     'network',
-    new Dependency(
-        ['orchestration'],
-        fn (Orchestration $orchestration): Network => new Network($orchestration)
-    )
+    fn (Orchestration $orchestration): Network => new Network($orchestration),
+    ['orchestration']
 );
 
 $container->set(
     'imagePuller',
-    new Dependency(
-        ['orchestration'],
-        fn (Orchestration $orchestration): ImagePuller => new ImagePuller($orchestration)
-    )
+    fn (Orchestration $orchestration): ImagePuller => new ImagePuller($orchestration),
+    ['orchestration']
 );
 
 $container->set(
     'maintenance',
-    new Dependency(
-        ['orchestration', 'runtimes'],
-        fn (Orchestration $orchestration, Runtimes $runtimes): Maintenance => new Maintenance($orchestration, $runtimes)
-    )
+    fn (Orchestration $orchestration, Runtimes $runtimes): Maintenance => new Maintenance($orchestration, $runtimes),
+    ['orchestration', 'runtimes']
 );
 
 $container->set(
     'runner',
-    new Dependency(
-        ['orchestration', 'runtimes', 'networks'],
-        fn (Orchestration $orchestration, Runtimes $runtimes, array $networks): Adapter => new Docker($orchestration, $runtimes, $networks)
-    )
+    fn (Orchestration $orchestration, Runtimes $runtimes, array $networks): Adapter => new Docker($orchestration, $runtimes, $networks),
+    ['orchestration', 'runtimes', 'networks']
 );
