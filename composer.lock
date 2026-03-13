@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "bc9a82b0e8c02b8032096952e784d0cc",
+    "content-hash": "eec8a060ed25b31008c39b47ef9c991d",
     "packages": [
         {
             "name": "brick/math",
@@ -2129,16 +2129,16 @@
         },
         {
             "name": "utopia-php/framework",
-            "version": "dev-feat/use-di-resource-container",
+            "version": "0.34.15",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/http.git",
-                "reference": "f119f26e62bc260df7d00e956fbac9add199b22b"
+                "reference": "15d1195fc26cd542b1a5a7e5eb00a042bc7cf350"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/http/zipball/f119f26e62bc260df7d00e956fbac9add199b22b",
-                "reference": "f119f26e62bc260df7d00e956fbac9add199b22b",
+                "url": "https://api.github.com/repos/utopia-php/http/zipball/15d1195fc26cd542b1a5a7e5eb00a042bc7cf350",
+                "reference": "15d1195fc26cd542b1a5a7e5eb00a042bc7cf350",
                 "shasum": ""
             },
             "require": {
@@ -2175,9 +2175,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/http/issues",
-                "source": "https://github.com/utopia-php/http/tree/feat/use-di-resource-container"
+                "source": "https://github.com/utopia-php/http/tree/0.34.15"
             },
-            "time": "2026-03-13T11:03:30+00:00"
+            "time": "2026-03-13T11:28:26+00:00"
         },
         {
             "name": "utopia-php/orchestration",
@@ -4554,18 +4554,9 @@
             "time": "2025-11-17T20:03:58+00:00"
         }
     ],
-    "aliases": [
-        {
-            "package": "utopia-php/framework",
-            "version": "dev-feat/use-di-resource-container",
-            "alias": "0.34.14",
-            "alias_normalized": "0.34.14.0"
-        }
-    ],
+    "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "utopia-php/framework": 20
-    },
+    "stability-flags": {},
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
