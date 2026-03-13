@@ -9,6 +9,7 @@ use OpenRuntimes\Executor\Runner\Maintenance;
 use OpenRuntimes\Executor\Runner\Network;
 use Swoole\Runtime;
 use Utopia\Console;
+use Utopia\DI\Container;
 use Utopia\Http\Http;
 use Utopia\Http\Response;
 use Utopia\Http\Adapter\Swoole\Server;
@@ -33,6 +34,9 @@ Http::onStart()
     ->inject('imagePuller')
     ->inject('maintenance')
     ->action(function (Orchestration $orchestration, Network $network, ImagePuller $imagePuller, Maintenance $maintenance): void {
+        /** @var Container $container */
+        global $container;
+
         /* Fetch own container information */
         $hostname = gethostname() ?: throw new \RuntimeException('Could not determine hostname');
         $selfContainer = $orchestration->list(['name' => $hostname])[0] ?? throw new \RuntimeException('Own container not found');
@@ -42,7 +46,11 @@ Http::onStart()
             explode(',', System::getEnv('OPR_EXECUTOR_NETWORK') ?: 'openruntimes-runtimes'),
             $selfContainer->getName()
         );
-        Http::setResource('networks', fn (): array => $network->getAvailable());
+        $container->set(
+            'networks',
+            fn (): array => $network->getAvailable(),
+            []
+        );
 
         /* Pull images */
         $imagePuller->pull(explode(',', System::getEnv('OPR_EXECUTOR_IMAGES') ?: ''));
@@ -63,7 +71,10 @@ Http::onRequest()
     });
 
 run(function () use ($settings): void {
-    $server = new Server('0.0.0.0', '80', $settings);
+    /** @var Container $container */
+    global $container;
+
+    $server = new Server('0.0.0.0', '80', $settings, $container);
     $http = new Http($server, 'UTC');
     $http->start();
 });

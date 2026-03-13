@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e18bdec90d703c20173a98f4a3949f88",
+    "content-hash": "eec8a060ed25b31008c39b47ef9c991d",
     "packages": [
         {
             "name": "brick/math",
@@ -1306,16 +1306,16 @@
         },
         {
             "name": "symfony/http-client",
-            "version": "v7.4.6",
+            "version": "v7.4.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/http-client.git",
-                "reference": "2bde8afd5ab2fe0b05a9c2d4c3c0e28ceb98a154"
+                "reference": "1010624285470eb60e88ed10035102c75b4ea6af"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/http-client/zipball/2bde8afd5ab2fe0b05a9c2d4c3c0e28ceb98a154",
-                "reference": "2bde8afd5ab2fe0b05a9c2d4c3c0e28ceb98a154",
+                "url": "https://api.github.com/repos/symfony/http-client/zipball/1010624285470eb60e88ed10035102c75b4ea6af",
+                "reference": "1010624285470eb60e88ed10035102c75b4ea6af",
                 "shasum": ""
             },
             "require": {
@@ -1383,7 +1383,7 @@
                 "http"
             ],
             "support": {
-                "source": "https://github.com/symfony/http-client/tree/v7.4.6"
+                "source": "https://github.com/symfony/http-client/tree/v7.4.7"
             },
             "funding": [
                 {
@@ -1403,7 +1403,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-02-18T09:46:18+00:00"
+            "time": "2026-03-05T11:16:58+00:00"
         },
         {
             "name": "symfony/http-client-contracts",
@@ -1967,6 +1967,81 @@
             "time": "2025-10-20T14:41:36+00:00"
         },
         {
+            "name": "utopia-php/di",
+            "version": "0.3.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/utopia-php/di.git",
+                "reference": "68873b7267842315d01d82a83b988bae525eab31"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/utopia-php/di/zipball/68873b7267842315d01d82a83b988bae525eab31",
+                "reference": "68873b7267842315d01d82a83b988bae525eab31",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2",
+                "psr/container": "^2.0"
+            },
+            "require-dev": {
+                "laravel/pint": "^1.27",
+                "phpbench/phpbench": "^1.2",
+                "phpstan/phpstan": "^2.1",
+                "phpunit/phpunit": "^9.5.25",
+                "swoole/ide-helper": "4.8.3"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Utopia\\": "src/",
+                    "Tests\\E2E\\": "tests/e2e"
+                }
+            },
+            "scripts": {
+                "format": [
+                    "vendor/bin/pint"
+                ],
+                "format:check": [
+                    "vendor/bin/pint --test"
+                ],
+                "analyze": [
+                    "vendor/bin/phpstan analyse --memory-limit=512M"
+                ],
+                "refactor": [
+                    "tools/rector/vendor/bin/rector process --config=rector.php"
+                ],
+                "refactor:check": [
+                    "tools/rector/vendor/bin/rector process --dry-run --config=rector.php"
+                ],
+                "fix": [
+                    "@refactor",
+                    "@analyze",
+                    "@format"
+                ],
+                "test": [
+                    "vendor/bin/phpunit --configuration phpunit.xml"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "A simple and lite library for managing dependency injections",
+            "keywords": [
+                "container",
+                "dependency-injection",
+                "di",
+                "php",
+                "psr-11",
+                "utopia"
+            ],
+            "support": {
+                "source": "https://github.com/utopia-php/di/tree/0.3.1",
+                "issues": "https://github.com/utopia-php/di/issues"
+            },
+            "time": "2026-03-13T05:47:23+00:00"
+        },
+        {
             "name": "utopia-php/dsn",
             "version": "0.2.1",
             "source": {
@@ -2054,24 +2129,26 @@
         },
         {
             "name": "utopia-php/framework",
-            "version": "0.34.14",
+            "version": "0.34.15",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/http.git",
-                "reference": "d60c9ce7eea3e4f89599d995e0058e3729a1ef7c"
+                "reference": "15d1195fc26cd542b1a5a7e5eb00a042bc7cf350"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/http/zipball/d60c9ce7eea3e4f89599d995e0058e3729a1ef7c",
-                "reference": "d60c9ce7eea3e4f89599d995e0058e3729a1ef7c",
+                "url": "https://api.github.com/repos/utopia-php/http/zipball/15d1195fc26cd542b1a5a7e5eb00a042bc7cf350",
+                "reference": "15d1195fc26cd542b1a5a7e5eb00a042bc7cf350",
                 "shasum": ""
             },
             "require": {
                 "ext-swoole": "*",
-                "php": ">=8.0",
+                "php": ">=8.2",
+                "utopia-php/di": "0.3.*",
                 "utopia-php/validators": "0.2.*"
             },
             "require-dev": {
+                "doctrine/instantiator": "^1.5",
                 "laravel/pint": "1.*",
                 "phpbench/phpbench": "^1.2",
                 "phpstan/phpstan": "1.*",
@@ -2098,9 +2175,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/http/issues",
-                "source": "https://github.com/utopia-php/http/tree/0.34.14"
+                "source": "https://github.com/utopia-php/http/tree/0.34.15"
             },
-            "time": "2026-02-25T17:31:12+00:00"
+            "time": "2026-03-13T11:28:26+00:00"
         },
         {
             "name": "utopia-php/orchestration",
@@ -2538,16 +2615,16 @@
         },
         {
             "name": "laravel/pint",
-            "version": "v1.27.1",
+            "version": "v1.29.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/pint.git",
-                "reference": "54cca2de13790570c7b6f0f94f37896bee4abcb5"
+                "reference": "bdec963f53172c5e36330f3a400604c69bf02d39"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/pint/zipball/54cca2de13790570c7b6f0f94f37896bee4abcb5",
-                "reference": "54cca2de13790570c7b6f0f94f37896bee4abcb5",
+                "url": "https://api.github.com/repos/laravel/pint/zipball/bdec963f53172c5e36330f3a400604c69bf02d39",
+                "reference": "bdec963f53172c5e36330f3a400604c69bf02d39",
                 "shasum": ""
             },
             "require": {
@@ -2558,13 +2635,14 @@
                 "php": "^8.2.0"
             },
             "require-dev": {
-                "friendsofphp/php-cs-fixer": "^3.93.1",
-                "illuminate/view": "^12.51.0",
-                "larastan/larastan": "^3.9.2",
+                "friendsofphp/php-cs-fixer": "^3.94.2",
+                "illuminate/view": "^12.54.1",
+                "larastan/larastan": "^3.9.3",
                 "laravel-zero/framework": "^12.0.5",
                 "mockery/mockery": "^1.6.12",
-                "nunomaduro/termwind": "^2.3.3",
-                "pestphp/pest": "^3.8.5"
+                "nunomaduro/termwind": "^2.4.0",
+                "pestphp/pest": "^3.8.6",
+                "shipfastlabs/agent-detector": "^1.1.0"
             },
             "bin": [
                 "builds/pint"
@@ -2601,7 +2679,7 @@
                 "issues": "https://github.com/laravel/pint/issues",
                 "source": "https://github.com/laravel/pint"
             },
-            "time": "2026-02-10T20:00:20+00:00"
+            "time": "2026-03-12T15:51:39+00:00"
         },
         {
             "name": "myclabs/deep-copy",
