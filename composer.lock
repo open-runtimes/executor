@@ -1968,16 +1968,16 @@
         },
         {
             "name": "utopia-php/di",
-            "version": "0.3.0",
+            "version": "0.3.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/di.git",
-                "reference": "72e1a3e67c58f8f03cf3faa5d79ee814136d3fe2"
+                "reference": "68873b7267842315d01d82a83b988bae525eab31"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/di/zipball/72e1a3e67c58f8f03cf3faa5d79ee814136d3fe2",
-                "reference": "72e1a3e67c58f8f03cf3faa5d79ee814136d3fe2",
+                "url": "https://api.github.com/repos/utopia-php/di/zipball/68873b7267842315d01d82a83b988bae525eab31",
+                "reference": "68873b7267842315d01d82a83b988bae525eab31",
                 "shasum": ""
             },
             "require": {
@@ -2036,10 +2036,10 @@
                 "utopia"
             ],
             "support": {
-                "source": "https://github.com/utopia-php/di/tree/0.3.0",
+                "source": "https://github.com/utopia-php/di/tree/0.3.1",
                 "issues": "https://github.com/utopia-php/di/issues"
             },
-            "time": "2026-03-12T10:40:23+00:00"
+            "time": "2026-03-13T05:47:23+00:00"
         },
         {
             "name": "utopia-php/dsn",
@@ -2133,12 +2133,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/http.git",
-                "reference": "664436bcc95b0bb328b75577ceaf8bb9a1c6794b"
+                "reference": "b872c6b88bc6fdce5eea1908a6d9eecb21d10ec5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/http/zipball/664436bcc95b0bb328b75577ceaf8bb9a1c6794b",
-                "reference": "664436bcc95b0bb328b75577ceaf8bb9a1c6794b",
+                "url": "https://api.github.com/repos/utopia-php/http/zipball/b872c6b88bc6fdce5eea1908a6d9eecb21d10ec5",
+                "reference": "b872c6b88bc6fdce5eea1908a6d9eecb21d10ec5",
                 "shasum": ""
             },
             "require": {
@@ -2177,7 +2177,7 @@
                 "issues": "https://github.com/utopia-php/http/issues",
                 "source": "https://github.com/utopia-php/http/tree/feat/use-di-resource-container"
             },
-            "time": "2026-03-13T04:51:55+00:00"
+            "time": "2026-03-13T05:51:10+00:00"
         },
         {
             "name": "utopia-php/orchestration",

@@ -25,8 +25,7 @@ $registry->set('runtimes', fn (): Runtimes => new Runtimes());
 
 $container->set(
     'runtimes',
-    fn (): Runtimes => $registry->get('runtimes'),
-    []
+    fn (): Runtimes => $registry->get('runtimes')
 );
 
 $container->set(
@@ -34,8 +33,7 @@ $container->set(
     fn (): Orchestration => new Orchestration(new DockerAPI(
         System::getEnv('OPR_EXECUTOR_DOCKER_HUB_USERNAME', ''),
         System::getEnv('OPR_EXECUTOR_DOCKER_HUB_PASSWORD', '')
-    )),
-    []
+    ))
 );
 
 $container->set(
