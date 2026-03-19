@@ -33,7 +33,7 @@ class Client extends FetchClient
         $url = $this->endpoint . $path;
 
         $client = new FetchClient();
-        $client->setTimeout(60);
+        $client->setTimeout(60000);
 
         foreach ($this->baseHeaders as $key => $value) {
             $client->addHeader($key, $value);
