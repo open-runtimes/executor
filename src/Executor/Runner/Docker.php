@@ -150,7 +150,8 @@ class Docker extends Adapter
         Console::execute('tail -F ' . $tmpLogging . '/timings.txt', '', $output, $timeout, function (string $timingChunk, mixed $process) use ($tmpLogging, &$logsChunk, &$logsProcess, &$datetime, &$offset, $introOffset): void {
             $logsProcess = $process;
 
-            if (!\file_exists($tmpLogging . '/logs.txt')) {
+            $logsPath = $tmpLogging . '/logs.txt';
+            if (!\file_exists($logsPath)) {
                 if (!empty($logsProcess)) {
                     \proc_terminate($logsProcess, 9);
                 }
