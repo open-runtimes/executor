@@ -10,7 +10,6 @@ use Utopia\DI\Container;
 use Utopia\Orchestration\Adapter\DockerAPI;
 use Utopia\Orchestration\Orchestration;
 use Utopia\System\System;
-use Utopia\Registry\Registry;
 use Utopia\Config\Config;
 
 const MAX_LOG_SIZE = 5 * 1024 * 1024;
@@ -19,13 +18,10 @@ const MAX_BUILD_LOG_SIZE = 1000 * 1000;
 Config::load('errors', __DIR__ . '/config/errors.php');
 
 $container = new Container();
-$registry = new Registry();
-
-$registry->set('runtimes', fn (): Runtimes => new Runtimes());
 
 $container->set(
     'runtimes',
-    fn (): Runtimes => $registry->get('runtimes')
+    fn (): Runtimes => new Runtimes()
 );
 
 $container->set(

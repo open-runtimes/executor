@@ -12,7 +12,7 @@ use Utopia\Console;
 use Utopia\DI\Container;
 use Utopia\Http\Http;
 use Utopia\Http\Response;
-use Utopia\Http\Adapter\Swoole\Server;
+use Utopia\Http\Adapter\SwooleCoroutine\Server;
 use Utopia\System\System;
 use Utopia\Orchestration\Orchestration;
 
@@ -48,8 +48,7 @@ Http::onStart()
         );
         $container->set(
             'networks',
-            fn (): array => $network->getAvailable(),
-            []
+            $network->getAvailable(...)
         );
 
         /* Pull images */
