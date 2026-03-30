@@ -12,7 +12,7 @@ use Utopia\Console;
 use Utopia\DI\Container;
 use Utopia\Http\Http;
 use Utopia\Http\Response;
-use Utopia\Http\Adapter\Swoole\Server;
+use Utopia\Http\Adapter\SwooleCoroutine\Server;
 use Utopia\System\System;
 use Utopia\Orchestration\Orchestration;
 
@@ -73,7 +73,7 @@ run(function () use ($settings): void {
     /** @var Container $container */
     global $container;
 
-    $server = new Server('0.0.0.0', '80', $settings, SWOOLE_PROCESS, $container);
+    $server = new Server('0.0.0.0', '80', $settings, $container);
     $http = new Http($server, 'UTC');
     $http->start();
 });
