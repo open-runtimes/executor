@@ -48,8 +48,7 @@ Http::onStart()
         );
         $container->set(
             'networks',
-            fn (): array => $network->getAvailable(),
-            []
+            [$network, 'getAvailable']
         );
 
         /* Pull images */
