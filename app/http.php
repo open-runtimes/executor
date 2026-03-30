@@ -48,7 +48,7 @@ Http::onStart()
         );
         $container->set(
             'networks',
-            [$network, 'getAvailable']
+            $network->getAvailable(...)
         );
 
         /* Pull images */
@@ -73,7 +73,7 @@ run(function () use ($settings): void {
     /** @var Container $container */
     global $container;
 
-    $server = new Server('0.0.0.0', '80', $settings, $container);
+    $server = new Server('0.0.0.0', '80', $settings, SWOOLE_PROCESS, $container);
     $http = new Http($server, 'UTC');
     $http->start();
 });
