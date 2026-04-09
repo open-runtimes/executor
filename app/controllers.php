@@ -4,6 +4,7 @@ require_once __DIR__ . '/init.php';
 
 use OpenRuntimes\Executor\ExecutionBadJsonException;
 use OpenRuntimes\Executor\ExecutionBadRequestException;
+use OpenRuntimes\Executor\GeneralRouteNotFoundException;
 use OpenRuntimes\Executor\GeneralUnauthorizedException;
 use OpenRuntimes\Executor\BodyMultipart;
 use OpenRuntimes\Executor\Runner\Adapter as Runner;
@@ -286,6 +287,11 @@ Http::get('/v1/health')
     ->inject('response')
     ->action(function (Response $response): void {
         $response->setStatusCode(Response::STATUS_CODE_OK)->text("OK");
+    });
+
+Http::wildcard()
+    ->action(function (): void {
+        throw new GeneralRouteNotFoundException();
     });
 
 Http::init()
