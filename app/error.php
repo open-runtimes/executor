@@ -1,6 +1,6 @@
 <?php
 
-use OpenRuntimes\Executor\Exception;
+use OpenRuntimes\Executor\HttpException;
 use Utopia\Http\Http;
 use Utopia\Http\Response;
 use Utopia\System\System;
@@ -9,23 +9,33 @@ Http::error()
     ->inject('error')
     ->inject('response')
     ->action(function (Throwable $error, Response $response): void {
-        // Show all Executor\Exceptions, or everything if in development
-        $public = $error instanceof Exception || Http::isDevelopment();
-        $exception = $public ? $error : new Exception(Exception::GENERAL_UNKNOWN);
-        $code = $exception->getCode() ?: 500;
+        if ($error instanceof HttpException) {
+            if ($error->publish) {
+                // TODO: publish to logger/Sentry
+            }
 
-        $output = [
-            'type' => $exception instanceof Exception ? $exception->getType() : Exception::GENERAL_UNKNOWN,
-            'message' => $exception->getMessage(),
-            'code' => $code,
-            'version' => System::getEnv('OPR_EXECUTOR_VERSION', 'unknown')
-        ];
+            $code = $error->statusCode;
+            $output = [
+                'type'    => $error->type,
+                'message' => $error->getMessage(),
+                'code'    => $code,
+                'version' => System::getEnv('OPR_EXECUTOR_VERSION', 'unknown'),
+            ];
+        } else {
+            // TODO: always publish to logger/Sentry
+            $code = 500;
+            $output = [
+                'type'    => 'general_unknown',
+                'message' => Http::isDevelopment() ? $error->getMessage() : 'Internal server error.',
+                'code'    => 500,
+                'version' => System::getEnv('OPR_EXECUTOR_VERSION', 'unknown'),
+            ];
+        }
 
-        // If in development, include some additional details.
         if (Http::isDevelopment()) {
-            $output['file'] = $exception->getFile();
-            $output['line'] = $exception->getLine();
-            $output['trace'] = \json_encode($exception->getTrace(), JSON_UNESCAPED_UNICODE) === false ? [] : $exception->getTrace();
+            $output['file'] = $error->getFile();
+            $output['line'] = $error->getLine();
+            $output['trace'] = \json_encode($error->getTrace(), JSON_UNESCAPED_UNICODE) === false ? [] : $error->getTrace();
         }
 
         $response

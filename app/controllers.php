@@ -2,7 +2,10 @@
 
 require_once __DIR__ . '/init.php';
 
-use OpenRuntimes\Executor\Exception;
+use OpenRuntimes\Executor\ExecutionBadJsonException;
+use OpenRuntimes\Executor\ExecutionBadRequestException;
+use OpenRuntimes\Executor\GeneralRouteNotFoundException;
+use OpenRuntimes\Executor\GeneralUnauthorizedException;
 use OpenRuntimes\Executor\BodyMultipart;
 use OpenRuntimes\Executor\Runner\Adapter as Runner;
 use Utopia\System\System;
@@ -199,13 +202,13 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             // 'headers' validator
             $validator = new Assoc();
             if (!$validator->isValid($headers)) {
-                throw new Exception(Exception::EXECUTION_BAD_REQUEST, $validator->getDescription());
+                throw new ExecutionBadRequestException($validator->getDescription());
             }
 
             // 'variables' validator
             $validator = new Assoc();
             if (!$validator->isValid($variables)) {
-                throw new Exception(Exception::EXECUTION_BAD_REQUEST, $validator->getDescription());
+                throw new ExecutionBadRequestException($validator->getDescription());
             }
 
             if (in_array($payload, [null, '', '0'], true)) {
@@ -256,7 +259,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             if ($isJson) {
                 $executionString = \json_encode($execution, JSON_UNESCAPED_UNICODE);
                 if (!$executionString) {
-                    throw new Exception(Exception::EXECUTION_BAD_JSON);
+                    throw new ExecutionBadJsonException();
                 }
 
                 $response
@@ -286,12 +289,17 @@ Http::get('/v1/health')
         $response->setStatusCode(Response::STATUS_CODE_OK)->text("OK");
     });
 
+Http::wildcard()
+    ->action(function (): void {
+        throw new GeneralRouteNotFoundException();
+    });
+
 Http::init()
     ->groups(['api'])
     ->inject('request')
     ->action(function (Request $request): void {
         $secretKey = \explode(' ', $request->getHeader('authorization', ''))[1] ?? '';
         if ($secretKey === '' || $secretKey === '0' || $secretKey !== System::getEnv('OPR_EXECUTOR_SECRET', '')) {
-            throw new Exception(Exception::GENERAL_UNAUTHORIZED, 'Missing executor key');
+            throw new GeneralUnauthorizedException('Missing executor key');
         }
     });
