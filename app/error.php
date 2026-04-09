@@ -13,6 +13,7 @@ Http::error()
             if ($error->publish) {
                 // TODO: publish to logger/Sentry
             }
+
             $code = $error->statusCode;
             $output = [
                 'type'    => $error->type,
