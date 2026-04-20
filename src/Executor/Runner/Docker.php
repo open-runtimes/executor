@@ -47,7 +47,7 @@ class Docker extends Adapter
             $output = '';
             $error = '';
             $code = Console::execute(
-                new Command('docker')
+                (new Command('docker'))
                     ->argument('container')
                     ->argument('inspect')
                     ->argument($runtimeName),
@@ -159,7 +159,7 @@ class Docker extends Adapter
         $output = ''; // Unused, just a refference for stdout
         $error = '';
         Console::execute(
-            new Command('tail')
+            (new Command('tail'))
                 ->flag('-F')
                 ->argument($tmpLogging . '/timings.txt'),
             '',

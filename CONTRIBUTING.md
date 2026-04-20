@@ -108,7 +108,7 @@ To run tests, you need to start Docker Compose stack, and then run PHPUnit:
 ```bash
 docker compose up -d
 # Wait for ~5 seconds for executor to start
-docker run --rm -v $PWD:/app --network executor_runtimes -w /app phpswoole/swoole:5.1.2-php8.4-alpine sh -c \ "composer test:e2e"
+docker run --rm -v $PWD:/app --network executor_runtimes -w /app phpswoole/swoole:5.1.2-php8.3-alpine sh -c \ "composer test:e2e"
 ```
 
 To format, you can run Pint with:
