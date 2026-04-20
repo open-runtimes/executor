@@ -6,6 +6,7 @@ namespace Tests\E2E;
 
 use PHPUnit\Framework\TestCase;
 use Swoole\Coroutine as Co;
+use Utopia\Command;
 use Utopia\Console;
 
 // TODO: @Meldiron Write more tests (validators mainly)
@@ -35,6 +36,50 @@ class ExecutorTest extends TestCase
         $this->client->setKey($this->key);
     }
 
+    private function createTarArchive(string $directory, string $archive = 'code.tar.gz'): void
+    {
+        $stdout = '';
+        $stderr = '';
+
+        $exitCode = Console::execute(
+            Command::and(
+                new Command('cd')->argument($directory),
+                (new Command('tar'))
+                    ->option('--exclude', $archive)
+                    ->flag('-czf')
+                    ->argument($archive)
+                    ->argument('.')
+            ),
+            '',
+            $stdout,
+            $stderr
+        );
+
+        $this->assertSame(0, $exitCode, $stderr);
+    }
+
+    private function createZipArchive(string $directory, string $archive = 'code.zip'): void
+    {
+        $stdout = '';
+        $stderr = '';
+
+        $exitCode = Console::execute(
+            Command::and(
+                new Command('cd')->argument($directory),
+                (new Command('zip'))
+                    ->option('-x', $archive)
+                    ->flag('-r')
+                    ->argument($archive)
+                    ->argument('.')
+            ),
+            '',
+            $stdout,
+            $stderr
+        );
+
+        $this->assertSame(0, $exitCode, $stderr);
+    }
+
     public function testLogStream(): void
     {
         $runtimeChunks = [];
@@ -44,8 +89,7 @@ class ExecutorTest extends TestCase
 
         Co\run(function () use (&$runtimeChunks, &$streamChunks, $runtimeId): void {
             /** Prepare build */
-            $output = '';
-            Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+            $this->createTarArchive('/app/tests/resources/functions/node');
 
             Co::join([
                 /** Watch logs */
@@ -201,8 +245,7 @@ class ExecutorTest extends TestCase
 
     public function testBuild(): void
     {
-        $output = '';
-        Console::execute('cd /app/tests/resources/functions/php && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+        $this->createTarArchive('/app/tests/resources/functions/php');
 
         $runtimeId = \bin2hex(\random_bytes(4));
 
@@ -265,8 +308,7 @@ class ExecutorTest extends TestCase
 
     public function testBuildOutputDirectory(): void
     {
-        $output = '';
-        Console::execute('cd /app/tests/resources/functions/static && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+        $this->createTarArchive('/app/tests/resources/functions/static');
 
         /** Build runtime */
         $params = [
@@ -316,8 +358,7 @@ class ExecutorTest extends TestCase
 
     public function testBuildUncompressed(): void
     {
-        $output = '';
-        Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+        $this->createTarArchive('/app/tests/resources/functions/node');
 
         $runtimeId = \bin2hex(\random_bytes(4));
 
@@ -360,8 +401,7 @@ class ExecutorTest extends TestCase
     public function testExecute(): void
     {
         /** Prepare function */
-        $output = '';
-        Console::execute('cd /app/tests/resources/functions/php && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+        $this->createTarArchive('/app/tests/resources/functions/php');
 
         $params = [
             'runtimeId' => 'test-build',
@@ -550,8 +590,7 @@ class ExecutorTest extends TestCase
     public function testSSRLogs(): void
     {
         /** Prepare function */
-        $output = '';
-        Console::execute('cd /app/tests/resources/sites/astro && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+        $this->createTarArchive('/app/tests/resources/sites/astro');
 
         $params = [
             'runtimeId' => 'test-ssr-build',
@@ -610,8 +649,7 @@ class ExecutorTest extends TestCase
 
     public function testRestartPolicy(): void
     {
-        $output = '';
-        Console::execute('cd /app/tests/resources/functions/php-exit && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+        $this->createTarArchive('/app/tests/resources/functions/php-exit');
 
         $command = 'php src/server.php';
 
@@ -669,8 +707,7 @@ class ExecutorTest extends TestCase
     {
         $size128Kb = 1024 * 128;
 
-        $output = '';
-        Console::execute('cd /app/tests/resources/functions/php-build-logs && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+        $this->createTarArchive('/app/tests/resources/functions/php-build-logs');
 
         /** Build runtime */
         $params = [
@@ -690,8 +727,7 @@ class ExecutorTest extends TestCase
         $this->assertStringContainsString('First log', (string) $response['body']['message']);
         $this->assertStringContainsString('Last log', (string) $response['body']['message']);
 
-        $output = '';
-        Console::execute('cd /app/tests/resources/functions/php-build-logs && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+        $this->createTarArchive('/app/tests/resources/functions/php-build-logs');
 
         /** Build runtime */
         $params = [
@@ -734,8 +770,7 @@ class ExecutorTest extends TestCase
         $this->assertStringNotContainsString('Last log', (string) $response['body']['message']);
         $this->assertStringContainsString('First log', (string) $response['body']['message']);
 
-        $output = '';
-        Console::execute('cd /app/tests/resources/functions/php-build-logs && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+        $this->createTarArchive('/app/tests/resources/functions/php-build-logs');
 
         /** Build runtime */
         $params = [
@@ -1016,8 +1051,7 @@ class ExecutorTest extends TestCase
     public function testScenarios(string $image, string $entrypoint, string $folder, string $version, string $startCommand, string $buildCommand, callable $assertions, ?callable $body = null, bool $logging = true, string $mimeType = "application/json", float $cpus = 1, int $memory = 512, ?callable $buildAssertions = null): void
     {
         /** Prepare deployment */
-        $output = '';
-        Console::execute(sprintf('cd /app/tests/resources/functions/%s && tar --exclude code.tar.gz -czf code.tar.gz .', $folder), '', $output);
+        $this->createTarArchive(sprintf('/app/tests/resources/functions/%s', $folder));
 
         $runtimeId = \bin2hex(\random_bytes(4));
 
@@ -1101,8 +1135,7 @@ class ExecutorTest extends TestCase
     public function testCustomRuntimes(string $folder, string $image, string $entrypoint, string $buildCommand): void
     {
         // Prepare tar.gz files
-        $output = '';
-        Console::execute(sprintf('cd /app/tests/resources/functions/%s && tar --exclude code.tar.gz -czf code.tar.gz .', $folder), '', $output);
+        $this->createTarArchive(sprintf('/app/tests/resources/functions/%s', $folder));
 
         $runtimeId = \bin2hex(\random_bytes(4));
 
@@ -1171,8 +1204,7 @@ class ExecutorTest extends TestCase
     public function testZipBuild(): void
     {
         /** Prepare function */
-        $output = '';
-        Console::execute('cd /app/tests/resources/functions/php && zip -x code.zip -r code.zip .', '', $output);
+        $this->createZipArchive('/app/tests/resources/functions/php');
 
         $runtimeId = \bin2hex(\random_bytes(4));
 
@@ -1259,8 +1291,7 @@ class ExecutorTest extends TestCase
 
     public function testLogStreamPersistent(): void
     {
-        $output = '';
-        Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+        $this->createTarArchive('/app/tests/resources/functions/node');
 
         $runtimeEnd = 0;
         $realtimeEnd = 0;

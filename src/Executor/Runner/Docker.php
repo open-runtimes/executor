@@ -9,6 +9,7 @@ use OpenRuntimes\Executor\StorageFactory;
 use OpenRuntimes\Executor\Validator\TCP;
 use Swoole\Timer;
 use Throwable;
+use Utopia\Command;
 use Utopia\Console;
 use Utopia\Http\Response;
 use Utopia\Logger\Log;
@@ -44,7 +45,16 @@ class Docker extends Adapter
         // Wait for runtime
         for ($i = 0; $i < 10; $i++) {
             $output = '';
-            $code = Console::execute('docker container inspect ' . \escapeshellarg($runtimeName), '', $output);
+            $error = '';
+            $code = Console::execute(
+                new Command('docker')
+                    ->argument('container')
+                    ->argument('inspect')
+                    ->argument($runtimeName),
+                '',
+                $output,
+                $error
+            );
             if ($code === 0) {
                 break;
             }
@@ -147,34 +157,44 @@ class Docker extends Adapter
         $datetime = new \DateTime("now", new \DateTimeZone("UTC")); // Date used for tracking absolute log timing
 
         $output = ''; // Unused, just a refference for stdout
-        Console::execute('tail -F ' . $tmpLogging . '/timings.txt', '', $output, $timeout, function (string $timingChunk, mixed $process) use ($tmpLogging, &$logsChunk, &$logsProcess, &$datetime, &$offset, $introOffset): void {
-            $logsProcess = $process;
+        $error = '';
+        Console::execute(
+            new Command('tail')
+                ->flag('-F')
+                ->argument($tmpLogging . '/timings.txt'),
+            '',
+            $output,
+            $error,
+            $timeout,
+            function (string $timingChunk, mixed $process) use ($tmpLogging, &$logsChunk, &$logsProcess, &$datetime, &$offset, $introOffset): void {
+                $logsProcess = $process;
 
-            $logsPath = $tmpLogging . '/logs.txt';
-            if (!\file_exists($logsPath)) {
-                if (!empty($logsProcess)) {
-                    \proc_terminate($logsProcess, 9);
+                $logsPath = $tmpLogging . '/logs.txt';
+                if (!\file_exists($logsPath)) {
+                    if (!empty($logsProcess)) {
+                        \proc_terminate($logsProcess, 9);
+                    }
+
+                    return;
                 }
 
-                return;
+                $parts = Logs::parseTiming($timingChunk, $datetime);
+
+                foreach ($parts as $part) {
+                    $timestamp = $part['timestamp'] ?? '';
+                    $length = \intval($part['length'] ?? '0');
+
+                    $logContent = \file_get_contents($tmpLogging . '/logs.txt', false, null, $introOffset + $offset, \abs($length)) ?: '';
+
+                    $logContent = \str_replace("\n", "\\n", $logContent);
+
+                    $output = $timestamp . " " . $logContent . "\n";
+
+                    $logsChunk .= $output;
+                    $offset += $length;
+                }
             }
-
-            $parts = Logs::parseTiming($timingChunk, $datetime);
-
-            foreach ($parts as $part) {
-                $timestamp = $part['timestamp'] ?? '';
-                $length = \intval($part['length'] ?? '0');
-
-                $logContent = \file_get_contents($tmpLogging . '/logs.txt', false, null, $introOffset + $offset, \abs($length)) ?: '';
-
-                $logContent = \str_replace("\n", "\\n", $logContent);
-
-                $output = $timestamp . " " . $logContent . "\n";
-
-                $logsChunk .= $output;
-                $offset += $length;
-            }
-        });
+        );
 
         if (!$timerId) {
             throw new \Exception('Failed to create timer');
