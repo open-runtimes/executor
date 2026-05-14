@@ -11,6 +11,8 @@ RUN composer install --ignore-platform-reqs --optimize-autoloader \
 # Executor
 FROM appwrite/utopia-base:php-8.5-2.0.0 AS final
 
+WORKDIR /usr/local
+
 ARG OPR_EXECUTOR_VERSION
 ENV OPR_EXECUTOR_VERSION=$OPR_EXECUTOR_VERSION
 
