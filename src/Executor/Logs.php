@@ -89,10 +89,6 @@ class Logs
 
             $interval = DateInterval::createFromDateString($timing . ' microseconds');
 
-            if (!$interval) {
-                throw new \Exception('Failed to create DateInterval from timing: ' . $timing);
-            }
-
             $date = $datetime
                 ->add($interval)
                 ->format('Y-m-d\TH:i:s.vP');
@@ -117,6 +113,6 @@ class Logs
 
     public static function getTimestamp(): string
     {
-        return (new DateTime("now", new DateTimeZone("UTC")))->format('Y-m-d\TH:i:s.vP');
+        return new DateTime("now", new DateTimeZone("UTC"))->format('Y-m-d\TH:i:s.vP');
     }
 }

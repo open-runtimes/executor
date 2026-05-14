@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\E2E;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Swoole\Coroutine as Co;
 use Utopia\Console;
@@ -45,7 +46,8 @@ class ExecutorTest extends TestCase
         Co\run(function () use (&$runtimeChunks, &$streamChunks, $runtimeId): void {
             /** Prepare build */
             $output = '';
-            Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+            $stderr = '';
+            Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
 
             Co::join([
                 /** Watch logs */
@@ -202,7 +204,8 @@ class ExecutorTest extends TestCase
     public function testBuild(): void
     {
         $output = '';
-        Console::execute('cd /app/tests/resources/functions/php && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/functions/php && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
 
         $runtimeId = \bin2hex(\random_bytes(4));
 
@@ -266,7 +269,8 @@ class ExecutorTest extends TestCase
     public function testBuildOutputDirectory(): void
     {
         $output = '';
-        Console::execute('cd /app/tests/resources/functions/static && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/functions/static && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
 
         /** Build runtime */
         $params = [
@@ -317,7 +321,8 @@ class ExecutorTest extends TestCase
     public function testBuildUncompressed(): void
     {
         $output = '';
-        Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
 
         $runtimeId = \bin2hex(\random_bytes(4));
 
@@ -345,7 +350,7 @@ class ExecutorTest extends TestCase
             'source' => $buildPath,
             'entrypoint' => 'index.js',
             'image' => 'openruntimes/node:v5-22',
-            'runtimeEntrypoint' => 'cp /tmp/code.tar /mnt/code/code.tar && nohup helpers/start.sh "bash helpers/server.sh"',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
         ]);
 
         $this->assertEquals(200, $response['headers']['status-code']);
@@ -361,7 +366,8 @@ class ExecutorTest extends TestCase
     {
         /** Prepare function */
         $output = '';
-        Console::execute('cd /app/tests/resources/functions/php && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/functions/php && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
 
         $params = [
             'runtimeId' => 'test-build',
@@ -551,7 +557,8 @@ class ExecutorTest extends TestCase
     {
         /** Prepare function */
         $output = '';
-        Console::execute('cd /app/tests/resources/sites/astro && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/sites/astro && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
 
         $params = [
             'runtimeId' => 'test-ssr-build',
@@ -611,7 +618,8 @@ class ExecutorTest extends TestCase
     public function testRestartPolicy(): void
     {
         $output = '';
-        Console::execute('cd /app/tests/resources/functions/php-exit && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/functions/php-exit && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
 
         $command = 'php src/server.php';
 
@@ -670,7 +678,8 @@ class ExecutorTest extends TestCase
         $size128Kb = 1024 * 128;
 
         $output = '';
-        Console::execute('cd /app/tests/resources/functions/php-build-logs && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/functions/php-build-logs && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
 
         /** Build runtime */
         $params = [
@@ -691,7 +700,8 @@ class ExecutorTest extends TestCase
         $this->assertStringContainsString('Last log', (string) $response['body']['message']);
 
         $output = '';
-        Console::execute('cd /app/tests/resources/functions/php-build-logs && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/functions/php-build-logs && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
 
         /** Build runtime */
         $params = [
@@ -735,7 +745,8 @@ class ExecutorTest extends TestCase
         $this->assertStringContainsString('First log', (string) $response['body']['message']);
 
         $output = '';
-        Console::execute('cd /app/tests/resources/functions/php-build-logs && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/functions/php-build-logs && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
 
         /** Build runtime */
         $params = [
@@ -765,7 +776,7 @@ class ExecutorTest extends TestCase
      *
      * @return \Iterator<(int | string), mixed>
      */
-    public function provideScenarios(): \Iterator
+    public static function provideScenarios(): \Iterator
     {
         yield [
             'image' => 'openruntimes/node:v2-18.0',
@@ -774,12 +785,12 @@ class ExecutorTest extends TestCase
             'version' => 'v2',
             'startCommand' => '',
             'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /usr/code && cd /usr/local/src/ && ./build.sh',
-            'assertions' => function (array $response): void {
-                $this->assertEquals(200, $response['headers']['status-code']);
-                $this->assertEquals(200, $response['body']['statusCode']);
-                $this->assertEquals('{"message":"Hello Open Runtimes 👋"}', $response['body']['body']);
-                $this->assertEmpty($response['body']['logs']);
-                $this->assertEmpty($response['body']['errors']);
+            'assertions' => function (self $test, array $response): void {
+                $test->assertEquals(200, $response['headers']['status-code']);
+                $test->assertEquals(200, $response['body']['statusCode']);
+                $test->assertEquals('{"message":"Hello Open Runtimes 👋"}', $response['body']['body']);
+                $test->assertEmpty($response['body']['logs']);
+                $test->assertEmpty($response['body']['errors']);
             }
         ];
         yield [
@@ -789,12 +800,12 @@ class ExecutorTest extends TestCase
             'version' => 'v5',
             'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
             'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
-            'assertions' => function (array $response): void {
-                $this->assertEquals(200, $response['headers']['status-code']);
-                $this->assertEquals(200, $response['body']['statusCode']);
-                $this->assertEquals('{}', $response['body']['body']);
-                $this->assertEmpty($response['body']['logs']);
-                $this->assertEmpty($response['body']['errors']);
+            'assertions' => function (self $test, array $response): void {
+                $test->assertEquals(200, $response['headers']['status-code']);
+                $test->assertEquals(200, $response['body']['statusCode']);
+                $test->assertEquals('{}', $response['body']['body']);
+                $test->assertEmpty($response['body']['logs']);
+                $test->assertEmpty($response['body']['errors']);
             }
         ];
         yield [
@@ -804,12 +815,12 @@ class ExecutorTest extends TestCase
             'version' => 'v5',
             'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
             'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
-            'assertions' => function (array $response): void {
-                $this->assertEquals(200, $response['headers']['status-code']);
-                $this->assertEquals(200, $response['body']['statusCode']);
-                $this->assertEquals('[]', $response['body']['body']);
-                $this->assertEmpty($response['body']['logs']);
-                $this->assertEmpty($response['body']['errors']);
+            'assertions' => function (self $test, array $response): void {
+                $test->assertEquals(200, $response['headers']['status-code']);
+                $test->assertEquals(200, $response['body']['statusCode']);
+                $test->assertEquals('[]', $response['body']['body']);
+                $test->assertEmpty($response['body']['logs']);
+                $test->assertEmpty($response['body']['errors']);
             }
         ];
         yield [
@@ -819,11 +830,11 @@ class ExecutorTest extends TestCase
             'version' => 'v5',
             'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
             'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
-            'assertions' => function (array $response): void {
-                $this->assertEquals(200, $response['headers']['status-code']);
-                $this->assertEquals(500, $response['body']['statusCode']);
-                $this->assertStringContainsString('Execution timed out.', (string) $response['body']['errors']);
-                $this->assertEmpty($response['body']['logs']);
+            'assertions' => function (self $test, array $response): void {
+                $test->assertEquals(200, $response['headers']['status-code']);
+                $test->assertEquals(500, $response['body']['statusCode']);
+                $test->assertStringContainsString('Execution timed out.', (string) $response['body']['errors']);
+                $test->assertEmpty($response['body']['logs']);
             }
         ];
         yield [
@@ -833,11 +844,11 @@ class ExecutorTest extends TestCase
             'version' => 'v5',
             'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
             'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
-            'assertions' => function (array $response): void {
-                $this->assertEquals(200, $response['headers']['status-code']);
-                $this->assertEquals("OK", $response['body']['body']);
-                $this->assertSame(1024 * 1024, strlen((string) $response['body']['logs']));
-                $this->assertEmpty($response['body']['errors']);
+            'assertions' => function (self $test, array $response): void {
+                $test->assertEquals(200, $response['headers']['status-code']);
+                $test->assertEquals("OK", $response['body']['body']);
+                $test->assertSame(1024 * 1024, strlen((string) $response['body']['logs']));
+                $test->assertEmpty($response['body']['errors']);
             },
             'body' => fn (): string => '1',
         ];
@@ -848,11 +859,11 @@ class ExecutorTest extends TestCase
             'version' => 'v5',
             'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
             'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
-            'assertions' => function (array $response): void {
-                $this->assertEquals(200, $response['headers']['status-code']);
-                $this->assertEquals("OK", $response['body']['body']);
-                $this->assertSame(5 * 1024 * 1024, strlen((string) $response['body']['logs']));
-                $this->assertEmpty($response['body']['errors']);
+            'assertions' => function (self $test, array $response): void {
+                $test->assertEquals(200, $response['headers']['status-code']);
+                $test->assertEquals("OK", $response['body']['body']);
+                $test->assertSame(5 * 1024 * 1024, strlen((string) $response['body']['logs']));
+                $test->assertEmpty($response['body']['errors']);
             },
             'body' => fn (): string => '5',
         ];
@@ -863,13 +874,13 @@ class ExecutorTest extends TestCase
             'version' => 'v5',
             'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
             'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
-            'assertions' => function (array $response): void {
-                $this->assertEquals(200, $response['headers']['status-code']);
-                $this->assertEquals("OK", $response['body']['body']);
-                $this->assertGreaterThan(5 * 1024 * 1024, strlen((string) $response['body']['logs']));
-                $this->assertLessThan(6 * 1024 * 1024, strlen((string) $response['body']['logs']));
-                $this->assertStringContainsString('truncated', (string) $response['body']['logs']);
-                $this->assertEmpty($response['body']['errors']);
+            'assertions' => function (self $test, array $response): void {
+                $test->assertEquals(200, $response['headers']['status-code']);
+                $test->assertEquals("OK", $response['body']['body']);
+                $test->assertGreaterThan(5 * 1024 * 1024, strlen((string) $response['body']['logs']));
+                $test->assertLessThan(6 * 1024 * 1024, strlen((string) $response['body']['logs']));
+                $test->assertStringContainsString('truncated', (string) $response['body']['logs']);
+                $test->assertEmpty($response['body']['errors']);
             },
             'body' => fn (): string => '15',
         ];
@@ -880,11 +891,11 @@ class ExecutorTest extends TestCase
             'version' => 'v5',
             'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
             'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
-            'assertions' => function (array $response): void {
-                $this->assertEquals(200, $response['headers']['status-code']);
-                $this->assertEquals("OK", $response['body']['body']);
-                $this->assertEmpty($response['body']['logs']);
-                $this->assertEmpty($response['body']['errors']);
+            'assertions' => function (self $test, array $response): void {
+                $test->assertEquals(200, $response['headers']['status-code']);
+                $test->assertEquals("OK", $response['body']['body']);
+                $test->assertEmpty($response['body']['logs']);
+                $test->assertEmpty($response['body']['errors']);
             },
             'body' => fn (): string => '1',
             'logging' => false,
@@ -896,13 +907,13 @@ class ExecutorTest extends TestCase
             'version' => 'v5',
             'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
             'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
-            'assertions' => function (array $response): void {
-                $this->assertEquals(200, $response['headers']['status-code']);
-                $this->assertEquals(200, $response['body']['statusCode']);
-                $this->assertEquals('OK', $response['body']['body']);
-                $this->assertGreaterThan(10, $response['body']['duration']); // This is unsafe but important. If its flaky, inform @Meldiron
-                $this->assertEmpty($response['body']['logs']);
-                $this->assertEmpty($response['body']['errors']);
+            'assertions' => function (self $test, array $response): void {
+                $test->assertEquals(200, $response['headers']['status-code']);
+                $test->assertEquals(200, $response['body']['statusCode']);
+                $test->assertEquals('OK', $response['body']['body']);
+                $test->assertGreaterThan(10, $response['body']['duration']); // This is unsafe but important. If its flaky, inform @Meldiron
+                $test->assertEmpty($response['body']['logs']);
+                $test->assertEmpty($response['body']['errors']);
             }
         ];
         yield [
@@ -912,22 +923,23 @@ class ExecutorTest extends TestCase
             'version' => 'v5',
             'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
             'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
-            'assertions' => function (array $response): void {
-                $this->assertEquals(200, $response['headers']['status-code']);
-                $this->assertEquals(200, $response['body']['statusCode']);
+            'assertions' => function (self $test, array $response): void {
+                $test->assertEquals(200, $response['headers']['status-code']);
+                $test->assertEquals(200, $response['body']['statusCode']);
+
                 $bytes = unpack('C*byte', (string) $response['body']['body']);
                 if (!is_array($bytes)) {
                     $bytes = [];
                 }
 
-                $this->assertCount(3, $bytes);
-                $this->assertEquals(0, $bytes['byte1'] ?? 0);
-                $this->assertEquals(10, $bytes['byte2'] ?? 0);
-                $this->assertEquals(255, $bytes['byte3'] ?? 0);
-                $this->assertEmpty($response['body']['logs']);
-                $this->assertEmpty($response['body']['errors']);
+                $test->assertCount(3, $bytes);
+                $test->assertEquals(0, $bytes['byte1'] ?? 0);
+                $test->assertEquals(10, $bytes['byte2'] ?? 0);
+                $test->assertEquals(255, $bytes['byte3'] ?? 0);
+                $test->assertEmpty($response['body']['logs']);
+                $test->assertEmpty($response['body']['errors']);
             },
-            null, // body,
+            'body' => null,
             'logging' => true,
             'mimeType' => 'multipart/form-data'
         ];
@@ -938,11 +950,11 @@ class ExecutorTest extends TestCase
             'version' => 'v5',
             'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
             'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
-            'assertions' => function (array $response): void {
-                $this->assertEquals(400, $response['headers']['status-code']);
-                $this->assertStringContainsString("JSON response does not allow binaries", (string) $response['body']['message']);
+            'assertions' => function (self $test, array $response): void {
+                $test->assertEquals(400, $response['headers']['status-code']);
+                $test->assertStringContainsString("JSON response does not allow binaries", (string) $response['body']['message']);
             },
-            null, // body,
+            'body' => null,
             'logging' => true,
             'mimeType' => 'application/json'
         ];
@@ -953,20 +965,21 @@ class ExecutorTest extends TestCase
             'version' => 'v5',
             'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
             'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
-            'assertions' => function (array $response): void {
-                $this->assertEquals(200, $response['headers']['status-code']);
-                $this->assertEquals(200, $response['body']['statusCode']);
+            'assertions' => function (self $test, array $response): void {
+                $test->assertEquals(200, $response['headers']['status-code']);
+                $test->assertEquals(200, $response['body']['statusCode']);
+
                 $bytes = unpack('C*byte', (string) $response['body']['body']);
                 if (!is_array($bytes)) {
                     $bytes = [];
                 }
 
-                $this->assertCount(3, $bytes);
-                $this->assertEquals(0, $bytes['byte1'] ?? 0);
-                $this->assertEquals(10, $bytes['byte2'] ?? 0);
-                $this->assertEquals(255, $bytes['byte3'] ?? 0);
-                $this->assertEmpty($response['body']['logs']);
-                $this->assertEmpty($response['body']['errors']);
+                $test->assertCount(3, $bytes);
+                $test->assertEquals(0, $bytes['byte1'] ?? 0);
+                $test->assertEquals(10, $bytes['byte2'] ?? 0);
+                $test->assertEquals(255, $bytes['byte3'] ?? 0);
+                $test->assertEmpty($response['body']['logs']);
+                $test->assertEmpty($response['body']['errors']);
             },
             'body' => fn (): string => pack('C*', 0, 10, 255),
             'logging' => true,
@@ -979,45 +992,44 @@ class ExecutorTest extends TestCase
             'version' => 'v5',
             'startCommand' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
             'buildCommand' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i && npm run build"',
-            'assertions' => function (array $response): void {
-                $this->assertEquals(200, $response['headers']['status-code']);
-                $this->assertEquals(200, $response['body']['statusCode']);
+            'assertions' => function (self $test, array $response): void {
+                $test->assertEquals(200, $response['headers']['status-code']);
+                $test->assertEquals(200, $response['body']['statusCode']);
 
-                $this->assertIsString($response['body']['body']);
-                $this->assertNotEmpty($response['body']['body']);
+                $test->assertIsString($response['body']['body']);
+                $test->assertNotEmpty($response['body']['body']);
+
                 $json = \json_decode($response['body']['body'], true);
-                $this->assertEquals("2.5", $json['cpus']);
-                $this->assertEquals("1024", $json['memory']);
+                $test->assertEquals("2.5", $json['cpus']);
+                $test->assertEquals("1024", $json['memory']);
 
-                $this->assertEmpty($response['body']['logs']);
-                $this->assertEmpty($response['body']['errors']);
+                $test->assertEmpty($response['body']['logs']);
+                $test->assertEmpty($response['body']['errors']);
             },
             'body' => null,
             'logging' => true,
             'mimeType' => 'application/json',
             'cpus' => 2.5,
             'memory' => 1024,
-            'buildAssertions' => function (array $response): void {
+            'buildAssertions' => function (self $test, array $response): void {
                 $output = '';
                 foreach ($response['body']['output'] as $outputItem) {
                     $output .= $outputItem['content'];
                 }
 
-                $this->assertStringContainsString("cpus=2.5", $output);
-                $this->assertStringContainsString("memory=1024", $output);
+                $test->assertStringContainsString("cpus=2.5", $output);
+                $test->assertStringContainsString("memory=1024", $output);
             }
         ];
     }
 
-    /**
-     *
-     * @dataProvider provideScenarios
-     */
+    #[DataProvider('provideScenarios')]
     public function testScenarios(string $image, string $entrypoint, string $folder, string $version, string $startCommand, string $buildCommand, callable $assertions, ?callable $body = null, bool $logging = true, string $mimeType = "application/json", float $cpus = 1, int $memory = 512, ?callable $buildAssertions = null): void
     {
         /** Prepare deployment */
         $output = '';
-        Console::execute(sprintf('cd /app/tests/resources/functions/%s && tar --exclude code.tar.gz -czf code.tar.gz .', $folder), '', $output);
+        $stderr = '';
+        Console::execute(sprintf('cd /app/tests/resources/functions/%s && tar --exclude code.tar.gz -czf code.tar.gz .', $folder), '', $output, $stderr);
 
         $runtimeId = \bin2hex(\random_bytes(4));
 
@@ -1040,7 +1052,7 @@ class ExecutorTest extends TestCase
         $this->assertEquals(201, $response['headers']['status-code']);
 
         if (!is_null($buildAssertions)) {
-            call_user_func($buildAssertions, $response);
+            $buildAssertions($this, $response);
         }
 
         $path = $response['body']['path'];
@@ -1069,7 +1081,7 @@ class ExecutorTest extends TestCase
 
         $this->assertStringContainsString($mimeType, (string) $response['headers']['content-type']);
 
-        call_user_func($assertions, $response);
+        $assertions($this, $response);
 
         /** Delete runtime */
         $response = $this->client->call(Client::METHOD_DELETE, sprintf('/runtimes/scenario-execute-%s-%s', $folder, $runtimeId), [], []);
@@ -1081,7 +1093,7 @@ class ExecutorTest extends TestCase
      *
      * @return \Iterator<(int | string), mixed>
      */
-    public function provideCustomRuntimes(): \Iterator
+    public static function provideCustomRuntimes(): \Iterator
     {
         yield [ 'folder' => 'php', 'image' => 'openruntimes/php:v5-8.1', 'entrypoint' => 'index.php', 'buildCommand' => 'composer install' ];
         yield [ 'folder' => 'php-mock', 'image' => 'openruntimes/php:v5-8.1', 'entrypoint' => 'index.php', 'buildCommand' => 'composer install' ];
@@ -1094,15 +1106,13 @@ class ExecutorTest extends TestCase
         yield [ 'folder' => 'dotnet', 'image' => 'openruntimes/dotnet:v5-6.0', 'entrypoint' => 'Index.cs', 'buildCommand' => ''];
     }
 
-    /**
-     *
-     * @dataProvider provideCustomRuntimes
-     */
+    #[DataProvider('provideCustomRuntimes')]
     public function testCustomRuntimes(string $folder, string $image, string $entrypoint, string $buildCommand): void
     {
         // Prepare tar.gz files
         $output = '';
-        Console::execute(sprintf('cd /app/tests/resources/functions/%s && tar --exclude code.tar.gz -czf code.tar.gz .', $folder), '', $output);
+        $stderr = '';
+        Console::execute(sprintf('cd /app/tests/resources/functions/%s && tar --exclude code.tar.gz -czf code.tar.gz .', $folder), '', $output, $stderr);
 
         $runtimeId = \bin2hex(\random_bytes(4));
 
@@ -1172,7 +1182,8 @@ class ExecutorTest extends TestCase
     {
         /** Prepare function */
         $output = '';
-        Console::execute('cd /app/tests/resources/functions/php && zip -x code.zip -r code.zip .', '', $output);
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/functions/php && zip -x code.zip -r code.zip .', '', $output, $stderr);
 
         $runtimeId = \bin2hex(\random_bytes(4));
 
@@ -1260,7 +1271,8 @@ class ExecutorTest extends TestCase
     public function testLogStreamPersistent(): void
     {
         $output = '';
-        Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output);
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
 
         $runtimeEnd = 0;
         $realtimeEnd = 0;
