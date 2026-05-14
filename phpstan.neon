@@ -4,3 +4,8 @@ parameters:
     - vendor/swoole/ide-helper
   excludePaths:
     - tests/resources
+  ignoreErrors:
+    -
+      identifier: variable.undefined
+      path: tests/e2e/ExecutorTest.php
+      message: '#Undefined variable: \$this#'

@@ -765,7 +765,7 @@ class ExecutorTest extends TestCase
      *
      * @return \Iterator<(int | string), mixed>
      */
-    public function provideScenarios(): \Iterator
+    public static function provideScenarios(): \Iterator
     {
         yield [
             'image' => 'openruntimes/node:v2-18.0',
@@ -985,7 +985,7 @@ class ExecutorTest extends TestCase
 
                 $this->assertIsString($response['body']['body']);
                 $this->assertNotEmpty($response['body']['body']);
-                $json = \json_decode($response['body']['body'], true);
+                $json = \json_decode((string) $response['body']['body'], true);
                 $this->assertEquals("2.5", $json['cpus']);
                 $this->assertEquals("1024", $json['memory']);
 
@@ -1040,7 +1040,7 @@ class ExecutorTest extends TestCase
         $this->assertEquals(201, $response['headers']['status-code']);
 
         if (!is_null($buildAssertions)) {
-            call_user_func($buildAssertions, $response);
+            \Closure::fromCallable($buildAssertions)->bindTo($this, self::class)($response);
         }
 
         $path = $response['body']['path'];
@@ -1069,7 +1069,7 @@ class ExecutorTest extends TestCase
 
         $this->assertStringContainsString($mimeType, (string) $response['headers']['content-type']);
 
-        call_user_func($assertions, $response);
+        \Closure::fromCallable($assertions)->bindTo($this, self::class)($response);
 
         /** Delete runtime */
         $response = $this->client->call(Client::METHOD_DELETE, sprintf('/runtimes/scenario-execute-%s-%s', $folder, $runtimeId), [], []);
@@ -1081,7 +1081,7 @@ class ExecutorTest extends TestCase
      *
      * @return \Iterator<(int | string), mixed>
      */
-    public function provideCustomRuntimes(): \Iterator
+    public static function provideCustomRuntimes(): \Iterator
     {
         yield [ 'folder' => 'php', 'image' => 'openruntimes/php:v5-8.1', 'entrypoint' => 'index.php', 'buildCommand' => 'composer install' ];
         yield [ 'folder' => 'php-mock', 'image' => 'openruntimes/php:v5-8.1', 'entrypoint' => 'index.php', 'buildCommand' => 'composer install' ];
