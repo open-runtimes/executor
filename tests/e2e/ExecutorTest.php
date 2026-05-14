@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\E2E;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Swoole\Coroutine as Co;
 use Utopia\Console;
@@ -1022,10 +1023,7 @@ class ExecutorTest extends TestCase
         ];
     }
 
-    /**
-     *
-     * @dataProvider provideScenarios
-     */
+    #[DataProvider('provideScenarios')]
     public function testScenarios(string $image, string $entrypoint, string $folder, string $version, string $startCommand, string $buildCommand, callable $assertions, ?callable $body = null, bool $logging = true, string $mimeType = "application/json", float $cpus = 1, int $memory = 512, ?callable $buildAssertions = null): void
     {
         /** Prepare deployment */
@@ -1108,10 +1106,7 @@ class ExecutorTest extends TestCase
         yield [ 'folder' => 'dotnet', 'image' => 'openruntimes/dotnet:v5-6.0', 'entrypoint' => 'Index.cs', 'buildCommand' => ''];
     }
 
-    /**
-     *
-     * @dataProvider provideCustomRuntimes
-     */
+    #[DataProvider('provideCustomRuntimes')]
     public function testCustomRuntimes(string $folder, string $image, string $entrypoint, string $buildCommand): void
     {
         // Prepare tar.gz files
