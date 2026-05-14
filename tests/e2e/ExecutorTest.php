@@ -939,7 +939,7 @@ class ExecutorTest extends TestCase
                 $test->assertEmpty($response['body']['logs']);
                 $test->assertEmpty($response['body']['errors']);
             },
-            null, // body,
+            'body' => null,
             'logging' => true,
             'mimeType' => 'multipart/form-data'
         ];
@@ -954,7 +954,7 @@ class ExecutorTest extends TestCase
                 $test->assertEquals(400, $response['headers']['status-code']);
                 $test->assertStringContainsString("JSON response does not allow binaries", (string) $response['body']['message']);
             },
-            null, // body,
+            'body' => null,
             'logging' => true,
             'mimeType' => 'application/json'
         ];
