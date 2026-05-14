@@ -14,8 +14,8 @@
     "format": "./vendor/bin/pint --config pint.json",
     "format:check": "./vendor/bin/pint --test --config pint.json",
     "analyze": "./vendor/bin/phpstan analyse --memory-limit=1G -c phpstan.neon app src tests",
-    "test:unit": "./vendor/bin/phpunit --configuration phpunit.xml --debug --testsuite=unit",
-    "test:e2e": "./vendor/bin/phpunit --configuration phpunit.xml --debug --testsuite=e2e",
+    "test:unit": "./vendor/bin/phpunit --configuration phpunit.xml --testsuite=unit",
+    "test:e2e": "./vendor/bin/phpunit --configuration phpunit.xml --testsuite=e2e",
     "refactor": "./vendor/bin/rector",
     "refactor:check": "./vendor/bin/rector --dry-run"
   },
