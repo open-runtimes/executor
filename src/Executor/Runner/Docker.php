@@ -590,8 +590,6 @@ class Docker extends Adapter
 
                 $errNo = \curl_errno($ch);
 
-                \curl_close($ch);
-
                 return [
                     'errNo' => $errNo,
                     'error' => $error,
@@ -712,8 +710,6 @@ class Docker extends Adapter
 
             $errNo = \curl_errno($ch);
 
-            \curl_close($ch);
-
             if ($errNo !== 0) {
                 return [
                     'errNo' => $errNo,
@@ -822,8 +818,6 @@ class Docker extends Adapter
             $error = \curl_error($ch);
 
             $errNo = \curl_errno($ch);
-
-            \curl_close($ch);
 
             if ($errNo !== 0) {
                 return [

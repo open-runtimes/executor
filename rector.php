@@ -17,7 +17,7 @@ return RectorConfig::configure()
         FinalizeTestCaseClassRector::class,
         ThrowWithPreviousExceptionRector::class,
     ])
-    ->withPhpSets(php84: true)
+    ->withPhpSets(php85: true)
     ->withComposerBased(phpunit: true)
     ->withPreparedSets(
         deadCode: true,

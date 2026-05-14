@@ -20,7 +20,7 @@
     "refactor:check": "./vendor/bin/rector --dry-run"
   },
   "require": {
-    "php": ">=8.3.0",
+    "php": ">=8.5.0",
     "ext-curl": "*",
     "ext-json": "*",
     "ext-swoole": "*",
@@ -36,14 +36,14 @@
   "require-dev": {
     "laravel/pint": "1.*",
     "utopia-php/fetch": "0.5.*",
-    "phpstan/phpstan": "2.*",
-    "phpunit/phpunit": "9.*",
-    "rector/rector": "2.3.8",
-    "swoole/ide-helper": "5.1.2"
+    "phpstan/phpstan": "2.1.54",
+    "phpunit/phpunit": "13.1.9",
+    "rector/rector": "2.4.3",
+    "swoole/ide-helper": "6.0.2"
   },
   "config": {
     "platform": {
-      "php": "8.3"
+      "php": "8.5"
     },
     "allow-plugins": {
       "php-http/discovery": false,
