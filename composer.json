@@ -25,11 +25,11 @@
     "ext-json": "*",
     "ext-swoole": "*",
     "utopia-php/config": "^0.2.2",
-    "utopia-php/console": "0.0.*",
+    "utopia-php/console": "^0.1.1",
     "utopia-php/di": "0.3.*",
     "utopia-php/dsn": "0.2.*",
     "utopia-php/framework": "0.34.*",
-    "utopia-php/orchestration": "0.19.*",
+    "utopia-php/orchestration": "^0.19.2",
     "utopia-php/storage": "0.18.*",
     "utopia-php/system": "0.10.*"
   },
