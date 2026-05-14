@@ -267,9 +267,6 @@ class Docker extends Adapter
          * Temporary file paths in the executor
          */
         $buildFile = "code.tar.gz";
-        if (($variables['OPEN_RUNTIMES_BUILD_COMPRESSION'] ?? '') === 'none') {
-            $buildFile = "code.tar";
-        }
 
         $sourceFile = "code.tar.gz";
         if ($source !== '' && $source !== '0' && \pathinfo($source, PATHINFO_EXTENSION) === 'tar') {

@@ -349,7 +349,7 @@ class ExecutorTest extends TestCase
             'source' => $buildPath,
             'entrypoint' => 'index.js',
             'image' => 'openruntimes/node:v5-22',
-            'runtimeEntrypoint' => 'cp /tmp/code.tar /mnt/code/code.tar && nohup helpers/start.sh "bash helpers/server.sh"',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
         ]);
 
         $this->assertEquals(200, $response['headers']['status-code']);
