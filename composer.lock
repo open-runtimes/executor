@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "27b5d2866c5708ffaf94016770eb92d2",
+    "content-hash": "5133bfd42a9c0919726ac3e8b1fccafe",
     "packages": [
         {
             "name": "brick/math",
@@ -2280,16 +2280,16 @@
         },
         {
             "name": "utopia-php/storage",
-            "version": "0.18.27",
+            "version": "2.0.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/storage.git",
-                "reference": "52d1f89a47165ef0d3deff63043cda182175adfb"
+                "reference": "37129cf0bfcc03210172000e4388d4d3495ae013"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/storage/zipball/52d1f89a47165ef0d3deff63043cda182175adfb",
-                "reference": "52d1f89a47165ef0d3deff63043cda182175adfb",
+                "url": "https://api.github.com/repos/utopia-php/storage/zipball/37129cf0bfcc03210172000e4388d4d3495ae013",
+                "reference": "37129cf0bfcc03210172000e4388d4d3495ae013",
                 "shasum": ""
             },
             "require": {
@@ -2326,9 +2326,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/storage/issues",
-                "source": "https://github.com/utopia-php/storage/tree/0.18.27"
+                "source": "https://github.com/utopia-php/storage/tree/2.0.3"
             },
-            "time": "2026-04-27T11:39:32+00:00"
+            "time": "2026-05-15T09:42:32+00:00"
         },
         {
             "name": "utopia-php/system",
