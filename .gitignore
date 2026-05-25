@@ -5,3 +5,4 @@
 /tests/resources/functions/**/code.zip
 /tests/resources/sites/**/code.tar.gz
 /tests/resources/sites/**/code.zip
+.DS_Store
