@@ -285,9 +285,6 @@ class Docker extends Adapter
          * Temporary file paths in the executor
          */
         $buildFile = "code.tar.gz";
-        if (($variables['OPEN_RUNTIMES_BUILD_COMPRESSION'] ?? '') === 'none') {
-            $buildFile = "code.tar";
-        }
 
         $sourceFile = "code.tar.gz";
         if ($source !== '' && $source !== '0' && \pathinfo($source, PATHINFO_EXTENSION) === 'tar') {
@@ -610,8 +607,6 @@ class Docker extends Adapter
 
                 $errNo = \curl_errno($ch);
 
-                \curl_close($ch);
-
                 return [
                     'errNo' => $errNo,
                     'error' => $error,
@@ -732,8 +727,6 @@ class Docker extends Adapter
 
             $errNo = \curl_errno($ch);
 
-            \curl_close($ch);
-
             if ($errNo !== 0) {
                 return [
                     'errNo' => $errNo,
@@ -842,8 +835,6 @@ class Docker extends Adapter
             $error = \curl_error($ch);
 
             $errNo = \curl_errno($ch);
-
-            \curl_close($ch);
 
             if ($errNo !== 0) {
                 return [

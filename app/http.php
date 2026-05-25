@@ -24,7 +24,7 @@ $settings = [
     'buffer_output_size' => $payloadSize,
 ];
 
-Runtime::enableCoroutine(true, SWOOLE_HOOK_ALL);
+Runtime::enableCoroutine(SWOOLE_HOOK_ALL);
 
 Http::setMode((string)System::getEnv('OPR_EXECUTOR_ENV', Http::MODE_TYPE_PRODUCTION));
 

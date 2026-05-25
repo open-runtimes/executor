@@ -9,7 +9,11 @@ RUN composer install --ignore-platform-reqs --optimize-autoloader \
     --no-plugins --no-scripts --prefer-dist
 
 # Executor
-FROM openruntimes/base:0.1.0 AS final
+FROM appwrite/utopia-base:php-8.5-2.0.0 AS final
+
+RUN apk add --no-cache docker-cli
+
+WORKDIR /usr/local
 
 ARG OPR_EXECUTOR_VERSION
 ENV OPR_EXECUTOR_VERSION=$OPR_EXECUTOR_VERSION

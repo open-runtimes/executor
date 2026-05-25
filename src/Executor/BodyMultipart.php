@@ -13,7 +13,7 @@ class BodyMultipart
 
     public function __construct(?string $boundary = null)
     {
-        $this->boundary = is_null($boundary) ? self::generateBoundary() : $boundary;
+        $this->boundary = $boundary ?? self::generateBoundary();
     }
 
     public static function generateBoundary(): string
@@ -92,7 +92,7 @@ class BodyMultipart
      */
     public function getParts(): array
     {
-        return $this->parts ?? [];
+        return $this->parts;
     }
 
     public function getPart(string $key, mixed $default = ''): mixed

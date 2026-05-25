@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use OpenRuntimes\Executor\Runner\Docker;
 use OpenRuntimes\Executor\Runner\ImagePuller;
 use OpenRuntimes\Executor\Runner\Maintenance;
