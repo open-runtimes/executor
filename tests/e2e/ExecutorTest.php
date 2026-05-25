@@ -41,15 +41,18 @@ class ExecutorTest extends TestCase
     {
         $stdout = '';
         $stderr = '';
-        $tmpArchive = \tempnam(\sys_get_temp_dir(), 'executor-archive-');
+        $tmpArchive = $directory . '/' . $archive . '.tmp';
 
-        $this->assertIsString($tmpArchive);
+        if (\file_exists($tmpArchive)) {
+            $this->assertTrue(\unlink($tmpArchive));
+        }
 
         $exitCode = Console::execute(
             Command::and(
                 new Command('cd')->argument($directory),
                 new Command('tar')
                     ->option('--exclude', $archive)
+                    ->option('--exclude', \basename($tmpArchive))
                     ->flag('-czf')
                     ->argument($tmpArchive)
                     ->argument('.')
@@ -67,15 +70,18 @@ class ExecutorTest extends TestCase
     {
         $stdout = '';
         $stderr = '';
-        $tmpArchive = \tempnam(\sys_get_temp_dir(), 'executor-archive-');
+        $tmpArchive = $directory . '/' . $archive . '.tmp';
 
-        $this->assertIsString($tmpArchive);
+        if (\file_exists($tmpArchive)) {
+            $this->assertTrue(\unlink($tmpArchive));
+        }
 
         $exitCode = Console::execute(
             Command::and(
                 new Command('cd')->argument($directory),
                 new Command('zip')
                     ->option('-x', $archive)
+                    ->option('-x', \basename($tmpArchive))
                     ->flag('-r')
                     ->argument($tmpArchive)
                     ->argument('.')
