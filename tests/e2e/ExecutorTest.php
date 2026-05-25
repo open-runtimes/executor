@@ -44,8 +44,8 @@ class ExecutorTest extends TestCase
 
         $exitCode = Console::execute(
             Command::and(
-                (new Command('cd'))->argument($directory),
-                (new Command('tar'))
+                new Command('cd')->argument($directory),
+                new Command('tar')
                     ->option('--exclude', $archive)
                     ->flag('-czf')
                     ->argument($archive)
@@ -66,8 +66,8 @@ class ExecutorTest extends TestCase
 
         $exitCode = Console::execute(
             Command::and(
-                (new Command('cd'))->argument($directory),
-                (new Command('zip'))
+                new Command('cd')->argument($directory),
+                new Command('zip')
                     ->option('-x', $archive)
                     ->flag('-r')
                     ->argument($archive)
