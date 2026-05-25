@@ -41,6 +41,9 @@ class ExecutorTest extends TestCase
     {
         $stdout = '';
         $stderr = '';
+        $tmpArchive = \tempnam(\sys_get_temp_dir(), 'executor-archive-');
+
+        $this->assertIsString($tmpArchive);
 
         $exitCode = Console::execute(
             Command::and(
@@ -48,7 +51,7 @@ class ExecutorTest extends TestCase
                 new Command('tar')
                     ->option('--exclude', $archive)
                     ->flag('-czf')
-                    ->argument($archive)
+                    ->argument($tmpArchive)
                     ->argument('.')
             ),
             '',
@@ -57,12 +60,16 @@ class ExecutorTest extends TestCase
         );
 
         $this->assertSame(0, $exitCode, $stderr);
+        $this->assertTrue(\rename($tmpArchive, $directory . '/' . $archive));
     }
 
     private function createZipArchive(string $directory, string $archive = 'code.zip'): void
     {
         $stdout = '';
         $stderr = '';
+        $tmpArchive = \tempnam(\sys_get_temp_dir(), 'executor-archive-');
+
+        $this->assertIsString($tmpArchive);
 
         $exitCode = Console::execute(
             Command::and(
@@ -70,7 +77,7 @@ class ExecutorTest extends TestCase
                 new Command('zip')
                     ->option('-x', $archive)
                     ->flag('-r')
-                    ->argument($archive)
+                    ->argument($tmpArchive)
                     ->argument('.')
             ),
             '',
@@ -79,6 +86,7 @@ class ExecutorTest extends TestCase
         );
 
         $this->assertSame(0, $exitCode, $stderr);
+        $this->assertTrue(\rename($tmpArchive, $directory . '/' . $archive));
     }
 
     public function testLogStream(): void
