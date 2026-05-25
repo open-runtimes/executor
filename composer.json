@@ -29,7 +29,7 @@
     "utopia-php/di": "0.3.*",
     "utopia-php/dsn": "0.2.*",
     "utopia-php/framework": "0.34.*",
-    "utopia-php/orchestration": "dev-chore/console-0-2-structured-commands",
+    "utopia-php/orchestration": "0.20.*",
     "utopia-php/storage": "^2.0",
     "utopia-php/system": "0.10.*"
   },
