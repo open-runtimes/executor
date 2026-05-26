@@ -71,6 +71,8 @@ class ExecutorTest extends TestCase
         $tmpArchive = \tempnam(\sys_get_temp_dir(), 'executor-archive-');
 
         $this->assertIsString($tmpArchive);
+        $this->assertTrue(\unlink($tmpArchive));
+        $tmpArchive .= '.zip';
 
         $exitCode = Console::execute(
             Command::and(
