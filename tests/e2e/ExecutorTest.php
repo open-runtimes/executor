@@ -41,18 +41,15 @@ class ExecutorTest extends TestCase
     {
         $stdout = '';
         $stderr = '';
-        $tmpArchive = $directory . '/' . $archive . '.tmp';
+        $tmpArchive = \tempnam(\sys_get_temp_dir(), 'executor-archive-');
 
-        if (\file_exists($tmpArchive)) {
-            $this->assertTrue(\unlink($tmpArchive));
-        }
+        $this->assertIsString($tmpArchive);
 
         $exitCode = Console::execute(
             Command::and(
                 new Command('cd')->argument($directory),
                 new Command('tar')
                     ->option('--exclude', $archive)
-                    ->option('--exclude', \basename($tmpArchive))
                     ->flag('-czf')
                     ->argument($tmpArchive)
                     ->argument('.')
@@ -63,25 +60,23 @@ class ExecutorTest extends TestCase
         );
 
         $this->assertSame(0, $exitCode, $stderr);
-        $this->assertTrue(\rename($tmpArchive, $directory . '/' . $archive));
+        $this->assertTrue(\copy($tmpArchive, $directory . '/' . $archive));
+        $this->assertTrue(\unlink($tmpArchive));
     }
 
     private function createZipArchive(string $directory, string $archive = 'code.zip'): void
     {
         $stdout = '';
         $stderr = '';
-        $tmpArchive = $directory . '/' . $archive . '.tmp';
+        $tmpArchive = \tempnam(\sys_get_temp_dir(), 'executor-archive-');
 
-        if (\file_exists($tmpArchive)) {
-            $this->assertTrue(\unlink($tmpArchive));
-        }
+        $this->assertIsString($tmpArchive);
 
         $exitCode = Console::execute(
             Command::and(
                 new Command('cd')->argument($directory),
                 new Command('zip')
                     ->option('-x', $archive)
-                    ->option('-x', \basename($tmpArchive))
                     ->flag('-r')
                     ->argument($tmpArchive)
                     ->argument('.')
@@ -92,7 +87,8 @@ class ExecutorTest extends TestCase
         );
 
         $this->assertSame(0, $exitCode, $stderr);
-        $this->assertTrue(\rename($tmpArchive, $directory . '/' . $archive));
+        $this->assertTrue(\copy($tmpArchive, $directory . '/' . $archive));
+        $this->assertTrue(\unlink($tmpArchive));
     }
 
     public function testLogStream(): void
