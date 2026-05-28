@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d3f6bf0fe0a5f7e8f4682d9bdcf8f4d8",
+    "content-hash": "fcc19e168530cc9be6ce3a78ceb18bff",
     "packages": [
         {
             "name": "brick/math",
@@ -2119,7 +2119,7 @@
             "time": "2024-05-07T02:01:25+00:00"
         },
         {
-            "name": "utopia-php/framework",
+            "name": "utopia-php/http",
             "version": "0.34.25",
             "source": {
                 "type": "git",
