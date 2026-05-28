@@ -1,7 +1,4 @@
-const fetch = require("node-fetch");
-
 module.exports = async (context)=> {
-    const todo = await fetch(`https://dummyjson.com/todos/${context.req.body.id ?? 1}`).then(r => r.json());
     context.log('Sample Log');
 
     return context.res.json({
@@ -9,6 +6,11 @@ module.exports = async (context)=> {
         message: 'Hello Open Runtimes 👋',
         url: context.req.url,
         variable: process.env['TEST_VARIABLE'],
-        todo
+        todo: {
+            id: Number(context.req.body.id ?? 1),
+            todo: 'Use a local fixture for executor tests.',
+            completed: false,
+            userId: 13,
+        }
     });
 }

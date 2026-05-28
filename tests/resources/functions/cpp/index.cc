@@ -6,7 +6,6 @@
 #include <iostream>
 #include <any>
 #include <string>
-#include <curl/curl.h>
 
 using namespace std;
 
@@ -21,33 +20,11 @@ namespace runtime {
             Json::Value payload = std::any_cast<Json::Value>(req.body);
             std::string id = payload["id"].asString();
 
-            Json::CharReaderBuilder builder;
-            Json::CharReader *reader = builder.newCharReader();
-
-            CURL *curl;
-            CURLcode curlRes;
-            std::string todoBuffer;
-
-            curl = curl_easy_init();
-            if (curl)
-            {
-                std::string url = "https://dummyjson.com/todos/" + id;
-                curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-                curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-                curl_easy_setopt(curl, CURLOPT_WRITEDATA, &todoBuffer);
-                curlRes = curl_easy_perform(curl);
-                curl_easy_cleanup(curl);
-            }
-
             Json::Value todo;
-            reader->parse(
-                todoBuffer.c_str(),
-                todoBuffer.c_str() + todoBuffer.size(),
-                &todo,
-                nullptr
-            );
-
-            delete reader;
+            todo["id"] = stoi(id);
+            todo["todo"] = "Use a local fixture for executor tests.";
+            todo["completed"] = false;
+            todo["userId"] = 13;
 
             Json::Value response;
             response["isTest"] = true;
@@ -59,12 +36,6 @@ namespace runtime {
             context.log("Sample Log");
 
             return res.json(response);
-        }
-
-        static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
-        {
-            ((std::string *) userp)->append((char *) contents, size * nmemb);
-            return size * nmemb;
         }
     };
 }

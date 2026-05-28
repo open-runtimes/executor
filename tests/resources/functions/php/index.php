@@ -3,16 +3,7 @@
 
 require 'vendor/autoload.php';
 
-use GuzzleHttp\Client;
-
-$client = new Client([
-    'base_uri' => 'https://dummyjson.com'
-]);
-
-return function ($context) use ($client) {
-    $response = $client->request('GET', '/todos/' . ($context->req->body['id'] ?? 1));
-    $todo = \json_decode($response->getBody()->getContents(), true);
-
+return function ($context) {
     $context->log("Sample Log");
 
     return $context->res->json([
@@ -20,7 +11,12 @@ return function ($context) use ($client) {
         'message' => 'Hello Open Runtimes 👋',
         'variable' => \getenv('TEST_VARIABLE'),
         'url' => $context->req->url,
-        'todo' => $todo
+        'todo' => [
+            'id' => (int) ($context->req->body['id'] ?? 1),
+            'todo' => 'Use a local fixture for executor tests.',
+            'completed' => false,
+            'userId' => 13,
+        ],
     ], 200, [
         'x-key' => 'aValue'
     ]);

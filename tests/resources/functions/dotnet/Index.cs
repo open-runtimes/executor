@@ -1,20 +1,14 @@
 namespace DotNetRuntime;
 
 using System;
-using Newtonsoft.Json;
 
 public class Handler {
-    static readonly HttpClient http = new();
-
     public async Task<RuntimeOutput> Main(RuntimeContext Context)
     {
         Dictionary<String, Object> Body = (Dictionary<String, Object>) Context.Req.Body;
 
         string id = Body.TryGetValue("id", out var value) == true ? value.ToString()! : "1";
         var varData = Environment.GetEnvironmentVariable("TEST_VARIABLE") ?? null;
-
-        var response = await http.GetStringAsync($"https://dummyjson.com/todos/" + id);
-        var todo = JsonConvert.DeserializeObject<Dictionary<string, object>>(response, settings: null);
 
         Context.Log("Sample Log");
 
@@ -24,7 +18,14 @@ public class Handler {
             { "message", "Hello Open Runtimes 👋" },
             { "variable", varData },
             { "url", Context.Req.Url },
-            { "todo", todo }
+            { "todo", new Dictionary<string, object>
+                {
+                    { "id", int.Parse(id) },
+                    { "todo", "Use a local fixture for executor tests." },
+                    { "completed", false },
+                    { "userId", 13 }
+                }
+            }
         });
     }
 }
