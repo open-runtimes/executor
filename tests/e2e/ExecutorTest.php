@@ -251,6 +251,21 @@ class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(400, $response['headers']['status-code']);
 
+        /** Invalid cache key */
+        $params = [
+            'runtimeId' => 'test-build-fail-cache-key-' . $runtimeId,
+            'source' => '/storage/functions/php/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v5-8.1',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "composer install"',
+            'cacheKey' => '..',
+            'remove' => true
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(400, $response['headers']['status-code']);
+
         /** Test invalid path */
         $params = [
             'runtimeId' => 'test-build-fail-500-' . $runtimeId,

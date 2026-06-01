@@ -154,7 +154,7 @@ docker compose down
 | `variables` | `json` | Environment variables passed into runtime |  | [ ] |
 | `runtimeEntrypoint` | `string` | Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long. |  | ' ' |
 | `command` | `string` | Commands to run after container is created. Maximum of 100 commands are allowed, each 1024 characters long. |  | ' ' |
-| `cacheKey` | `string` | Optional key for sharing build caches. Allowed characters are letters, numbers, dots, underscores, and hyphens. |  | ' ' |
+| `cacheKey` | `string` | Optional key for sharing build caches. Must start with a letter or number. Allowed characters are letters, numbers, dots, underscores, and hyphens. |  | ' ' |
 | `timeout` | `integer` | Commands execution time in seconds |  | 600 |
 | `remove` | `boolean` | Remove a runtime after execution |  | false |
 | `cpus` | `float` | Maximum CPU cores runtime can utilize |  | 1 |
