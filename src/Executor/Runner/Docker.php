@@ -321,7 +321,7 @@ class Docker extends Adapter
 
             $cacheEnabled = $cacheKey !== '' && $cacheKey !== '0' && $command !== '' && $command !== '0';
             if ($cacheEnabled) {
-                $cacheVolume = System::getEnv('OPR_EXECUTOR_NODE_MODULES_CACHE_VOLUME', 'openruntimes-node-modules-cache');
+                $cacheVolume = System::getEnv('OPR_EXECUTOR_BUILD_CACHE_VOLUME', 'openruntimes-build-cache');
                 $volumes[] = $cacheVolume . ':/cache:rw';
                 $variables = \array_merge($variables, $this->getPackageManagerCacheVariables($cacheKey));
             }
@@ -518,7 +518,7 @@ class Docker extends Adapter
 
     private function withPackageManagerCacheLog(string $command): string
     {
-        return "printf '%s\n' '[node_modules cache] Using package manager cache.'; " . $command;
+        return "printf '%s\n' '[build cache] Using package manager cache.'; " . $command;
     }
 
     /**

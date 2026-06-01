@@ -362,14 +362,14 @@ class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
-    public function testBuildNodeModulesCache(): void
+    public function testBuildCache(): void
     {
         $output = '';
         $stderr = '';
         Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
 
         $runtimeId = \bin2hex(\random_bytes(4));
-        $cacheKey = 'test-node-modules-' . $runtimeId;
+        $cacheKey = 'test-build-cache-' . $runtimeId;
         $npmCache = '/cache/' . $cacheKey . '/npm';
 
         $params = [
@@ -391,7 +391,7 @@ class ExecutorTest extends TestCase
             $firstBuildOutput .= $outputItem['content'];
         }
 
-        $this->assertStringContainsString('[node_modules cache] Using package manager cache.', $firstBuildOutput);
+        $this->assertStringContainsString('[build cache] Using package manager cache.', $firstBuildOutput);
 
         $params = [
             'runtimeId' => 'test-build-cache-hit-' . $runtimeId,

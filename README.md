@@ -61,7 +61,7 @@ services:
       - OPR_EXECUTOR_RETRY_ATTEMPTS
       - OPR_EXECUTOR_RETRY_DELAY_MS
       - OPR_EXECUTOR_IMAGE_PULL
-      - OPR_EXECUTOR_NODE_MODULES_CACHE_VOLUME
+      - OPR_EXECUTOR_BUILD_CACHE_VOLUME
 
 networks:
   openruntimes-runtimes:
@@ -89,7 +89,7 @@ OPR_EXECUTOR_DOCKER_HUB_PASSWORD=
 OPR_EXECUTOR_RUNTIME_VERSIONS=v5
 OPR_EXECUTOR_RETRY_ATTEMPTS=5
 OPR_EXECUTOR_RETRY_DELAY_MS=500
-OPR_EXECUTOR_NODE_MODULES_CACHE_VOLUME=openruntimes-node-modules-cache
+OPR_EXECUTOR_BUILD_CACHE_VOLUME=openruntimes-build-cache
 ```
 
 > `OPR_EXECUTOR_CONNECTION_STORAGE` takes a DSN string that represents a connection to your storage device. If you would like to use your local filesystem, you can use `file://localhost`. If using S3 or any other provider for storage, use a DSN of the following format `s3://access_key:access_secret@host:port/bucket_name?region=us-east-1`
@@ -154,7 +154,7 @@ docker compose down
 | `variables` | `json` | Environment variables passed into runtime |  | [ ] |
 | `runtimeEntrypoint` | `string` | Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long. |  | ' ' |
 | `command` | `string` | Commands to run after container is created. Maximum of 100 commands are allowed, each 1024 characters long. |  | ' ' |
-| `cacheKey` | `string` | Optional key for sharing package manager caches between Node builds. Allowed characters are letters, numbers, dots, underscores, and hyphens. |  | ' ' |
+| `cacheKey` | `string` | Optional key for sharing build caches. Allowed characters are letters, numbers, dots, underscores, and hyphens. |  | ' ' |
 | `timeout` | `integer` | Commands execution time in seconds |  | 600 |
 | `remove` | `boolean` | Remove a runtime after execution |  | false |
 | `cpus` | `float` | Maximum CPU cores runtime can utilize |  | 1 |
@@ -200,7 +200,7 @@ docker compose down
 | OPR_EXECUTOR_RUNTIME_VERSIONS    | Version tag for runtime environments, ex: `v5`                                                                                                |
 | OPR_EXECUTOR_RETRY_ATTEMPTS      | Number of retry attempts for failed executions, ex: `5`                                                                                       |
 | OPR_EXECUTOR_RETRY_DELAY_MS      | Delay (in milliseconds) between retry attempts, ex: `500`                                                                                    |
-| OPR_EXECUTOR_NODE_MODULES_CACHE_VOLUME | Docker volume name used to store package manager caches by `cacheKey`, ex: `openruntimes-node-modules-cache`                           |
+| OPR_EXECUTOR_BUILD_CACHE_VOLUME | Docker volume name used to store build caches by `cacheKey`, ex: `openruntimes-build-cache`                           |
 
 ## Contributing
 
