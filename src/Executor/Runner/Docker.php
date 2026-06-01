@@ -319,7 +319,7 @@ class Docker extends Adapter
                 \dirname($tmpBuild) . ':' . $codeMountPath . ':rw',
             ];
 
-            $cacheEnabled = $cacheKey !== '' && $cacheKey !== '0' && $command !== '' && $command !== '0';
+            $cacheEnabled = $cacheKey !== '' && $command !== '' && $command !== '0';
             if ($cacheEnabled) {
                 $cacheVolume = System::getEnv('OPR_EXECUTOR_BUILD_CACHE_VOLUME', 'openruntimes-build-cache');
                 $volumes[] = $cacheVolume . ':/cache:rw';
@@ -531,7 +531,7 @@ class Docker extends Adapter
         return [
             'npm_config_cache' => $cacheRoot . '/npm',
             'YARN_CACHE_FOLDER' => $cacheRoot . '/yarn',
-            'PNPM_STORE_DIR' => $cacheRoot . '/pnpm',
+            'npm_config_store_dir' => $cacheRoot . '/pnpm',
             'BUN_INSTALL_CACHE_DIR' => $cacheRoot . '/bun',
         ];
     }

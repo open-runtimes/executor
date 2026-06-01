@@ -72,7 +72,7 @@ Http::post('/v1/runtimes')
     ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, string $outputDirectory, array $variables, string $runtimeEntrypoint, string $command, string $cacheKey, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Response $response, Runner $runner): void {
         $secret = \bin2hex(\random_bytes(16));
 
-        if ($cacheKey !== '' && $cacheKey !== '0' && !\preg_match('/^[A-Za-z0-9._-]{1,128}$/', $cacheKey)) {
+        if ($cacheKey !== '' && !\preg_match('/^[A-Za-z0-9._-]{1,128}$/', $cacheKey)) {
             throw new Exception(Exception::EXECUTION_BAD_REQUEST, 'Cache key may only contain letters, numbers, dots, underscores, and hyphens.');
         }
 
