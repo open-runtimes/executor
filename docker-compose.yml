@@ -33,6 +33,7 @@ services:
       - OPR_EXECUTOR_RETRY_DELAY_MS
       - OPR_EXECUTOR_IMAGE_PULL
       - OPR_EXECUTOR_BUILD_CACHE_VOLUME
+      - OPR_EXECUTOR_BUILD_CACHE_HELPER_IMAGE
 
 volumes:
   openruntimes-builds:

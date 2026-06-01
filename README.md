@@ -62,6 +62,7 @@ services:
       - OPR_EXECUTOR_RETRY_DELAY_MS
       - OPR_EXECUTOR_IMAGE_PULL
       - OPR_EXECUTOR_BUILD_CACHE_VOLUME
+      - OPR_EXECUTOR_BUILD_CACHE_HELPER_IMAGE
 
 networks:
   openruntimes-runtimes:
@@ -90,6 +91,7 @@ OPR_EXECUTOR_RUNTIME_VERSIONS=v5
 OPR_EXECUTOR_RETRY_ATTEMPTS=5
 OPR_EXECUTOR_RETRY_DELAY_MS=500
 OPR_EXECUTOR_BUILD_CACHE_VOLUME=openruntimes-build-cache
+OPR_EXECUTOR_BUILD_CACHE_HELPER_IMAGE=busybox:1.37
 ```
 
 > `OPR_EXECUTOR_CONNECTION_STORAGE` takes a DSN string that represents a connection to your storage device. If you would like to use your local filesystem, you can use `file://localhost`. If using S3 or any other provider for storage, use a DSN of the following format `s3://access_key:access_secret@host:port/bucket_name?region=us-east-1`
@@ -201,6 +203,7 @@ docker compose down
 | OPR_EXECUTOR_RETRY_ATTEMPTS      | Number of retry attempts for failed executions, ex: `5`                                                                                       |
 | OPR_EXECUTOR_RETRY_DELAY_MS      | Delay (in milliseconds) between retry attempts, ex: `500`                                                                                    |
 | OPR_EXECUTOR_BUILD_CACHE_VOLUME | Docker volume name used to store build caches by `cacheKey`, ex: `openruntimes-build-cache`                           |
+| OPR_EXECUTOR_BUILD_CACHE_HELPER_IMAGE | Helper image used to create Docker volume subpaths before mounting isolated build caches, ex: `busybox:1.37` |
 
 ## Contributing
 

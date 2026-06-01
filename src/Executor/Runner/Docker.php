@@ -12,6 +12,7 @@ use Throwable;
 use Utopia\Console;
 use Utopia\Http\Response;
 use Utopia\Logger\Log;
+use Utopia\Orchestration\Mount;
 use Utopia\Orchestration\Orchestration;
 use Utopia\Orchestration\Exception\Timeout as TimeoutException;
 use Utopia\Orchestration\Exception\Orchestration as OrchestrationException;
@@ -322,8 +323,9 @@ class Docker extends Adapter
             $cacheEnabled = $cacheKey !== '' && $command !== '' && $command !== '0';
             if ($cacheEnabled) {
                 $cacheVolume = System::getEnv('OPR_EXECUTOR_BUILD_CACHE_VOLUME', 'openruntimes-build-cache');
-                $volumes[] = $cacheVolume . ':/cache:rw';
-                $variables = \array_merge($variables, $this->getPackageManagerCacheVariables($cacheKey));
+                $this->ensureBuildCacheSubpath($cacheVolume, $cacheKey);
+                $volumes[] = Mount::volume($cacheVolume, '/cache', false, $cacheKey);
+                $variables = \array_merge($variables, $this->getPackageManagerCacheVariables());
             }
 
             if ($version === 'v5') {
@@ -521,17 +523,35 @@ class Docker extends Adapter
         return "printf '%s\n' '[build cache] Using package manager cache.'; " . $command;
     }
 
+    private function ensureBuildCacheSubpath(string $cacheVolume, string $cacheKey): void
+    {
+        $output = '';
+        $stderr = '';
+        $helperImage = System::getEnv('OPR_EXECUTOR_BUILD_CACHE_HELPER_IMAGE', 'busybox:1.37');
+
+        $command = 'docker volume create ' . \escapeshellarg($cacheVolume) . ' >/dev/null && docker run --rm --volume ' . \escapeshellarg($cacheVolume . ':/cache:rw') . ' ' . \escapeshellarg($helperImage) . ' mkdir -p ' . \escapeshellarg('/cache/' . $cacheKey);
+        $status = Console::execute($command, '', $output, $stderr, 30);
+
+        if ($status !== 0) {
+            $error = $stderr !== '' ? $stderr : $output;
+            throw new \Exception('Failed to prepare build cache subpath: ' . $error);
+        }
+    }
+
     /**
      * @return array<string, string>
      */
-    private function getPackageManagerCacheVariables(string $cacheKey): array
+    private function getPackageManagerCacheVariables(): array
     {
-        $cacheRoot = '/cache/' . $cacheKey;
+        $cacheRoot = '/cache';
 
         return [
             'npm_config_cache' => $cacheRoot . '/npm',
             'YARN_CACHE_FOLDER' => $cacheRoot . '/yarn',
             'npm_config_store_dir' => $cacheRoot . '/pnpm',
+            'pnpm_config_store_dir' => $cacheRoot . '/pnpm',
+            'XDG_CACHE_HOME' => $cacheRoot . '/xdg-cache',
+            'XDG_STATE_HOME' => $cacheRoot . '/xdg-state',
             'BUN_INSTALL_CACHE_DIR' => $cacheRoot . '/bun',
         ];
     }

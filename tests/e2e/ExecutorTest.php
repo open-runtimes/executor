@@ -575,7 +575,7 @@ class ExecutorTest extends TestCase
 
         $runtimeId = \bin2hex(\random_bytes(4));
         $cacheKey = 'test-build-cache-' . $runtimeId;
-        $npmCache = '/cache/' . $cacheKey . '/npm';
+        $pnpmCache = '/cache/pnpm';
 
         $params = [
             'runtimeId' => 'test-build-cache-miss-' . $runtimeId,
@@ -583,7 +583,7 @@ class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test-cache-miss',
             'entrypoint' => 'index.js',
             'image' => 'openruntimes/node:v5-18.0',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm install && test -d ' . $npmCache . ' && touch ' . $npmCache . '/.open-runtimes-cache-test"',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "pnpm install && test -d ' . $pnpmCache . ' && touch ' . $pnpmCache . '/.open-runtimes-cache-test"',
             'cacheKey' => $cacheKey,
             'remove' => true,
         ];
@@ -604,7 +604,7 @@ class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test-cache-hit',
             'entrypoint' => 'index.js',
             'image' => 'openruntimes/node:v5-18.0',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm install && test -f ' . $npmCache . '/.open-runtimes-cache-test"',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "pnpm install && test -f ' . $pnpmCache . '/.open-runtimes-cache-test"',
             'cacheKey' => $cacheKey,
             'remove' => true,
         ];
