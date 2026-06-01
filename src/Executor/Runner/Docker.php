@@ -353,7 +353,7 @@ class Docker extends Adapter
             }
 
             if ($cacheEnabled) {
-                $command = $this->withPackageManagerCacheLog($command, $cacheKey);
+                $command = $this->withPackageManagerCacheLog($command);
             }
 
             /**
@@ -516,7 +516,7 @@ class Docker extends Adapter
         return $container;
     }
 
-    private function withPackageManagerCacheLog(string $command, string $cacheKey): string
+    private function withPackageManagerCacheLog(string $command): string
     {
         return "printf '%s\n' '[node_modules cache] Using package manager cache.'; " . $command;
     }
