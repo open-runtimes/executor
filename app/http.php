@@ -37,38 +37,30 @@ Http::onStart()
         /** @var Container $container */
         global $container;
 
-        try {
-            /* Fetch own container information */
-            $hostname = gethostname() ?: throw new \RuntimeException('Could not determine hostname');
-            $containerName = System::getEnv('OPR_EXECUTOR_CONTAINER_NAME', 'openruntimes-executor');
-            $selfContainer = $orchestration->list(['name' => $hostname])[0]
-                ?? $orchestration->list(['name' => $containerName])[0]
-                ?? throw new \RuntimeException('Own container not found');
+        /* Fetch own container information */
+        $hostname = gethostname() ?: throw new \RuntimeException('Could not determine hostname');
+        $selfContainer = $orchestration->list(['name' => $hostname])[0] ?? throw new \RuntimeException('Own container not found');
 
-            /* Create desired networks if they don't exist */
-            $network->setup(
-                explode(',', System::getEnv('OPR_EXECUTOR_NETWORK') ?: 'openruntimes-runtimes'),
-                $selfContainer->getName()
-            );
-            $container->set(
-                'networks',
-                $network->getAvailable(...)
-            );
+        /* Create desired networks if they don't exist */
+        $network->setup(
+            explode(',', System::getEnv('OPR_EXECUTOR_NETWORK') ?: 'openruntimes-runtimes'),
+            $selfContainer->getName()
+        );
+        $container->set(
+            'networks',
+            $network->getAvailable(...)
+        );
 
-            /* Pull images */
-            $imagePuller->pull(explode(',', System::getEnv('OPR_EXECUTOR_IMAGES') ?: ''));
+        /* Pull images */
+        $imagePuller->pull(explode(',', System::getEnv('OPR_EXECUTOR_IMAGES') ?: ''));
 
-            /* Start maintenance task */
-            $maintenance->start(
-                (int)System::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'),
-                (int)System::getEnv('OPR_EXECUTOR_INACTIVE_THRESHOLD', '60')
-            );
+        /* Start maintenance task */
+        $maintenance->start(
+            (int)System::getEnv('OPR_EXECUTOR_MAINTENANCE_INTERVAL', '3600'),
+            (int)System::getEnv('OPR_EXECUTOR_INACTIVE_THRESHOLD', '60')
+        );
 
-            Console::success('Executor is ready.');
-        } catch (\Throwable $throwable) {
-            Console::error('[Executor] Startup failed: ' . $throwable->getMessage());
-            throw $throwable;
-        }
+        Console::success('Executor is ready.');
     });
 
 Http::onRequest()

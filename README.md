@@ -154,7 +154,7 @@ docker compose down
 | `variables` | `json` | Environment variables passed into runtime |  | [ ] |
 | `runtimeEntrypoint` | `string` | Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long. |  | ' ' |
 | `command` | `string` | Commands to run after container is created. Maximum of 100 commands are allowed, each 1024 characters long. |  | ' ' |
-| `cacheKey` | `string` | Optional key for sharing cached `node_modules` between builds. Allowed characters are letters, numbers, dots, underscores, and hyphens. |  | ' ' |
+| `cacheKey` | `string` | Optional key for sharing package manager caches between Node builds. Allowed characters are letters, numbers, dots, underscores, and hyphens. |  | ' ' |
 | `timeout` | `integer` | Commands execution time in seconds |  | 600 |
 | `remove` | `boolean` | Remove a runtime after execution |  | false |
 | `cpus` | `float` | Maximum CPU cores runtime can utilize |  | 1 |
@@ -200,7 +200,7 @@ docker compose down
 | OPR_EXECUTOR_RUNTIME_VERSIONS    | Version tag for runtime environments, ex: `v5`                                                                                                |
 | OPR_EXECUTOR_RETRY_ATTEMPTS      | Number of retry attempts for failed executions, ex: `5`                                                                                       |
 | OPR_EXECUTOR_RETRY_DELAY_MS      | Delay (in milliseconds) between retry attempts, ex: `500`                                                                                    |
-| OPR_EXECUTOR_NODE_MODULES_CACHE_VOLUME | Docker volume name used to store cached `node_modules` by `cacheKey`, ex: `openruntimes-node-modules-cache`                           |
+| OPR_EXECUTOR_NODE_MODULES_CACHE_VOLUME | Docker volume name used to store package manager caches by `cacheKey`, ex: `openruntimes-node-modules-cache`                           |
 
 ## Contributing
 

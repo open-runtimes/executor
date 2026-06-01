@@ -370,6 +370,7 @@ class ExecutorTest extends TestCase
 
         $runtimeId = \bin2hex(\random_bytes(4));
         $cacheKey = 'test-node-modules-' . $runtimeId;
+        $npmCache = '/cache/' . $cacheKey . '/npm';
 
         $params = [
             'runtimeId' => 'test-build-cache-miss-' . $runtimeId,
@@ -377,7 +378,7 @@ class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test-cache-miss',
             'entrypoint' => 'index.js',
             'image' => 'openruntimes/node:v5-18.0',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm install && test ! -f node_modules/.open-runtimes-cache-test && touch node_modules/.open-runtimes-cache-test"',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm install && test -d ' . $npmCache . ' && touch ' . $npmCache . '/.open-runtimes-cache-test"',
             'cacheKey' => $cacheKey,
             'remove' => true,
         ];
@@ -390,7 +391,7 @@ class ExecutorTest extends TestCase
             $firstBuildOutput .= $outputItem['content'];
         }
 
-        $this->assertStringContainsString('node_modules cache miss: ' . $cacheKey, $firstBuildOutput);
+        $this->assertStringContainsString('[node_modules cache] Using package manager cache.', $firstBuildOutput);
 
         $params = [
             'runtimeId' => 'test-build-cache-hit-' . $runtimeId,
@@ -398,7 +399,7 @@ class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test-cache-hit',
             'entrypoint' => 'index.js',
             'image' => 'openruntimes/node:v5-18.0',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm install && test -f node_modules/.open-runtimes-cache-test"',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm install && test -f ' . $npmCache . '/.open-runtimes-cache-test"',
             'cacheKey' => $cacheKey,
             'remove' => true,
         ];
@@ -406,12 +407,6 @@ class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
 
-        $secondBuildOutput = '';
-        foreach ($response['body']['output'] as $outputItem) {
-            $secondBuildOutput .= $outputItem['content'];
-        }
-
-        $this->assertStringContainsString('node_modules cache hit: ' . $cacheKey, $secondBuildOutput);
         $this->assertNotEmpty($response['body']['path']);
 
         $buildPath = $response['body']['path'];

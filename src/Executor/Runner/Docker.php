@@ -319,10 +319,11 @@ class Docker extends Adapter
                 \dirname($tmpBuild) . ':' . $codeMountPath . ':rw',
             ];
 
-            if ($cacheKey !== '' && $cacheKey !== '0' && $command !== '' && $command !== '0') {
+            $cacheEnabled = $cacheKey !== '' && $cacheKey !== '0' && $command !== '' && $command !== '0';
+            if ($cacheEnabled) {
                 $cacheVolume = System::getEnv('OPR_EXECUTOR_NODE_MODULES_CACHE_VOLUME', 'openruntimes-node-modules-cache');
                 $volumes[] = $cacheVolume . ':/cache:rw';
-                $command = $this->withNodeModulesCache($command, $cacheKey);
+                $variables = \array_merge($variables, $this->getPackageManagerCacheVariables($cacheKey));
             }
 
             if ($version === 'v5') {
@@ -349,6 +350,10 @@ class Docker extends Adapter
 
             if ($containerId === '' || $containerId === '0') {
                 throw new \Exception('Failed to create runtime');
+            }
+
+            if ($cacheEnabled) {
+                $command = $this->withPackageManagerCacheLog($command, $cacheKey);
             }
 
             /**
@@ -511,68 +516,24 @@ class Docker extends Adapter
         return $container;
     }
 
-    private function withNodeModulesCache(string $command, string $cacheKey): string
+    private function withPackageManagerCacheLog(string $command, string $cacheKey): string
     {
-        $cacheKey = \escapeshellarg($cacheKey);
+        return "printf '%s\n' '[node_modules cache] Using package manager cache.'; " . $command;
+    }
 
-        $script = <<<'SH'
-mkdir -p /tmp/open-runtimes-cache && cat > /tmp/open-runtimes-cache/node-modules.sh <<'OPEN_RUNTIMES_CACHE'
-if [ "${PWD:-}" != "/usr/local/build" ] || [ -n "${OPEN_RUNTIMES_NODE_MODULES_CACHE_ACTIVE:-}" ]; then
-    return 0 2>/dev/null || true
-fi
+    /**
+     * @return array<string, string>
+     */
+    private function getPackageManagerCacheVariables(string $cacheKey): array
+    {
+        $cacheRoot = '/cache/' . $cacheKey;
 
-set -e
-
-export OPEN_RUNTIMES_NODE_MODULES_CACHE_ACTIVE=1
-
-CACHE_KEY=${OPEN_RUNTIMES_NODE_MODULES_CACHE_KEY:?}
-CACHE_PATH="/cache/$CACHE_KEY"
-CACHE_NODE_MODULES="$CACHE_PATH/node_modules"
-LOCK_ROOT="/cache/.locks"
-LOCK_PATH="$LOCK_ROOT/$CACHE_KEY"
-
-mkdir -p "$LOCK_ROOT"
-while ! mkdir "$LOCK_PATH" 2>/dev/null; do
-    echo "Waiting for node_modules cache lock: $CACHE_KEY"
-    sleep 1
-done
-
-cleanup_node_modules_cache() {
-    status=$?
-    set +e
-
-    if [ -L node_modules ] && [ -d "$CACHE_NODE_MODULES" ]; then
-        rm -rf /tmp/open-runtimes-node_modules-copy
-        cp -a "$CACHE_NODE_MODULES" /tmp/open-runtimes-node_modules-copy
-        rm -f node_modules
-        mv /tmp/open-runtimes-node_modules-copy node_modules
-    fi
-
-    if [ "$status" -eq 0 ]; then
-        date -u +"%Y-%m-%dT%H:%M:%SZ" > "$CACHE_PATH/.cache-ready"
-    fi
-
-    rmdir "$LOCK_PATH" 2>/dev/null || true
-    return "$status"
-}
-
-trap cleanup_node_modules_cache EXIT
-
-mkdir -p "$CACHE_NODE_MODULES"
-if [ -f "$CACHE_PATH/.cache-ready" ]; then
-    echo "node_modules cache hit: $CACHE_KEY"
-else
-    echo "node_modules cache miss: $CACHE_KEY"
-fi
-
-rm -rf node_modules
-ln -s "$CACHE_NODE_MODULES" node_modules
-OPEN_RUNTIMES_CACHE
-export OPEN_RUNTIMES_NODE_MODULES_CACHE_KEY=__CACHE_KEY__
-export BASH_ENV=/tmp/open-runtimes-cache/node-modules.sh
-SH;
-
-        return \str_replace('__CACHE_KEY__', $cacheKey, $script) . ' && ' . $command;
+        return [
+            'npm_config_cache' => $cacheRoot . '/npm',
+            'YARN_CACHE_FOLDER' => $cacheRoot . '/yarn',
+            'PNPM_STORE_DIR' => $cacheRoot . '/pnpm',
+            'BUN_INSTALL_CACHE_DIR' => $cacheRoot . '/bun',
+        ];
     }
 
     public function deleteRuntime(string $runtimeId): void
