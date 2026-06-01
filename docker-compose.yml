@@ -32,6 +32,7 @@ services:
       - OPR_EXECUTOR_RETRY_ATTEMPTS
       - OPR_EXECUTOR_RETRY_DELAY_MS
       - OPR_EXECUTOR_IMAGE_PULL
+      - OPR_EXECUTOR_NODE_MODULES_CACHE_VOLUME
 
 volumes:
   openruntimes-builds:

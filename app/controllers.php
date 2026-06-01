@@ -60,6 +60,7 @@ Http::post('/v1/runtimes')
     ->param('variables', [], new Assoc(), 'Environment variables passed into runtime.', true)
     ->param('runtimeEntrypoint', '', new Text(1024, 0), 'Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long.', true)
     ->param('command', '', new Text(1024, 0), 'Commands to run after container is created. Maximum of 100 commands are allowed, each 1024 characters long.', true)
+    ->param('cacheKey', '', new Text(128, 0), 'Cache key used for node_modules build cache.', true)
     ->param('timeout', 600, new Integer(), 'Commands execution time in seconds.', true)
     ->param('remove', false, new Boolean(), 'Remove a runtime after execution.', true)
     ->param('cpus', 1, new FloatValidator(true), 'Container CPU.', true)
@@ -68,8 +69,12 @@ Http::post('/v1/runtimes')
     ->param('restartPolicy', DockerAPI::RESTART_NO, new WhiteList([DockerAPI::RESTART_NO, DockerAPI::RESTART_ALWAYS, DockerAPI::RESTART_ON_FAILURE, DockerAPI::RESTART_UNLESS_STOPPED], true), 'Define restart policy for the runtime once an exit code is returned. Default value is "no". Possible values are "no", "always", "on-failure", "unless-stopped".', true)
     ->inject('response')
     ->inject('runner')
-    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, string $outputDirectory, array $variables, string $runtimeEntrypoint, string $command, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Response $response, Runner $runner): void {
+    ->action(function (string $runtimeId, string $image, string $entrypoint, string $source, string $destination, string $outputDirectory, array $variables, string $runtimeEntrypoint, string $command, string $cacheKey, int $timeout, bool $remove, float $cpus, int $memory, string $version, string $restartPolicy, Response $response, Runner $runner): void {
         $secret = \bin2hex(\random_bytes(16));
+
+        if ($cacheKey !== '' && $cacheKey !== '0' && !\preg_match('/^[A-Za-z0-9._-]{1,128}$/', $cacheKey)) {
+            throw new Exception(Exception::EXECUTION_BAD_REQUEST, 'Cache key may only contain letters, numbers, dots, underscores, and hyphens.');
+        }
 
         /**
          * Create container
@@ -102,7 +107,7 @@ Http::post('/v1/runtimes')
 
         $variables = array_map(strval(...), $variables);
 
-        $container = $runner->createRuntime($runtimeId, $secret, $image, $entrypoint, $source, $destination, $variables, $runtimeEntrypoint, $command, $timeout, $remove, $cpus, $memory, $version, $restartPolicy);
+        $container = $runner->createRuntime($runtimeId, $secret, $image, $entrypoint, $source, $destination, $variables, $runtimeEntrypoint, $command, $timeout, $remove, $cpus, $memory, $version, $restartPolicy, $cacheKey);
         $response->setStatusCode(Response::STATUS_CODE_CREATED)->json($container);
     });
 
