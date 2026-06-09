@@ -25,11 +25,11 @@
     "ext-json": "*",
     "ext-swoole": "*",
     "utopia-php/config": "^0.2.2",
-    "utopia-php/console": "^0.2.0",
+    "utopia-php/console": "^0.1.1",
     "utopia-php/di": "0.3.*",
     "utopia-php/dsn": "0.2.*",
     "utopia-php/http": "0.34.*",
-    "utopia-php/orchestration": "dev-feature/mount-value-object",
+    "utopia-php/orchestration": "^0.19.2",
     "utopia-php/storage": "^2.0",
     "utopia-php/system": "0.10.*"
   },

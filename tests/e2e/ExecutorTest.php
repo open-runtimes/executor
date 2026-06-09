@@ -575,7 +575,6 @@ class ExecutorTest extends TestCase
 
         $runtimeId = \bin2hex(\random_bytes(4));
         $cacheKey = 'test-build-cache-' . $runtimeId;
-        $pnpmCache = '/cache/pnpm';
 
         $params = [
             'runtimeId' => 'test-build-cache-miss-' . $runtimeId,
@@ -583,7 +582,7 @@ class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test-cache-miss',
             'entrypoint' => 'index.js',
             'image' => 'openruntimes/node:v5-18.0',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "pnpm install && test -d ' . $pnpmCache . ' && touch ' . $pnpmCache . '/.open-runtimes-cache-test"',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm install && test -d node_modules"',
             'cacheKey' => $cacheKey,
             'remove' => true,
         ];
@@ -596,7 +595,7 @@ class ExecutorTest extends TestCase
             $firstBuildOutput .= $outputItem['content'];
         }
 
-        $this->assertStringContainsString('[build cache] Using package manager cache.', $firstBuildOutput);
+        $this->assertStringContainsString('[build cache] Saved.', $firstBuildOutput);
 
         $params = [
             'runtimeId' => 'test-build-cache-hit-' . $runtimeId,
@@ -604,13 +603,20 @@ class ExecutorTest extends TestCase
             'destination' => '/storage/builds/test-cache-hit',
             'entrypoint' => 'index.js',
             'image' => 'openruntimes/node:v5-18.0',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "pnpm install && test -f ' . $pnpmCache . '/.open-runtimes-cache-test"',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm install && test -d node_modules"',
             'cacheKey' => $cacheKey,
             'remove' => true,
         ];
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(201, $response['headers']['status-code']);
+
+        $secondBuildOutput = '';
+        foreach ($response['body']['output'] as $outputItem) {
+            $secondBuildOutput .= $outputItem['content'];
+        }
+
+        $this->assertStringContainsString('[build cache] Hit.', $secondBuildOutput);
 
         $this->assertNotEmpty($response['body']['path']);
 

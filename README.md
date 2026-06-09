@@ -51,6 +51,7 @@ services:
       - OPR_EXECUTOR_ENV
       - OPR_EXECUTOR_IMAGES
       - OPR_EXECUTOR_CONNECTION_STORAGE
+      - OPR_EXECUTOR_CONNECTION_BUILD_CACHE_STORAGE
       - OPR_EXECUTOR_INACTIVE_THRESHOLD
       - OPR_EXECUTOR_MAINTENANCE_INTERVAL
       - OPR_EXECUTOR_NETWORK
@@ -61,8 +62,6 @@ services:
       - OPR_EXECUTOR_RETRY_ATTEMPTS
       - OPR_EXECUTOR_RETRY_DELAY_MS
       - OPR_EXECUTOR_IMAGE_PULL
-      - OPR_EXECUTOR_BUILD_CACHE_VOLUME
-      - OPR_EXECUTOR_BUILD_CACHE_HELPER_IMAGE
 
 networks:
   openruntimes-runtimes:
@@ -81,6 +80,7 @@ volumes:
 OPR_EXECUTOR_ENV=development
 OPR_EXECUTOR_IMAGES=openruntimes/php:v5-8.3
 OPR_EXECUTOR_CONNECTION_STORAGE=file://localhost
+OPR_EXECUTOR_CONNECTION_BUILD_CACHE_STORAGE=
 OPR_EXECUTOR_INACTIVE_THRESHOLD=60
 OPR_EXECUTOR_MAINTENANCE_INTERVAL=60
 OPR_EXECUTOR_NETWORK=openruntimes-runtimes
@@ -90,8 +90,6 @@ OPR_EXECUTOR_DOCKER_HUB_PASSWORD=
 OPR_EXECUTOR_RUNTIME_VERSIONS=v5
 OPR_EXECUTOR_RETRY_ATTEMPTS=5
 OPR_EXECUTOR_RETRY_DELAY_MS=500
-OPR_EXECUTOR_BUILD_CACHE_VOLUME=openruntimes-build-cache
-OPR_EXECUTOR_BUILD_CACHE_HELPER_IMAGE=busybox:1.37
 ```
 
 > `OPR_EXECUTOR_CONNECTION_STORAGE` takes a DSN string that represents a connection to your storage device. If you would like to use your local filesystem, you can use `file://localhost`. If using S3 or any other provider for storage, use a DSN of the following format `s3://access_key:access_secret@host:port/bucket_name?region=us-east-1`
@@ -193,6 +191,7 @@ docker compose down
 | OPR_EXECUTOR_ENV                 | Environment mode of the executor, ex. `development`                                                                                           |
 | OPR_EXECUTOR_IMAGES            | Comma-separated list of supported images `(ex: openruntimes/php:v5-8.1,openruntimes/php:v2-8.1,..)`. |
 | OPR_EXECUTOR_CONNECTION_STORAGE  | DSN string that represents a connection to your storage device, ex: `file://localhost` for local storage                                      |
+| OPR_EXECUTOR_CONNECTION_BUILD_CACHE_STORAGE  | Optional DSN string for build cache artifacts. Defaults to `OPR_EXECUTOR_CONNECTION_STORAGE` when empty                                      |
 | OPR_EXECUTOR_INACTIVE_THRESHOLD   | Threshold time (in seconds) for detecting inactive runtimes, ex: `60`                                                                         |
 | OPR_EXECUTOR_MAINTENANCE_INTERVAL| Interval (in seconds) at which the Executor performs maintenance tasks, ex: `60`                                                              |
 | OPR_EXECUTOR_NETWORK             | Network used by the executor for runtimes, ex: `openruntimes-runtimes`                                                                        |
@@ -202,8 +201,6 @@ docker compose down
 | OPR_EXECUTOR_RUNTIME_VERSIONS    | Version tag for runtime environments, ex: `v5`                                                                                                |
 | OPR_EXECUTOR_RETRY_ATTEMPTS      | Number of retry attempts for failed executions, ex: `5`                                                                                       |
 | OPR_EXECUTOR_RETRY_DELAY_MS      | Delay (in milliseconds) between retry attempts, ex: `500`                                                                                    |
-| OPR_EXECUTOR_BUILD_CACHE_VOLUME | Docker volume name used to store build caches by `cacheKey`, ex: `openruntimes-build-cache`                           |
-| OPR_EXECUTOR_BUILD_CACHE_HELPER_IMAGE | Helper image used to create Docker volume subpaths before mounting isolated build caches, ex: `busybox:1.37` |
 
 ## Contributing
 

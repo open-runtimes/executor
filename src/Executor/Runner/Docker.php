@@ -11,8 +11,7 @@ use Swoole\Timer;
 use Throwable;
 use Utopia\Console;
 use Utopia\Http\Response;
-use Utopia\Logger\Log;
-use Utopia\Orchestration\Mount;
+
 use Utopia\Orchestration\Orchestration;
 use Utopia\Orchestration\Exception\Timeout as TimeoutException;
 use Utopia\Orchestration\Exception\Orchestration as OrchestrationException;
@@ -278,6 +277,7 @@ class Docker extends Adapter
         $tmpFolder = sprintf('tmp/%s/', $runtimeName);
         $tmpSource = sprintf('/%ssrc/%s', $tmpFolder, $sourceFile);
         $tmpBuild = sprintf('/%sbuilds/%s', $tmpFolder, $buildFile);
+        $tmpCache = sprintf('/%scache', $tmpFolder);
         $tmpLogging = sprintf('/%slogging', $tmpFolder); // Build logs
         $tmpLogs = sprintf('/%slogs', $tmpFolder); // Runtime logs
 
@@ -322,10 +322,9 @@ class Docker extends Adapter
 
             $cacheEnabled = $cacheKey !== '' && $command !== '' && $command !== '0';
             if ($cacheEnabled) {
-                $cacheVolume = System::getEnv('OPR_EXECUTOR_BUILD_CACHE_VOLUME', 'openruntimes-build-cache');
-                $this->ensureBuildCacheSubpath($cacheVolume, $cacheKey);
-                $volumes[] = Mount::volume($cacheVolume, '/cache', false, $cacheKey);
-                $variables = \array_merge($variables, $this->getPackageManagerCacheVariables());
+                $this->restoreBuildCacheArtifact($cacheKey, $tmpCache, $localDevice);
+                $volumes[] = $tmpCache . ':/cache:rw';
+                $this->prepareBuildCacheScripts($command, $tmpCache);
             }
 
             if ($version === 'v5') {
@@ -355,7 +354,7 @@ class Docker extends Adapter
             }
 
             if ($cacheEnabled) {
-                $command = $this->withPackageManagerCacheLog($command);
+                $command = 'bash /usr/local/server/helpers/build-cache.sh';
             }
 
             /**
@@ -400,6 +399,10 @@ class Docker extends Adapter
                     }
                 } catch (Throwable $err) {
                     throw new ExecutorException(ExecutorException::RUNTIME_FAILED, $err->getMessage(), null, $err);
+                }
+
+                if ($cacheEnabled) {
+                    $this->storeBuildCacheArtifact($cacheKey, $tmpCache, $localDevice);
                 }
             }
 
@@ -518,42 +521,63 @@ class Docker extends Adapter
         return $container;
     }
 
-    private function withPackageManagerCacheLog(string $command): string
+    private function prepareBuildCacheScripts(string $command, string $tmpCache): void
     {
-        return "printf '%s\n' '[build cache] Using package manager cache.'; " . $command;
-    }
-
-    private function ensureBuildCacheSubpath(string $cacheVolume, string $cacheKey): void
-    {
-        $output = '';
-        $stderr = '';
-        $helperImage = System::getEnv('OPR_EXECUTOR_BUILD_CACHE_HELPER_IMAGE', 'busybox:1.37');
-
-        $command = 'docker volume create ' . \escapeshellarg($cacheVolume) . ' >/dev/null && docker run --rm --volume ' . \escapeshellarg($cacheVolume . ':/cache:rw') . ' ' . \escapeshellarg($helperImage) . ' mkdir -p ' . \escapeshellarg('/cache/' . $cacheKey);
-        $status = Console::execute($command, '', $output, $stderr, 30);
-
-        if ($status !== 0) {
-            $error = $stderr !== '' ? $stderr : $output;
-            throw new \Exception('Failed to prepare build cache subpath: ' . $error);
+        $commandScript = "#!/bin/sh\n" . $command . "\n";
+        if (\file_put_contents($tmpCache . '/build-command.sh', $commandScript) === false) {
+            throw new \Exception('Failed to prepare build command script');
         }
     }
 
-    /**
-     * @return array<string, string>
-     */
-    private function getPackageManagerCacheVariables(): array
+    private function restoreBuildCacheArtifact(string $cacheKey, string $tmpCache, Local $localDevice): void
     {
-        $cacheRoot = '/cache';
+        if (!$localDevice->createDirectory($tmpCache)) {
+            throw new \Exception('Failed to create build cache directory');
+        }
 
-        return [
-            'npm_config_cache' => $cacheRoot . '/npm',
-            'YARN_CACHE_FOLDER' => $cacheRoot . '/yarn',
-            'npm_config_store_dir' => $cacheRoot . '/pnpm',
-            'pnpm_config_store_dir' => $cacheRoot . '/pnpm',
-            'XDG_CACHE_HOME' => $cacheRoot . '/xdg-cache',
-            'XDG_STATE_HOME' => $cacheRoot . '/xdg-state',
-            'BUN_INSTALL_CACHE_DIR' => $cacheRoot . '/bun',
-        ];
+        $cacheDevice = $this->getBuildCacheDevice();
+        $artifact = $this->getBuildCacheArtifactPath($cacheDevice, $cacheKey);
+
+        if (!$cacheDevice->exists($artifact)) {
+            return;
+        }
+
+        if (!$cacheDevice->transfer($artifact, $tmpCache . '/stores.sqfs', $localDevice)) {
+            throw new \Exception('Failed to restore build cache artifact');
+        }
+    }
+
+    private function storeBuildCacheArtifact(string $cacheKey, string $tmpCache, Local $localDevice): void
+    {
+        $artifact = $tmpCache . '/stores.sqfs';
+
+        if (!$localDevice->exists($artifact)) {
+            return;
+        }
+
+        $cacheDevice = $this->getBuildCacheDevice();
+        $destinationArtifact = $this->getBuildCacheArtifactPath($cacheDevice, $cacheKey);
+
+        $cacheDevice->createDirectory(\dirname($destinationArtifact));
+
+        if (!$localDevice->transfer($artifact, $destinationArtifact, $cacheDevice)) {
+            throw new \Exception('Failed to store build cache artifact');
+        }
+    }
+
+    private function getBuildCacheDevice(): \Utopia\Storage\Device
+    {
+        $connection = System::getEnv('OPR_EXECUTOR_CONNECTION_BUILD_CACHE_STORAGE', '');
+        if ($connection === '' || $connection === '0') {
+            $connection = System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE');
+        }
+
+        return StorageFactory::getDevice('/build-cache', $connection);
+    }
+
+    private function getBuildCacheArtifactPath(\Utopia\Storage\Device $device, string $cacheKey): string
+    {
+        return $device->getPath($cacheKey . '/lz4-b1M/stores.sqfs');
     }
 
     public function deleteRuntime(string $runtimeId): void
