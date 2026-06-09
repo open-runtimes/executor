@@ -28,8 +28,8 @@ Http::get('/v1/runtimes/:runtimeId/logs')
     ->action(function (string $runtimeId, string $timeoutStr, Response $response, Runner $runner): void {
         $timeout = \intval($timeoutStr);
 
-        $response->sendHeader('Content-Type', 'text/event-stream');
-        $response->sendHeader('Cache-Control', 'no-cache');
+        $response->sendHeader('Content-Type', ['text/event-stream']);
+        $response->sendHeader('Cache-Control', ['no-cache']);
 
         $runner->getLogs($runtimeId, $timeout, $response);
 
@@ -239,7 +239,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             );
 
             // Backwards compatibility for headers
-            $responseFormat = $request->getHeader('x-executor-response-format', '0.10.0'); // Last version without support for array value for headers
+            $responseFormat = $request->getHeaderLine('x-executor-response-format', '0.10.0'); // Last version without support for array value for headers
             if (version_compare($responseFormat, '0.11.0', '<')) {
                 foreach ($execution['headers'] as $key => $value) {
                     if (\is_array($value)) {
@@ -249,7 +249,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 }
             }
 
-            $acceptTypes = \explode(', ', $request->getHeader('accept', 'multipart/form-data'));
+            $acceptTypes = \explode(', ', $request->getHeaderLine('accept', 'multipart/form-data'));
             $isJson = array_any($acceptTypes, fn ($acceptType): bool => \str_starts_with((string) $acceptType, 'application/json') || \str_starts_with((string) $acceptType, 'application/*'));
 
             if ($isJson) {
@@ -289,7 +289,7 @@ Http::init()
     ->groups(['api'])
     ->inject('request')
     ->action(function (Request $request): void {
-        $secretKey = \explode(' ', $request->getHeader('authorization', ''))[1] ?? '';
+        $secretKey = \explode(' ', $request->getHeaderLine('authorization', ''))[1] ?? '';
         if ($secretKey === '' || $secretKey === '0' || $secretKey !== System::getEnv('OPR_EXECUTOR_SECRET', '')) {
             throw new Exception(Exception::GENERAL_UNAUTHORIZED, 'Missing executor key');
         }
