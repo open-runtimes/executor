@@ -51,6 +51,7 @@ services:
       - OPR_EXECUTOR_ENV
       - OPR_EXECUTOR_IMAGES
       - OPR_EXECUTOR_CONNECTION_STORAGE
+      - OPR_EXECUTOR_CONNECTION_BUILD_CACHE_STORAGE
       - OPR_EXECUTOR_INACTIVE_THRESHOLD
       - OPR_EXECUTOR_MAINTENANCE_INTERVAL
       - OPR_EXECUTOR_NETWORK
@@ -79,6 +80,7 @@ volumes:
 OPR_EXECUTOR_ENV=development
 OPR_EXECUTOR_IMAGES=openruntimes/php:v5-8.3
 OPR_EXECUTOR_CONNECTION_STORAGE=file://localhost
+OPR_EXECUTOR_CONNECTION_BUILD_CACHE_STORAGE=
 OPR_EXECUTOR_INACTIVE_THRESHOLD=60
 OPR_EXECUTOR_MAINTENANCE_INTERVAL=60
 OPR_EXECUTOR_NETWORK=openruntimes-runtimes
@@ -152,6 +154,7 @@ docker compose down
 | `variables` | `json` | Environment variables passed into runtime |  | [ ] |
 | `runtimeEntrypoint` | `string` | Commands to run when creating a container. Maximum of 100 commands are allowed, each 1024 characters long. |  | ' ' |
 | `command` | `string` | Commands to run after container is created. Maximum of 100 commands are allowed, each 1024 characters long. |  | ' ' |
+| `cacheKey` | `string` | Optional key for sharing build caches. Must start with a letter or number. Allowed characters are letters, numbers, dots, underscores, and hyphens. |  | ' ' |
 | `timeout` | `integer` | Commands execution time in seconds |  | 600 |
 | `remove` | `boolean` | Remove a runtime after execution |  | false |
 | `cpus` | `float` | Maximum CPU cores runtime can utilize |  | 1 |
@@ -188,6 +191,7 @@ docker compose down
 | OPR_EXECUTOR_ENV                 | Environment mode of the executor, ex. `development`                                                                                           |
 | OPR_EXECUTOR_IMAGES            | Comma-separated list of supported images `(ex: openruntimes/php:v5-8.1,openruntimes/php:v2-8.1,..)`. |
 | OPR_EXECUTOR_CONNECTION_STORAGE  | DSN string that represents a connection to your storage device, ex: `file://localhost` for local storage                                      |
+| OPR_EXECUTOR_CONNECTION_BUILD_CACHE_STORAGE  | Optional DSN string for build cache artifacts. Defaults to `OPR_EXECUTOR_CONNECTION_STORAGE` when empty                                      |
 | OPR_EXECUTOR_INACTIVE_THRESHOLD   | Threshold time (in seconds) for detecting inactive runtimes, ex: `60`                                                                         |
 | OPR_EXECUTOR_MAINTENANCE_INTERVAL| Interval (in seconds) at which the Executor performs maintenance tasks, ex: `60`                                                              |
 | OPR_EXECUTOR_NETWORK             | Network used by the executor for runtimes, ex: `openruntimes-runtimes`                                                                        |

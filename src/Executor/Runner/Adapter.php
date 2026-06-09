@@ -31,6 +31,7 @@ abstract class Adapter
         int $memory,
         string $version,
         string $restartPolicy,
+        string $cacheKey = '',
         string $region = '',
     ): mixed;
 

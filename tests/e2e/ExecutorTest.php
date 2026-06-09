@@ -251,6 +251,21 @@ class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(400, $response['headers']['status-code']);
 
+        /** Invalid cache key */
+        $params = [
+            'runtimeId' => 'test-build-fail-cache-key-' . $runtimeId,
+            'source' => '/storage/functions/php/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v5-8.1',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "composer install"',
+            'cacheKey' => '..',
+            'remove' => true
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(400, $response['headers']['status-code']);
+
         /** Test invalid path */
         $params = [
             'runtimeId' => 'test-build-fail-500-' . $runtimeId,
@@ -549,6 +564,75 @@ class ExecutorTest extends TestCase
 
         /** Delete runtime */
         $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-coldstart', [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
+    }
+
+    public function testBuildCache(): void
+    {
+        $output = '';
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
+
+        $runtimeId = \bin2hex(\random_bytes(4));
+        $cacheKey = 'test-build-cache-' . $runtimeId;
+
+        $params = [
+            'runtimeId' => 'test-build-cache-miss-' . $runtimeId,
+            'source' => '/storage/functions/node/code.tar.gz',
+            'destination' => '/storage/builds/test-cache-miss',
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-18.0',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm install && test -d node_modules"',
+            'cacheKey' => $cacheKey,
+            'remove' => true,
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        $firstBuildOutput = '';
+        foreach ($response['body']['output'] as $outputItem) {
+            $firstBuildOutput .= $outputItem['content'];
+        }
+
+        $this->assertStringContainsString('[build cache] Saved.', $firstBuildOutput);
+
+        $params = [
+            'runtimeId' => 'test-build-cache-hit-' . $runtimeId,
+            'source' => '/storage/functions/node/code.tar.gz',
+            'destination' => '/storage/builds/test-cache-hit',
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-18.0',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm install && test -d node_modules"',
+            'cacheKey' => $cacheKey,
+            'remove' => true,
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        $secondBuildOutput = '';
+        foreach ($response['body']['output'] as $outputItem) {
+            $secondBuildOutput .= $outputItem['content'];
+        }
+
+        $this->assertStringContainsString('[build cache] Hit.', $secondBuildOutput);
+
+        $this->assertNotEmpty($response['body']['path']);
+
+        $buildPath = $response['body']['path'];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-cache-' . $runtimeId . '/executions', [], [
+            'source' => $buildPath,
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-18.0',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals(200, $response['body']['statusCode']);
+
+        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-cache-' . $runtimeId, [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
