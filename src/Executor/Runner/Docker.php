@@ -115,6 +115,10 @@ class Docker extends Adapter
         $timerId = Timer::tick($streamInterval, function () use (&$logsProcess, &$logsChunk, $response, $activeRuntimes, $runtimeName): void {
             $runtime = $activeRuntimes->get($runtimeName);
             if (!$runtime instanceof \OpenRuntimes\Executor\Runner\Runtime) {
+                if (!empty($logsProcess)) {
+                    \proc_terminate($logsProcess, 9);
+                }
+
                 return;
             }
 

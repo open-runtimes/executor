@@ -164,6 +164,55 @@ class ExecutorTest extends TestCase
         $validateLogs($streamChunks, false);
     }
 
+    public function testLogStreamClosesAfterFailedCachedBuild(): void
+    {
+        $runtimeId = 'test-log-stream-fail-cache-' . \bin2hex(\random_bytes(4));
+        $streamChunks = [];
+        $logsDuration = 0.0;
+        $runtimeResponse = null;
+
+        Co\run(function () use (&$streamChunks, &$logsDuration, &$runtimeResponse, $runtimeId): void {
+            $output = '';
+            $stderr = '';
+            Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
+
+            Co::join([
+                Co\go(function () use (&$streamChunks, &$logsDuration, $runtimeId): void {
+                    $start = \microtime(true);
+
+                    $this->client->call(Client::METHOD_GET, '/runtimes/' . $runtimeId . '/logs', [], [
+                        'timeout' => '12'
+                    ], true, function ($data) use (&$streamChunks): void {
+                        $streamChunks[] = $data;
+                    });
+
+                    $logsDuration = \microtime(true) - $start;
+                }),
+                Co\go(function () use (&$runtimeResponse, $runtimeId): void {
+                    $params = [
+                        'runtimeId' => $runtimeId,
+                        'source' => '/storage/functions/node/code.tar.gz',
+                        'destination' => '/storage/builds/test-logs',
+                        'entrypoint' => 'index.js',
+                        'image' => 'openruntimes/node:v5-22',
+                        'workdir' => '/usr/code',
+                        'remove' => true,
+                        'cacheKey' => 'test-log-stream-fail-cache',
+                        'command' => 'echo before-cache-failure && exit 1'
+                    ];
+
+                    $runtimeResponse = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+                }),
+            ]);
+        });
+
+        $this->assertIsArray($runtimeResponse);
+        $this->assertEquals(400, $runtimeResponse['headers']['status-code']);
+        $this->assertStringContainsString('before-cache-failure', $runtimeResponse['body']['message']);
+        $this->assertNotEmpty($streamChunks);
+        $this->assertLessThan(10, $logsDuration);
+    }
+
     public function testUnknownPath(): void
     {
         $response = $this->client->call(Client::METHOD_GET, '/unknown', [], []);
