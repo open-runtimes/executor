@@ -208,7 +208,7 @@ class ExecutorTest extends TestCase
 
         $this->assertIsArray($runtimeResponse);
         $this->assertEquals(400, $runtimeResponse['headers']['status-code']);
-        $this->assertStringContainsString('before-cache-failure', (string) $runtimeResponse['body']['message']);
+        $this->assertStringContainsString('before-cache-failure', $runtimeResponse['body']['message']);
         $this->assertNotEmpty($streamChunks);
         $this->assertLessThan(10, $logsDuration);
     }
