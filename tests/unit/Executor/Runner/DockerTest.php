@@ -18,8 +18,8 @@ final class DockerTest extends TestCase
 
         $this->assertSame('bash', $commands[0]);
         $this->assertStringContainsString('echo original-user-command', $commands[2]);
-        $this->assertStringNotContainsString('build-' . 'cache.sh', $commands[2]);
-        $this->assertStringNotContainsString('/cache/' . 'build-' . 'command.sh', $commands[2]);
+        $this->assertStringNotContainsString('build-cache.sh', $commands[2]);
+        $this->assertStringNotContainsString('/cache/build-command.sh', $commands[2]);
     }
 
     public function testNoBuildCommandScriptReferenceRemains(): void
@@ -28,7 +28,7 @@ final class DockerTest extends TestCase
 
         foreach (['v2', 'v5'] as $version) {
             $commands = $this->invokeGetBuildCommands($docker, 'echo test', $version);
-            $this->assertStringNotContainsString('/cache/' . 'build-' . 'command.sh', \implode(' ', $commands));
+            $this->assertStringNotContainsString('/cache/build-command.sh', \implode(' ', $commands));
         }
     }
 
@@ -38,10 +38,10 @@ final class DockerTest extends TestCase
         $commands = $this->invokeGetBuildCommands($docker, 'npm install', 'v5');
         $command = \implode(' ', $commands);
 
-        $this->assertStringNotContainsString('restore-' . 'build-' . 'cache.sh', $command);
-        $this->assertStringNotContainsString('save-' . 'build-' . 'cache.sh', $command);
-        $this->assertStringNotContainsString('build-cache-' . 'restore.sh', $command);
-        $this->assertStringNotContainsString('build-cache-' . 'save.sh', $command);
+        $this->assertStringNotContainsString('restore-build-cache.sh', $command);
+        $this->assertStringNotContainsString('save-build-cache.sh', $command);
+        $this->assertStringNotContainsString('build-cache-restore.sh', $command);
+        $this->assertStringNotContainsString('build-cache-save.sh', $command);
     }
 
     /**
