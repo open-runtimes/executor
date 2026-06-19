@@ -256,6 +256,7 @@ class Docker extends Adapter
         /** @var array<string, mixed> $container */
         $container = [];
         $output = [];
+        $cacheWarnings = [];
         $startTime = \microtime(true);
 
         $runtime = new Runtime(
@@ -329,8 +330,9 @@ class Docker extends Adapter
             ];
 
             $cacheEnabled = $cacheKey !== '' && $command !== '' && $command !== '0';
-            $cacheWarnings = [];
             if ($cacheEnabled) {
+                $this->validateBuildCacheKey($cacheKey);
+
                 try {
                     $this->restoreBuildCacheArtifact($cacheKey, $tmpCache, $localDevice);
                 } catch (Throwable $err) {
@@ -487,6 +489,10 @@ class Docker extends Adapter
                 ]];
             }
 
+            if ($cacheWarnings !== []) {
+                $output = \array_merge($cacheWarnings, $output);
+            }
+
             if ($remove) {
                 \sleep(2); // Allow time to read logs
             }
@@ -559,6 +565,18 @@ class Docker extends Adapter
             'timestamp' => Logs::getTimestamp(),
             'content' => '[build cache] Warning: ' . $message . "\n"
         ];
+    }
+
+    private function validateBuildCacheKey(string $cacheKey): void
+    {
+        if (
+            \str_contains($cacheKey, "\0") ||
+            \str_starts_with($cacheKey, '/') ||
+            \str_contains($cacheKey, '\\') ||
+            \preg_match('#(^|/)\.\.(?:/|$)#', $cacheKey) === 1
+        ) {
+            throw new \Exception('Invalid build cache key', 400);
+        }
     }
 
     private function restoreBuildCacheArtifact(string $cacheKey, string $tmpCache, Local $localDevice): void

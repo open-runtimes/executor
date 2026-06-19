@@ -44,6 +44,15 @@ final class DockerTest extends TestCase
         $this->assertStringNotContainsString('build-cache-save.sh', $command);
     }
 
+    public function testInvalidBuildCacheKeyIsRejected(): void
+    {
+        $this->expectException(\Exception::class);
+        $this->expectExceptionCode(400);
+
+        $method = new ReflectionMethod(Docker::class, 'validateBuildCacheKey');
+        $method->invoke($this->createDocker(), '..');
+    }
+
     /**
      * @return string[]
      */
