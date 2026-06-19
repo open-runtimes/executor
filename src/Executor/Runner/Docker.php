@@ -256,6 +256,7 @@ class Docker extends Adapter
         /** @var array<string, mixed> $container */
         $container = [];
         $output = [];
+        $cacheWarnings = [];
         $startTime = \microtime(true);
 
         $runtime = new Runtime(
@@ -330,9 +331,19 @@ class Docker extends Adapter
 
             $cacheEnabled = $cacheKey !== '' && $command !== '' && $command !== '0';
             if ($cacheEnabled) {
-                $this->restoreBuildCacheArtifact($cacheKey, $tmpCache, $localDevice);
+                $this->validateBuildCacheKey($cacheKey);
+
+                try {
+                    $this->restoreBuildCacheArtifact($cacheKey, $tmpCache, $localDevice);
+                } catch (Throwable $err) {
+                    $cacheWarnings[] = $this->getBuildCacheWarning('Failed to restore cache artifact: ' . $err->getMessage());
+
+                    if (!$localDevice->exists($tmpCache)) {
+                        $localDevice->createDirectory($tmpCache);
+                    }
+                }
+
                 $volumes[] = $tmpCache . ':/cache:rw';
-                $this->prepareBuildCacheScripts($command, $tmpCache);
             }
 
             if ($version === 'v5') {
@@ -361,33 +372,15 @@ class Docker extends Adapter
                 throw new \Exception('Failed to create runtime');
             }
 
-            if ($cacheEnabled) {
-                $command = 'bash /usr/local/server/helpers/build-cache.sh';
-            }
-
             /**
              * Execute any commands if they were provided
              */
             if ($command !== '' && $command !== '0') {
-                if ($version === 'v2') {
-                    $commands = [
-                        'sh',
-                        '-c',
-                        'touch /var/tmp/logs.txt && (' . $command . ') >> /var/tmp/logs.txt 2>&1 && cat /var/tmp/logs.txt'
-                    ];
-                } else {
-                    $commands = [
-                        'bash',
-                        '-c',
-                        'mkdir -p /tmp/logging && touch /tmp/logging/timings.txt && touch /tmp/logging/logs.txt && script --log-out /tmp/logging/logs.txt --flush --log-timing /tmp/logging/timings.txt --return --quiet --command "' . \str_replace('"', '\"', $command) . '"'
-                    ];
-                }
-
                 try {
                     $stdout = '';
                     $status = $this->orchestration->execute(
                         name: $runtimeName,
-                        command: $commands,
+                        command: $this->getBuildCommands($command, $version),
                         output: $stdout,
                         timeout: $timeout
                     );
@@ -402,7 +395,7 @@ class Docker extends Adapter
                             'timestamp' => Logs::getTimestamp(),
                             'content' => $stdout
                         ];
-                    } else {
+                    } elseif (!$cacheEnabled) {
                         $output = Logs::get($runtimeName);
                     }
                 } catch (Throwable $err) {
@@ -410,7 +403,17 @@ class Docker extends Adapter
                 }
 
                 if ($cacheEnabled) {
-                    $this->storeBuildCacheArtifact($cacheKey, $tmpCache, $localDevice);
+                    try {
+                        $this->storeBuildCacheArtifact($cacheKey, $tmpCache, $localDevice);
+                    } catch (Throwable $err) {
+                        $cacheWarnings[] = $this->getBuildCacheWarning('Failed to store cache artifact: ' . $err->getMessage());
+                    }
+
+                    if ($version === 'v2') {
+                        $output = \array_merge($output, $cacheWarnings);
+                    } else {
+                        $output = \array_merge($cacheWarnings, Logs::get($runtimeName));
+                    }
                 }
             }
 
@@ -486,6 +489,10 @@ class Docker extends Adapter
                 ]];
             }
 
+            if ($cacheWarnings !== []) {
+                $output = \array_merge($cacheWarnings, $output);
+            }
+
             if ($remove) {
                 \sleep(2); // Allow time to read logs
             }
@@ -529,11 +536,46 @@ class Docker extends Adapter
         return $container;
     }
 
-    private function prepareBuildCacheScripts(string $command, string $tmpCache): void
+    /**
+     * @return string[]
+     */
+    private function getBuildCommands(string $command, string $version): array
     {
-        $commandScript = "#!/bin/sh\n" . $command . "\n";
-        if (\file_put_contents($tmpCache . '/build-command.sh', $commandScript) === false) {
-            throw new \Exception('Failed to prepare build command script');
+        if ($version === 'v2') {
+            return [
+                'sh',
+                '-c',
+                'touch /var/tmp/logs.txt && (' . $command . ') >> /var/tmp/logs.txt 2>&1 && cat /var/tmp/logs.txt'
+            ];
+        }
+
+        return [
+            'bash',
+            '-c',
+            'mkdir -p /tmp/logging && touch /tmp/logging/timings.txt && touch /tmp/logging/logs.txt && script --log-out /tmp/logging/logs.txt --flush --log-timing /tmp/logging/timings.txt --return --quiet --command "' . \str_replace('"', '\"', $command) . '"'
+        ];
+    }
+
+    /**
+     * @return array{timestamp: string, content: string}
+     */
+    private function getBuildCacheWarning(string $message): array
+    {
+        return [
+            'timestamp' => Logs::getTimestamp(),
+            'content' => '[build cache] Warning: ' . $message . "\n"
+        ];
+    }
+
+    private function validateBuildCacheKey(string $cacheKey): void
+    {
+        if (
+            \str_contains($cacheKey, "\0") ||
+            \str_starts_with($cacheKey, '/') ||
+            \str_contains($cacheKey, '\\') ||
+            \preg_match('#(^|/)\.\.(?:/|$)#', $cacheKey) === 1
+        ) {
+            throw new \Exception('Invalid build cache key', 400);
         }
     }
 

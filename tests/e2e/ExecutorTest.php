@@ -644,7 +644,7 @@ class ExecutorTest extends TestCase
             $firstBuildOutput .= $outputItem['content'];
         }
 
-        $this->assertStringContainsString('[build cache] Saved.', $firstBuildOutput);
+        $this->assertStringContainsString('Build cache saved.', $firstBuildOutput);
 
         $params = [
             'runtimeId' => 'test-build-cache-hit-' . $runtimeId,
@@ -665,7 +665,7 @@ class ExecutorTest extends TestCase
             $secondBuildOutput .= $outputItem['content'];
         }
 
-        $this->assertStringContainsString('[build cache] Hit.', $secondBuildOutput);
+        $this->assertStringContainsString('Build cache hit.', $secondBuildOutput);
 
         $this->assertNotEmpty($response['body']['path']);
 
