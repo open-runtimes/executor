@@ -7,13 +7,21 @@ use OpenRuntimes\Executor\Exception as ExecutorException;
 use OpenRuntimes\Executor\Runner\Repository\Runtimes;
 use OpenRuntimes\Executor\StorageFactory;
 use OpenRuntimes\Executor\Validator\TCP;
+use Psr\Http\Client\NetworkExceptionInterface;
 use Swoole\Timer;
 use Throwable;
+use Utopia\Client as HttpClient;
+use Utopia\Client\Adapter\Curl\Client as CurlAdapter;
+use Utopia\Client\Exception\ConnectionException;
+use Utopia\Client\Exception\DnsException;
+use Utopia\Client\Exception\TimeoutException as ClientTimeoutException;
 use Utopia\Console;
 use Utopia\Http\Response;
 use Utopia\Orchestration\Orchestration;
 use Utopia\Orchestration\Exception\Timeout as TimeoutException;
 use Utopia\Orchestration\Exception\Orchestration as OrchestrationException;
+use Utopia\Psr7\Method;
+use Utopia\Psr7\Request\Factory as RequestFactory;
 use Utopia\Storage\Device\Local;
 use Utopia\System\System;
 
@@ -678,11 +686,17 @@ class Docker extends Adapter
                 throw new ExecutorException(ExecutorException::RUNTIME_NOT_FOUND, 'Runtime not found. Please start it first or provide runtime-related parameters.');
             }
 
-            // Prepare request to executor
-            $sendCreateRuntimeRequest = function () use ($runtimeId, $image, $source, $entrypoint, $variables, $cpus, $memory, $version, $restartPolicy, $runtimeEntrypoint): array {
-                $ch = \curl_init();
+            // Prepare runtime
+            while (true) {
+                // If timeout is passed, stop and return error
+                if (\microtime(true) - $prepareStart >= $timeout) {
+                    throw new ExecutorException(ExecutorException::RUNTIME_TIMEOUT);
+                }
 
-                $body = \json_encode([
+                $client = new HttpClient(new CurlAdapter())
+                    ->withConnectTimeout(10.0)
+                    ->withBearerAuth(System::getEnv('OPR_EXECUTOR_SECRET', ''));
+                $request = new RequestFactory()->json(Method::POST, 'http://127.0.0.1/v1/runtimes', [
                     'runtimeId' => $runtimeId,
                     'image' => $image,
                     'source' => $source,
@@ -695,60 +709,28 @@ class Docker extends Adapter
                     'runtimeEntrypoint' => $runtimeEntrypoint
                 ]);
 
-                \curl_setopt($ch, CURLOPT_URL, "http://127.0.0.1/v1/runtimes");
-                \curl_setopt($ch, CURLOPT_POST, true);
-                \curl_setopt($ch, CURLOPT_POSTFIELDS, $body ?: '');
-                \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-
-                \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                    'Content-Type: application/json',
-                    'Content-Length: ' . \strlen($body ?: ''),
-                    'authorization: Bearer ' . System::getEnv('OPR_EXECUTOR_SECRET', '')
-                ]);
-
-                $executorResponse = \curl_exec($ch);
-
-                $statusCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-                $error = \curl_error($ch);
-
-                $errNo = \curl_errno($ch);
-
-                return [
-                    'errNo' => $errNo,
-                    'error' => $error,
-                    'statusCode' => $statusCode,
-                    'executorResponse' => $executorResponse
-                ];
-            };
-
-            // Prepare runtime
-            while (true) {
-                // If timeout is passed, stop and return error
-                if (\microtime(true) - $prepareStart >= $timeout) {
-                    throw new ExecutorException(ExecutorException::RUNTIME_TIMEOUT);
+                try {
+                    $response = $client->sendRequest($request);
+                } catch (ConnectionException) {
+                    // Runtime not listening yet; keep polling.
+                    \usleep(500000); // 0.5s
+                    continue;
+                } catch (NetworkExceptionInterface $e) {
+                    throw new \Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $e->getMessage(), 500);
                 }
 
-                ['errNo' => $errNo, 'error' => $error, 'statusCode' => $statusCode, 'executorResponse' => $executorResponse] = \call_user_func($sendCreateRuntimeRequest);
+                $statusCode = $response->getStatusCode();
 
-                if ($errNo === 0) {
-                    $body = \is_string($executorResponse) ? \json_decode($executorResponse, true) : [];
-
-                    if ($statusCode >= 500) {
-                        // If the runtime has not yet attempted to start, it will return 500
-                        $error = $body['message'];
-                    } elseif ($statusCode >= 400 && $statusCode !== 409) {
-                        // If the runtime fails to start, it will return 400, except for 409
-                        // which indicates that the runtime is already being created
-                        $error = $body['message'];
-                        throw new \Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
-                    } else {
-                        break;
+                // A 5xx means the runtime has not yet attempted to start, so keep polling.
+                if ($statusCode < 500) {
+                    if ($statusCode >= 400 && $statusCode !== 409) {
+                        // 4xx (except 409, which means the runtime is already being created)
+                        // is a genuine failure to start.
+                        $body = \json_decode((string) $response->getBody(), true);
+                        throw new \Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . (\is_array($body) ? ($body['message'] ?? '') : ''), 500);
                     }
-                } elseif ($errNo !== 111) {
-                    // Connection refused - see https://openswoole.com/docs/swoole-error-code
-                    throw new \Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);
+
+                    break;
                 }
 
                 \usleep(500000); // 0.5s
@@ -801,54 +783,25 @@ class Docker extends Adapter
         }
 
         $executeV2 = function () use ($variables, $payload, $secret, $hostname, $timeout): array {
-            $statusCode = 0;
-            $errNo = -1;
-            $executorResponse = '';
-
-            $ch = \curl_init();
-
             $body = \json_encode([
                 'variables' => $variables,
                 'payload' => $payload,
                 'headers' => []
             ], JSON_FORCE_OBJECT);
 
-            \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000/");
-            \curl_setopt($ch, CURLOPT_POST, true);
-            \curl_setopt($ch, CURLOPT_POSTFIELDS, $body ?: '');
-            \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            \curl_setopt($ch, CURLOPT_TIMEOUT, (int) $timeout);
-            \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+            $client = new HttpClient(new CurlAdapter())
+                ->withTimeout((float) (int) $timeout)
+                ->withConnectTimeout(10.0);
 
-            \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'Content-Type: application/json',
-                'Content-Length: ' . \strlen($body ?: ''),
-                'x-internal-challenge: ' . $secret,
-                'host: null'
+            $request = new RequestFactory()->body(Method::POST, 'http://' . $hostname . ':3000/', $body !== false ? $body : '', 'application/json', [
+                'x-internal-challenge' => $secret,
+                'Host' => 'null'
             ]);
 
-            $executorResponse = \curl_exec($ch);
-
-            $statusCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-            $error = \curl_error($ch);
-
-            $errNo = \curl_errno($ch);
-
-            if ($errNo !== 0) {
-                return [
-                    'errNo' => $errNo,
-                    'error' => $error,
-                    'statusCode' => $statusCode,
-                    'body' => '',
-                    'logs' => '',
-                    'errors' => '',
-                    'headers' => []
-                ];
-            }
+            $response = $client->sendRequest($request);
 
             // Extract response
-            $executorResponse = json_decode(\strval($executorResponse), false);
+            $executorResponse = json_decode((string) $response->getBody(), false);
 
             $res = $executorResponse->response ?? '';
             if (is_array($res)) {
@@ -861,9 +814,7 @@ class Docker extends Adapter
             $stdout = $executorResponse->stdout ?? '';
 
             return [
-                'errNo' => $errNo,
-                'error' => $error,
-                'statusCode' => $statusCode,
+                'statusCode' => $response->getStatusCode(),
                 'body' => $res,
                 'logs' => $stdout,
                 'errors' => $stderr,
@@ -872,88 +823,48 @@ class Docker extends Adapter
         };
 
         $executeV5 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName, $logging): array {
-            $statusCode = 0;
-            $errNo = -1;
-            $executorResponse = '';
-
-            $ch = \curl_init();
-
-            $responseHeaders = [];
-
             if (!(\str_starts_with($path, '/'))) {
                 $path = '/' . $path;
             }
 
-            \curl_setopt($ch, CURLOPT_URL, "http://" . $hostname . ":3000" . $path);
-            \curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method ?: 'GET');
-            \curl_setopt($ch, CURLOPT_NOBODY, \strtoupper($method) === 'HEAD');
-
-            if (!in_array($payload, [null, '', '0'], true)) {
-                \curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
-            }
-
-            \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders): int {
-                $len = strlen($header);
-                $header = explode(':', $header, 2);
-                if (count($header) < 2) { // ignore invalid headers
-                    return $len;
-                }
-
-                $key = strtolower(trim($header[0]));
-                $value = trim($header[1]);
-
-                if ($key === 'x-open-runtimes-log-id') {
-                    $value = \urldecode($value);
-                }
-
-                if (\array_key_exists($key, $responseHeaders)) {
-                    if (is_array($responseHeaders[$key])) {
-                        $responseHeaders[$key][] = $value;
-                    } else {
-                        $responseHeaders[$key] = [$responseHeaders[$key], $value];
-                    }
-                } else {
-                    $responseHeaders[$key] = $value;
-                }
-
-                return $len;
-            });
-
-            \curl_setopt($ch, CURLOPT_TIMEOUT, (int) $timeout + 5); // Gives extra 5s after safe timeout to recieve response
-            \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
             $headers['x-open-runtimes-logging'] = $logging ? 'enabled' : 'disabled';
-
             $headers['Authorization'] = 'Basic ' . \base64_encode('opr:' . $secret);
             $headers['x-open-runtimes-secret'] = $secret;
+            $headers['x-open-runtimes-timeout'] = (string) \max(\intval($timeout), 1);
 
-            $headers['x-open-runtimes-timeout'] = \max(\intval($timeout), 1);
-            $headersArr = [];
-            foreach ($headers as $key => $value) {
-                $headersArr[] = $key . ': ' . $value;
+            $client = new HttpClient(new CurlAdapter())
+                ->withTimeout((float) ((int) $timeout + 5)) // Extra 5s after safe timeout to receive response
+                ->withConnectTimeout(5.0);
+
+            $factory = new RequestFactory();
+            $url = 'http://' . $hostname . ':3000' . $path;
+            $method = $method ?: 'GET';
+
+            if (\in_array($payload, [null, '', '0'], true)) {
+                $request = $factory->createRequest($method, $url);
+                foreach ($headers as $key => $value) {
+                    $request = $request->withHeader($key, (string) $value);
+                }
+            } else {
+                // Match cURL's default content type for a raw body when the caller set none.
+                $request = $factory->body($method, $url, $payload, 'application/x-www-form-urlencoded', $headers);
             }
 
-            \curl_setopt($ch, CURLOPT_HEADEROPT, CURLHEADER_UNIFIED);
-            \curl_setopt($ch, CURLOPT_HTTPHEADER, $headersArr);
+            $response = $client->sendRequest($request);
 
-            $executorResponse = \curl_exec($ch);
+            $statusCode = $response->getStatusCode();
+            $executorResponse = (string) $response->getBody();
 
-            $statusCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            // Normalise response headers: lowercase keys and collapse single values
+            // to a scalar, keeping multi-value headers (e.g. Set-Cookie) as a list.
+            $responseHeaders = [];
+            foreach ($response->getHeaders() as $name => $values) {
+                $key = \strtolower($name);
+                if ($key === 'x-open-runtimes-log-id') {
+                    $values = \array_map(\urldecode(...), $values);
+                }
 
-            $error = \curl_error($ch);
-
-            $errNo = \curl_errno($ch);
-
-            if ($errNo !== 0) {
-                return [
-                    'errNo' => $errNo,
-                    'error' => $error,
-                    'statusCode' => $statusCode,
-                    'body' => '',
-                    'logs' => '',
-                    'errors' => '',
-                    'headers' => $responseHeaders
-                ];
+                $responseHeaders[$key] = \count($values) === 1 ? $values[0] : $values;
             }
 
             // Extract logs and errors from file based on fileId in header
@@ -1005,8 +916,6 @@ class Docker extends Adapter
             }
 
             return [
-                'errNo' => $errNo,
-                'error' => $error,
                 'statusCode' => $statusCode,
                 'body' => $executorResponse,
                 'logs' => $logs,
@@ -1054,31 +963,30 @@ class Docker extends Adapter
         $retryAttempts = \intval(System::getEnv('OPR_EXECUTOR_RETRY_ATTEMPTS', '5'));
 
         $attempts = 0;
+        $lastError = '';
         do {
-            $executionResponse = \call_user_func($executionRequest);
-            if ($executionResponse['errNo'] === CURLE_OK) {
+            try {
+                $executionResponse = \call_user_func($executionRequest);
                 break;
-            }
+            } catch (ConnectionException | DnsException $e) {
+                // Couldn't connect or resolve the runtime; retry.
+                $lastError = $e->getMessage();
+                usleep($retryDelayMs * 1000);
+            } catch (ClientTimeoutException $e) {
+                // Intended timeout error for v2 functions
+                if ($version === 'v2') {
+                    throw new ExecutorException(ExecutorException::EXECUTION_TIMEOUT, $e->getMessage(), 400);
+                }
 
-            // Not retryable, return error immediately
-            if (!in_array($executionResponse['errNo'], [
-                CURLE_COULDNT_RESOLVE_HOST, // 6
-                CURLE_COULDNT_CONNECT, // 7
-            ])) {
-                break;
+                throw new \Exception('Internal curl error has occurred within the executor! Error Msg: ' . $e->getMessage(), 500);
+            } catch (NetworkExceptionInterface $e) {
+                throw new \Exception('Internal curl error has occurred within the executor! Error Msg: ' . $e->getMessage(), 500);
             }
-
-            usleep($retryDelayMs * 1000);
         } while ((++$attempts < $retryAttempts) || (\microtime(true) - $startTime < $timeout));
 
-        // Error occurred
-        if ($executionResponse['errNo'] !== CURLE_OK) {
-            // Intended timeout error for v2 functions
-            if ($version === 'v2' && $executionResponse['errNo'] === SOCKET_ETIMEDOUT) {
-                throw new ExecutorException(ExecutorException::EXECUTION_TIMEOUT, $executionResponse['error'], 400);
-            }
-
-            throw new \Exception('Internal curl error has occurred within the executor! Error Number: ' . $executionResponse['errNo'], 500);
+        // Retries exhausted without a successful response
+        if (!isset($executionResponse)) {
+            throw new \Exception('Internal curl error has occurred within the executor! Error Msg: ' . $lastError, 500);
         }
 
         // Successful execution

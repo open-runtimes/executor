@@ -2,11 +2,30 @@
 
 namespace Tests\E2E;
 
-use Utopia\Fetch\Client as FetchClient;
 use OpenRuntimes\Executor\BodyMultipart;
+use Swoole\Coroutine;
+use Utopia\Client as HttpClient;
+use Utopia\Client\Adapter\Curl\Client as CurlAdapter;
+use Utopia\Client\Adapter\SwooleCoroutine\Client as SwooleAdapter;
+use Utopia\Psr7\Method;
+use Utopia\Psr7\Request\Factory as RequestFactory;
 
-class Client extends FetchClient
+class Client
 {
+    public const METHOD_GET = Method::GET;
+
+    public const METHOD_POST = Method::POST;
+
+    public const METHOD_PUT = Method::PUT;
+
+    public const METHOD_PATCH = Method::PATCH;
+
+    public const METHOD_DELETE = Method::DELETE;
+
+    public const METHOD_HEAD = Method::HEAD;
+
+    public const METHOD_OPTIONS = Method::OPTIONS;
+
     /**
      * @param array<string, string> $baseHeaders
      */
@@ -31,60 +50,69 @@ class Client extends FetchClient
     public function call(string $method, string $path = '', array $headers = [], array $params = [], bool $decode = true, ?callable $callback = null): array
     {
         $url = $this->endpoint . $path;
+        $headers = \array_merge($this->baseHeaders, $headers);
 
-        $client = new FetchClient();
-        $client->setTimeout(60000);
-
-        foreach ($this->baseHeaders as $key => $value) {
-            $client->addHeader($key, $value);
+        $factory = new RequestFactory();
+        $contentType = \strtolower($headers['content-type'] ?? $headers['Content-Type'] ?? '');
+        if ($method === Method::GET) {
+            $request = $factory->query($method, $url, $params, $headers);
+        } elseif ($contentType === 'multipart/form-data') {
+            // Drop the caller's boundary-less content type so the factory emits
+            // one with a boundary; otherwise the parts can't be parsed.
+            $headers = \array_filter($headers, static fn (string $key): bool => \strtolower($key) !== 'content-type', ARRAY_FILTER_USE_KEY);
+            $request = $factory->multipart($method, $url, $params, $headers);
+        } elseif ($contentType === 'application/x-www-form-urlencoded') {
+            $request = $factory->form($method, $url, $params, $headers);
+        } else {
+            $request = $factory->body($method, $url, \json_encode($params, JSON_THROW_ON_ERROR), $contentType !== '' ? $contentType : 'application/json', $headers);
         }
 
-        foreach ($headers as $key => $value) {
-            $client->addHeader($key, $value);
-        }
+        // Outside a coroutine cURL blocks fine; inside one the Swoole adapter
+        // yields so concurrent calls (e.g. streaming logs) run in parallel.
+        $adapter = Coroutine::getCid() > 0 ? new SwooleAdapter() : new CurlAdapter();
+        $client = new HttpClient($adapter)->withTimeout(60.0);
 
-        $response = $client->fetch(
-            url: $url,
-            method: $method,
-            body: $method !== FetchClient::METHOD_GET ? $params : [],
-            query: $method === FetchClient::METHOD_GET ? $params : [],
-            chunks: $callback ? function ($chunk) use ($callback): void {
-                $callback($chunk->getData());
-            } : null
-        );
+        if ($callback !== null) {
+            $response = $client->stream($request, static fn (string $chunk) => $callback($chunk));
+        } else {
+            $response = $client->sendRequest($request);
+        }
 
         $body = null;
         if ($callback === null) {
-            if ($decode) {
-                $contentType = $response->getHeaders()['content-type'] ?? '';
-                $strpos = strpos($contentType, ';');
-                $strpos = is_bool($strpos) ? strlen($contentType) : $strpos;
-                $contentType = substr($contentType, 0, $strpos);
+            $contentTypeHeader = $response->getHeaderLine('content-type');
+            $contentType = \strtolower(\trim(\explode(';', $contentTypeHeader)[0]));
+            $text = (string) $response->getBody();
 
+            if ($decode) {
                 switch ($contentType) {
                     case 'multipart/form-data':
-                        $boundary = explode('boundary=', $response->getHeaders()['content-type'] ?? '')[1] ?? '';
-                        $multipartResponse = new BodyMultipart($boundary);
-                        $multipartResponse->load($response->text());
-                        $body = $multipartResponse->getParts();
+                        $boundary = \explode('boundary=', $contentTypeHeader)[1] ?? '';
+                        $multipart = new BodyMultipart($boundary);
+                        $multipart->load($text);
+                        $body = $multipart->getParts();
                         break;
                     case 'application/json':
-                        $body = $response->json();
+                        $body = \json_decode($text, true);
                         break;
                     default:
-                        $body = $response->text();
+                        $body = $text;
                         break;
                 }
             } else {
-                $body = $response->text();
+                $body = $text;
             }
         }
 
+        $responseHeaders = [];
+        foreach ($response->getHeaders() as $name => $values) {
+            $responseHeaders[\strtolower((string) $name)] = \implode(', ', $values);
+        }
+
+        $responseHeaders['status-code'] = $response->getStatusCode();
+
         return [
-            'headers' => array_merge(
-                $response->getHeaders(),
-                ['status-code' => $response->getStatusCode()]
-            ),
+            'headers' => $responseHeaders,
             'body' => $body
         ];
     }
