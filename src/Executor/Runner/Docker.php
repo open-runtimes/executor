@@ -8,7 +8,6 @@ use OpenRuntimes\Executor\Runner\Repository\Runtimes;
 use OpenRuntimes\Executor\StorageFactory;
 use OpenRuntimes\Executor\Validator\TCP;
 use Psr\Http\Client\NetworkExceptionInterface;
-use Psr\Http\Message\ResponseInterface;
 use Swoole\Timer;
 use Throwable;
 use Utopia\Client as HttpClient;
@@ -687,12 +686,16 @@ class Docker extends Adapter
                 throw new ExecutorException(ExecutorException::RUNTIME_NOT_FOUND, 'Runtime not found. Please start it first or provide runtime-related parameters.');
             }
 
-            // Prepare request to executor
-            $sendCreateRuntimeRequest = function () use ($runtimeId, $image, $source, $entrypoint, $variables, $cpus, $memory, $version, $restartPolicy, $runtimeEntrypoint): ResponseInterface {
+            // Prepare runtime
+            while (true) {
+                // If timeout is passed, stop and return error
+                if (\microtime(true) - $prepareStart >= $timeout) {
+                    throw new ExecutorException(ExecutorException::RUNTIME_TIMEOUT);
+                }
+
                 $client = new HttpClient(new CurlAdapter())
                     ->withConnectTimeout(10.0)
                     ->withBearerAuth(System::getEnv('OPR_EXECUTOR_SECRET', ''));
-
                 $request = new RequestFactory()->json(Method::POST, 'http://127.0.0.1/v1/runtimes', [
                     'runtimeId' => $runtimeId,
                     'image' => $image,
@@ -706,18 +709,8 @@ class Docker extends Adapter
                     'runtimeEntrypoint' => $runtimeEntrypoint
                 ]);
 
-                return $client->sendRequest($request);
-            };
-
-            // Prepare runtime
-            while (true) {
-                // If timeout is passed, stop and return error
-                if (\microtime(true) - $prepareStart >= $timeout) {
-                    throw new ExecutorException(ExecutorException::RUNTIME_TIMEOUT);
-                }
-
                 try {
-                    $response = \call_user_func($sendCreateRuntimeRequest);
+                    $response = $client->sendRequest($request);
                 } catch (ConnectionException) {
                     // Runtime not listening yet; keep polling.
                     \usleep(500000); // 0.5s
@@ -847,7 +840,7 @@ class Docker extends Adapter
 
             $factory = new RequestFactory();
             $url = 'http://' . $hostname . ':3000' . $path;
-            $method = $method !== '' ? $method : 'GET';
+            $method = $method ?: 'GET';
 
             if (\in_array($payload, [null, '', '0'], true)) {
                 $request = $factory->createRequest($method, $url);
