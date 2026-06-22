@@ -832,9 +832,7 @@ class Docker extends Adapter
             $headers['x-open-runtimes-secret'] = $secret;
             $headers['x-open-runtimes-timeout'] = (string) \max(\intval($timeout), 1);
 
-            // HEAD must not block waiting for a body that will never arrive.
-            $options = \strtoupper($method) === 'HEAD' ? [\CURLOPT_NOBODY => true] : [];
-            $client = new HttpClient(new CurlAdapter(options: $options))
+            $client = new HttpClient(new CurlAdapter())
                 ->withTimeout((float) ((int) $timeout + 5)) // Extra 5s after safe timeout to receive response
                 ->withConnectTimeout(5.0);
 
