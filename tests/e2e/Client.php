@@ -53,15 +53,18 @@ class Client
         $headers = \array_merge($this->baseHeaders, $headers);
 
         $factory = new RequestFactory();
+        $contentType = \strtolower($headers['content-type'] ?? $headers['Content-Type'] ?? '');
         if ($method === Method::GET) {
             $request = $factory->query($method, $url, $params, $headers);
+        } elseif ($contentType === 'multipart/form-data') {
+            // Drop the caller's boundary-less content type so the factory emits
+            // one with a boundary; otherwise the parts can't be parsed.
+            $headers = \array_filter($headers, static fn (string $key): bool => \strtolower($key) !== 'content-type', ARRAY_FILTER_USE_KEY);
+            $request = $factory->multipart($method, $url, $params, $headers);
+        } elseif ($contentType === 'application/x-www-form-urlencoded') {
+            $request = $factory->form($method, $url, $params, $headers);
         } else {
-            $contentType = \strtolower($headers['content-type'] ?? $headers['Content-Type'] ?? '');
-            $body = match ($contentType) {
-                'application/x-www-form-urlencoded' => \http_build_query($params),
-                default => \json_encode($params, JSON_THROW_ON_ERROR),
-            };
-            $request = $factory->body($method, $url, $body, $contentType !== '' ? $contentType : 'application/json', $headers);
+            $request = $factory->body($method, $url, \json_encode($params, JSON_THROW_ON_ERROR), $contentType !== '' ? $contentType : 'application/json', $headers);
         }
 
         // Outside a coroutine cURL blocks fine; inside one the Swoole adapter
