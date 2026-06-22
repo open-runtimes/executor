@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace OpenRuntimes\Executor\Runner;
 
 use Utopia\Http\Response;
@@ -29,6 +31,7 @@ abstract class Adapter
         int $memory,
         string $version,
         string $restartPolicy,
+        string $cacheKey = '',
         string $region = '',
     ): mixed;
 

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace OpenRuntimes\Executor;
 
 use Utopia\Console;

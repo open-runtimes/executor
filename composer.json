@@ -14,36 +14,36 @@
     "format": "./vendor/bin/pint --config pint.json",
     "format:check": "./vendor/bin/pint --test --config pint.json",
     "analyze": "./vendor/bin/phpstan analyse --memory-limit=1G -c phpstan.neon app src tests",
-    "test:unit": "./vendor/bin/phpunit --configuration phpunit.xml --debug --testsuite=unit",
-    "test:e2e": "./vendor/bin/phpunit --configuration phpunit.xml --debug --testsuite=e2e",
+    "test:unit": "./vendor/bin/phpunit --configuration phpunit.xml --testsuite=unit",
+    "test:e2e": "./vendor/bin/phpunit --configuration phpunit.xml --testsuite=e2e",
     "refactor": "./vendor/bin/rector",
     "refactor:check": "./vendor/bin/rector --dry-run"
   },
   "require": {
-    "php": ">=8.4",
+    "php": ">=8.5.0",
     "ext-curl": "*",
     "ext-json": "*",
     "ext-swoole": "*",
     "utopia-php/client": "0.1.*",
     "utopia-php/config": "^0.2.2",
-    "utopia-php/console": "0.0.*",
+    "utopia-php/console": "^0.1.1",
     "utopia-php/di": "0.3.*",
     "utopia-php/dsn": "0.2.*",
-    "utopia-php/framework": "0.34.*",
-    "utopia-php/orchestration": "0.19.*",
-    "utopia-php/storage": "0.18.*",
+    "utopia-php/http": "2.0.0-rc5@RC",
+    "utopia-php/orchestration": "^0.19.2",
+    "utopia-php/storage": "^2.0",
     "utopia-php/system": "0.10.*"
   },
   "require-dev": {
     "laravel/pint": "1.*",
-    "phpstan/phpstan": "2.*",
-    "phpunit/phpunit": "9.*",
-    "rector/rector": "2.3.8",
-    "swoole/ide-helper": "5.1.2"
+    "phpstan/phpstan": "^2.1",
+    "phpunit/phpunit": "^13.1",
+    "rector/rector": "^2.4",
+    "swoole/ide-helper": "^6.0"
   },
   "config": {
     "platform": {
-      "php": "8.4"
+      "php": "8.5"
     },
     "allow-plugins": {
       "php-http/discovery": false,

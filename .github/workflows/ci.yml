@@ -62,7 +62,7 @@ jobs:
         docker run --rm \
           -v $PWD:/app \
           -w /app \
-          phpswoole/swoole:6.2.1-php8.4-alpine \
+          phpswoole/swoole:6.2.0-php8.5-alpine \
           sh -c "
             apk update && \
             apk add zip unzip && \
@@ -125,7 +125,7 @@ jobs:
           -v /var/run/docker.sock:/var/run/docker.sock \
           --network executor_runtimes \
           -w /app \
-          phpswoole/swoole:6.2.1-php8.4-alpine \
+          phpswoole/swoole:6.2.0-php8.5-alpine \
           sh -c "
             apk update && \
             apk add docker-cli zip unzip && \

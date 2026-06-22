@@ -18,7 +18,6 @@ use Utopia\Client\Exception\DnsException;
 use Utopia\Client\Exception\TimeoutException as ClientTimeoutException;
 use Utopia\Console;
 use Utopia\Http\Response;
-use Utopia\Logger\Log;
 use Utopia\Orchestration\Orchestration;
 use Utopia\Orchestration\Exception\Timeout as TimeoutException;
 use Utopia\Orchestration\Exception\Orchestration as OrchestrationException;
@@ -53,7 +52,8 @@ class Docker extends Adapter
         // Wait for runtime
         for ($i = 0; $i < 10; $i++) {
             $output = '';
-            $code = Console::execute('docker container inspect ' . \escapeshellarg($runtimeName), '', $output);
+            $stderr = '';
+            $code = Console::execute('docker container inspect ' . \escapeshellarg($runtimeName), '', $output, $stderr);
             if ($code === 0) {
                 break;
             }
@@ -124,6 +124,15 @@ class Docker extends Adapter
         $timerId = Timer::tick($streamInterval, function () use (&$logsProcess, &$logsChunk, $response, $activeRuntimes, $runtimeName): void {
             $runtime = $activeRuntimes->get($runtimeName);
             if (!$runtime instanceof \OpenRuntimes\Executor\Runner\Runtime) {
+                if (!empty($logsChunk)) {
+                    $response->write($logsChunk);
+                    $logsChunk = '';
+                }
+
+                if (!empty($logsProcess)) {
+                    \proc_terminate($logsProcess, 9);
+                }
+
                 return;
             }
 
@@ -156,7 +165,8 @@ class Docker extends Adapter
         $datetime = new \DateTime("now", new \DateTimeZone("UTC")); // Date used for tracking absolute log timing
 
         $output = ''; // Unused, just a refference for stdout
-        Console::execute('tail -F ' . $tmpLogging . '/timings.txt', '', $output, $timeout, function (string $timingChunk, mixed $process) use ($tmpLogging, &$logsChunk, &$logsProcess, &$datetime, &$offset, $introOffset): void {
+        $stderr = '';
+        Console::execute('tail -F ' . $tmpLogging . '/timings.txt', '', $output, $stderr, $timeout, function (string $timingChunk, mixed $process) use ($tmpLogging, &$logsChunk, &$logsProcess, &$datetime, &$offset, $introOffset): void {
             $logsProcess = $process;
 
             $logsPath = $tmpLogging . '/logs.txt';
@@ -237,6 +247,7 @@ class Docker extends Adapter
         int $memory,
         string $version,
         string $restartPolicy,
+        string $cacheKey = '',
         string $region = '',
     ): mixed {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
@@ -254,6 +265,7 @@ class Docker extends Adapter
         /** @var array<string, mixed> $container */
         $container = [];
         $output = [];
+        $cacheWarnings = [];
         $startTime = \microtime(true);
 
         $runtime = new Runtime(
@@ -274,9 +286,6 @@ class Docker extends Adapter
          * Temporary file paths in the executor
          */
         $buildFile = "code.tar.gz";
-        if (($variables['OPEN_RUNTIMES_BUILD_COMPRESSION'] ?? '') === 'none') {
-            $buildFile = "code.tar";
-        }
 
         $sourceFile = "code.tar.gz";
         if ($source !== '' && $source !== '0' && \pathinfo($source, PATHINFO_EXTENSION) === 'tar') {
@@ -286,6 +295,7 @@ class Docker extends Adapter
         $tmpFolder = sprintf('tmp/%s/', $runtimeName);
         $tmpSource = sprintf('/%ssrc/%s', $tmpFolder, $sourceFile);
         $tmpBuild = sprintf('/%sbuilds/%s', $tmpFolder, $buildFile);
+        $tmpCache = sprintf('/%scache', $tmpFolder);
         $tmpLogging = sprintf('/%slogging', $tmpFolder); // Build logs
         $tmpLogs = sprintf('/%slogs', $tmpFolder); // Runtime logs
 
@@ -328,6 +338,23 @@ class Docker extends Adapter
                 \dirname($tmpBuild) . ':' . $codeMountPath . ':rw',
             ];
 
+            $cacheEnabled = $cacheKey !== '' && $command !== '' && $command !== '0';
+            if ($cacheEnabled) {
+                $this->validateBuildCacheKey($cacheKey);
+
+                try {
+                    $this->restoreBuildCacheArtifact($cacheKey, $tmpCache, $localDevice);
+                } catch (Throwable $err) {
+                    $cacheWarnings[] = $this->getBuildCacheWarning('Failed to restore cache artifact: ' . $err->getMessage());
+
+                    if (!$localDevice->exists($tmpCache)) {
+                        $localDevice->createDirectory($tmpCache);
+                    }
+                }
+
+                $volumes[] = $tmpCache . ':/cache:rw';
+            }
+
             if ($version === 'v5') {
                 $volumes[] = \dirname($tmpLogs . '/logs') . ':/mnt/logs:rw';
                 $volumes[] = \dirname($tmpLogging . '/logging') . ':/tmp/logging:rw';
@@ -358,25 +385,11 @@ class Docker extends Adapter
              * Execute any commands if they were provided
              */
             if ($command !== '' && $command !== '0') {
-                if ($version === 'v2') {
-                    $commands = [
-                        'sh',
-                        '-c',
-                        'touch /var/tmp/logs.txt && (' . $command . ') >> /var/tmp/logs.txt 2>&1 && cat /var/tmp/logs.txt'
-                    ];
-                } else {
-                    $commands = [
-                        'bash',
-                        '-c',
-                        'mkdir -p /tmp/logging && touch /tmp/logging/timings.txt && touch /tmp/logging/logs.txt && script --log-out /tmp/logging/logs.txt --flush --log-timing /tmp/logging/timings.txt --return --quiet --command "' . \str_replace('"', '\"', $command) . '"'
-                    ];
-                }
-
                 try {
                     $stdout = '';
                     $status = $this->orchestration->execute(
                         name: $runtimeName,
-                        command: $commands,
+                        command: $this->getBuildCommands($command, $version),
                         output: $stdout,
                         timeout: $timeout
                     );
@@ -391,11 +404,25 @@ class Docker extends Adapter
                             'timestamp' => Logs::getTimestamp(),
                             'content' => $stdout
                         ];
-                    } else {
+                    } elseif (!$cacheEnabled) {
                         $output = Logs::get($runtimeName);
                     }
                 } catch (Throwable $err) {
                     throw new ExecutorException(ExecutorException::RUNTIME_FAILED, $err->getMessage(), null, $err);
+                }
+
+                if ($cacheEnabled) {
+                    try {
+                        $this->storeBuildCacheArtifact($cacheKey, $tmpCache, $localDevice);
+                    } catch (Throwable $err) {
+                        $cacheWarnings[] = $this->getBuildCacheWarning('Failed to store cache artifact: ' . $err->getMessage());
+                    }
+
+                    if ($version === 'v2') {
+                        $output = \array_merge($output, $cacheWarnings);
+                    } else {
+                        $output = \array_merge($cacheWarnings, Logs::get($runtimeName));
+                    }
                 }
             }
 
@@ -471,6 +498,10 @@ class Docker extends Adapter
                 ]];
             }
 
+            if ($cacheWarnings !== []) {
+                $output = \array_merge($cacheWarnings, $output);
+            }
+
             if ($remove) {
                 \sleep(2); // Allow time to read logs
             }
@@ -512,6 +543,100 @@ class Docker extends Adapter
         }
 
         return $container;
+    }
+
+    /**
+     * @return string[]
+     */
+    private function getBuildCommands(string $command, string $version): array
+    {
+        if ($version === 'v2') {
+            return [
+                'sh',
+                '-c',
+                'touch /var/tmp/logs.txt && (' . $command . ') >> /var/tmp/logs.txt 2>&1 && cat /var/tmp/logs.txt'
+            ];
+        }
+
+        return [
+            'bash',
+            '-c',
+            'mkdir -p /tmp/logging && touch /tmp/logging/timings.txt && touch /tmp/logging/logs.txt && script --log-out /tmp/logging/logs.txt --flush --log-timing /tmp/logging/timings.txt --return --quiet --command "' . \str_replace('"', '\"', $command) . '"'
+        ];
+    }
+
+    /**
+     * @return array{timestamp: string, content: string}
+     */
+    private function getBuildCacheWarning(string $message): array
+    {
+        return [
+            'timestamp' => Logs::getTimestamp(),
+            'content' => '[build cache] Warning: ' . $message . "\n"
+        ];
+    }
+
+    private function validateBuildCacheKey(string $cacheKey): void
+    {
+        if (
+            \str_contains($cacheKey, "\0") ||
+            \str_starts_with($cacheKey, '/') ||
+            \str_contains($cacheKey, '\\') ||
+            \preg_match('#(^|/)\.\.(?:/|$)#', $cacheKey) === 1
+        ) {
+            throw new \Exception('Invalid build cache key', 400);
+        }
+    }
+
+    private function restoreBuildCacheArtifact(string $cacheKey, string $tmpCache, Local $localDevice): void
+    {
+        if (!$localDevice->createDirectory($tmpCache)) {
+            throw new \Exception('Failed to create build cache directory');
+        }
+
+        $cacheDevice = $this->getBuildCacheDevice();
+        $artifact = $this->getBuildCacheArtifactPath($cacheDevice, $cacheKey);
+
+        if (!$cacheDevice->exists($artifact)) {
+            return;
+        }
+
+        if (!$cacheDevice->transfer($artifact, $tmpCache . '/stores.sqfs', $localDevice)) {
+            throw new \Exception('Failed to restore build cache artifact');
+        }
+    }
+
+    private function storeBuildCacheArtifact(string $cacheKey, string $tmpCache, Local $localDevice): void
+    {
+        $artifact = $tmpCache . '/stores.sqfs';
+
+        if (!$localDevice->exists($artifact)) {
+            return;
+        }
+
+        $cacheDevice = $this->getBuildCacheDevice();
+        $destinationArtifact = $this->getBuildCacheArtifactPath($cacheDevice, $cacheKey);
+
+        $cacheDevice->createDirectory(\dirname($destinationArtifact));
+
+        if (!$localDevice->transfer($artifact, $destinationArtifact, $cacheDevice)) {
+            throw new \Exception('Failed to store build cache artifact');
+        }
+    }
+
+    private function getBuildCacheDevice(): \Utopia\Storage\Device
+    {
+        $connection = System::getEnv('OPR_EXECUTOR_CONNECTION_BUILD_CACHE_STORAGE', '');
+        if ($connection === '' || $connection === '0') {
+            $connection = System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE');
+        }
+
+        return StorageFactory::getDevice('/build-cache', $connection);
+    }
+
+    private function getBuildCacheArtifactPath(\Utopia\Storage\Device $device, string $cacheKey): string
+    {
+        return $device->getPath($cacheKey . '/lz4-b1M/stores.sqfs');
     }
 
     public function deleteRuntime(string $runtimeId): void
