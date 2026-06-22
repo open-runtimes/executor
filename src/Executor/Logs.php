@@ -117,6 +117,6 @@ class Logs
 
     public static function getTimestamp(): string
     {
-        return (new DateTime("now", new DateTimeZone("UTC")))->format('Y-m-d\TH:i:s.vP');
+        return new DateTime("now", new DateTimeZone("UTC"))->format('Y-m-d\TH:i:s.vP');
     }
 }

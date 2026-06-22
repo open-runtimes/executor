@@ -9,7 +9,13 @@ RUN composer install --ignore-platform-reqs --optimize-autoloader \
     --no-plugins --no-scripts --prefer-dist
 
 # Executor
-FROM openruntimes/base:0.1.0 AS final
+# Swoole + PHP 8.4 base (utopia-php/client requires PHP >= 8.4).
+FROM phpswoole/swoole:6.2.1-php8.4-alpine AS final
+
+# The executor shells out to the Docker CLI to manage runtime containers.
+RUN apk add --no-cache docker-cli
+
+WORKDIR /usr/local/
 
 ARG OPR_EXECUTOR_VERSION
 ENV OPR_EXECUTOR_VERSION=$OPR_EXECUTOR_VERSION

@@ -244,14 +244,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             }
 
             $acceptTypes = \explode(', ', $request->getHeader('accept', 'multipart/form-data'));
-            $isJson = false;
-
-            foreach ($acceptTypes as $acceptType) {
-                if (\str_starts_with($acceptType, 'application/json') || \str_starts_with($acceptType, 'application/*')) {
-                    $isJson = true;
-                    break;
-                }
-            }
+            $isJson = array_any($acceptTypes, fn ($acceptType): bool => \str_starts_with((string) $acceptType, 'application/json') || \str_starts_with((string) $acceptType, 'application/*'));
 
             if ($isJson) {
                 $executionString = \json_encode($execution, JSON_UNESCAPED_UNICODE);
