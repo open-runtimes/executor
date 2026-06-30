@@ -387,7 +387,7 @@ class Docker extends Adapter
                     );
 
                     if (!$status) {
-                        $message = \trim($stdout);
+                        $message = \trim(\mb_strcut($stdout, 0, MAX_BUILD_LOG_SIZE));
 
                         throw new ExecutorException(
                             ExecutorException::BUILD_FAILED,
@@ -407,7 +407,7 @@ class Docker extends Adapter
                 } catch (ExecutorException $err) {
                     throw $err;
                 } catch (OrchestrationException $err) {
-                    $message = \trim($stdout);
+                    $message = \trim(\mb_strcut($stdout, 0, MAX_BUILD_LOG_SIZE));
 
                     throw new ExecutorException(
                         ExecutorException::BUILD_FAILED,
