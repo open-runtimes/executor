@@ -299,6 +299,23 @@ class ExecutorTest extends TestCase
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(400, $response['headers']['status-code']);
+        $this->assertEquals('build_failed', $response['body']['type']);
+
+        /** Silent user error in build command */
+        $params = [
+            'runtimeId' => 'test-build-fail-silent-' . $runtimeId,
+            'source' => '/storage/functions/php/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'entrypoint' => 'index.php',
+            'image' => 'openruntimes/php:v5-8.1',
+            'command' => 'exit 1',
+            'remove' => true
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(400, $response['headers']['status-code']);
+        $this->assertEquals('build_failed', $response['body']['type']);
+        $this->assertStringContainsString('Build command exited with code 1.', (string) $response['body']['message']);
 
         /** Invalid cache key */
         $params = [

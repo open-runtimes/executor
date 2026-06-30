@@ -24,6 +24,8 @@ class Exception extends \RuntimeException
 
     public const string EXECUTION_BAD_JSON    = 'execution_bad_json';
 
+    public const string BUILD_FAILED       = 'build_failed';
+
     public const string RUNTIME_NOT_FOUND    = 'runtime_not_found';
 
     public const string RUNTIME_CONFLICT     = 'runtime_conflict';
