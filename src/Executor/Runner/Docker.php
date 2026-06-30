@@ -522,29 +522,13 @@ class Docker extends Adapter
             $localDevice->deletePath($tmpFolder);
             $this->runtimes->remove($runtimeName);
 
+            if ($throwable instanceof ExecutorException) {
+                throw $throwable;
+            }
+
             $message = '';
             foreach ($output as $chunk) {
                 $message .= $chunk['content'];
-            }
-
-            if ($throwable instanceof ExecutorException) {
-                $throwableMessage = \trim($throwable->getMessage());
-
-                if ($message !== '' && \str_starts_with($throwableMessage, $message)) {
-                    $throwableMessage = \trim(\substr($throwableMessage, \strlen($message)));
-                }
-
-                if ($throwableMessage !== '' && ! \str_contains($message, $throwableMessage)) {
-                    $remaining = MAX_BUILD_LOG_SIZE - \strlen($message);
-                    $remaining -= $message === '' ? 0 : 1;
-
-                    if ($remaining > 0) {
-                        $throwableMessage = \mb_strcut($throwableMessage, 0, $remaining);
-                        $message .= $message === '' ? $throwableMessage : "\n" . $throwableMessage;
-                    }
-                }
-
-                throw new ExecutorException($throwable->getType(), $message, $throwable->getCode(), $throwable);
             }
 
             throw new \Exception($message, $throwable->getCode() ?: 500, $throwable);
