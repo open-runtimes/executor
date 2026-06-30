@@ -299,6 +299,7 @@ class ExecutorTest extends TestCase
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
         $this->assertEquals(400, $response['headers']['status-code']);
+        $this->assertEquals('build_failed', $response['body']['type']);
 
         /** Invalid cache key */
         $params = [

@@ -44,6 +44,19 @@ final class DockerTest extends TestCase
         $this->assertStringNotContainsString('build-cache-save.sh', $command);
     }
 
+    public function testBuildCommandsReportSilentNonZeroExit(): void
+    {
+        $docker = $this->createDocker();
+
+        foreach (['v2', 'v5'] as $version) {
+            $commands = $this->invokeGetBuildCommands($docker, 'exit 1', $version);
+            $command = \implode(' ', $commands);
+
+            $this->assertStringContainsString('Build command exited with code $status.', $command);
+            $this->assertStringContainsString('exit $status', $command);
+        }
+    }
+
     public function testInvalidBuildCacheKeyIsRejected(): void
     {
         $this->expectException(\Exception::class);

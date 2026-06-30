@@ -24,6 +24,14 @@ return [
         'message' => 'You are not authorized to access this resource.',
         'code' => 401,
     ],
+    /* Build */
+    Exception::BUILD_FAILED  => [
+        'name' => Exception::BUILD_FAILED,
+        'short' => 'Build failed',
+        'message' => 'Build failed.',
+        'code' => 400,
+        'publish' => false,
+    ],
     /* Runtime */
     Exception::RUNTIME_FAILED  => [
         'name' => Exception::RUNTIME_FAILED,

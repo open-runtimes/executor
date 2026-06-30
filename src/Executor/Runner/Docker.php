@@ -376,8 +376,9 @@ class Docker extends Adapter
              * Execute any commands if they were provided
              */
             if ($command !== '' && $command !== '0') {
+                $stdout = '';
+
                 try {
-                    $stdout = '';
                     $status = $this->orchestration->execute(
                         name: $runtimeName,
                         command: $this->getBuildCommands($command, $version),
@@ -386,7 +387,12 @@ class Docker extends Adapter
                     );
 
                     if (!$status) {
-                        throw new ExecutorException(ExecutorException::RUNTIME_FAILED, 'Failed to create runtime: ' . $stdout);
+                        $message = \trim($stdout);
+
+                        throw new ExecutorException(
+                            ExecutorException::BUILD_FAILED,
+                            $message === '' ? 'Build command failed.' : $message
+                        );
                     }
 
                     if ($version === 'v2') {
@@ -398,6 +404,16 @@ class Docker extends Adapter
                     } elseif (!$cacheEnabled) {
                         $output = Logs::get($runtimeName);
                     }
+                } catch (ExecutorException $err) {
+                    throw $err;
+                } catch (OrchestrationException $err) {
+                    $message = \trim($stdout);
+
+                    throw new ExecutorException(
+                        ExecutorException::BUILD_FAILED,
+                        $message === '' ? 'Build command failed.' : $message,
+                        previous: $err
+                    );
                 } catch (Throwable $err) {
                     throw new ExecutorException(ExecutorException::RUNTIME_FAILED, $err->getMessage(), null, $err);
                 }
@@ -511,6 +527,26 @@ class Docker extends Adapter
                 $message .= $chunk['content'];
             }
 
+            if ($throwable instanceof ExecutorException) {
+                $throwableMessage = \trim($throwable->getMessage());
+
+                if ($message !== '' && \str_starts_with($throwableMessage, $message)) {
+                    $throwableMessage = \trim(\substr($throwableMessage, \strlen($message)));
+                }
+
+                if ($throwableMessage !== '' && ! \str_contains($message, $throwableMessage)) {
+                    $remaining = MAX_BUILD_LOG_SIZE - \strlen($message);
+                    $remaining -= $message === '' ? 0 : 1;
+
+                    if ($remaining > 0) {
+                        $throwableMessage = \mb_strcut($throwableMessage, 0, $remaining);
+                        $message .= $message === '' ? $throwableMessage : "\n" . $throwableMessage;
+                    }
+                }
+
+                throw new ExecutorException($throwable->getType(), $message, $throwable->getCode(), $throwable);
+            }
+
             throw new \Exception($message, $throwable->getCode() ?: 500, $throwable);
         }
 
@@ -545,14 +581,14 @@ class Docker extends Adapter
             return [
                 'sh',
                 '-c',
-                'touch /var/tmp/logs.txt && (' . $command . ') >> /var/tmp/logs.txt 2>&1 && cat /var/tmp/logs.txt'
+                'touch /var/tmp/logs.txt && (' . $command . ') >> /var/tmp/logs.txt 2>&1; status=$?; cat /var/tmp/logs.txt; if [ $status -ne 0 ]; then echo "Build command exited with code $status."; fi; exit $status'
             ];
         }
 
         return [
             'bash',
             '-c',
-            'mkdir -p /tmp/logging && touch /tmp/logging/timings.txt && touch /tmp/logging/logs.txt && script --log-out /tmp/logging/logs.txt --flush --log-timing /tmp/logging/timings.txt --return --quiet --command "' . \str_replace('"', '\"', $command) . '"'
+            'mkdir -p /tmp/logging && touch /tmp/logging/timings.txt && touch /tmp/logging/logs.txt && script --log-out /tmp/logging/logs.txt --flush --log-timing /tmp/logging/timings.txt --return --quiet --command "' . \str_replace('"', '\"', $command) . '"; status=$?; if [ $status -ne 0 ]; then echo "Build command exited with code $status."; fi; exit $status'
         ];
     }
 
