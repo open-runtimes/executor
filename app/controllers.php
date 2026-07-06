@@ -6,8 +6,8 @@ use OpenRuntimes\Executor\Exception;
 use OpenRuntimes\Executor\BodyMultipart;
 use OpenRuntimes\Executor\Runner\Adapter as Runner;
 use Utopia\System\System;
+use Psr\Http\Message\ServerRequestInterface;
 use Utopia\Http\Http;
-use Utopia\Http\Request;
 use Utopia\Http\Response;
 use Utopia\Validator\AnyOf;
 use Utopia\Validator\Assoc;
@@ -186,7 +186,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             bool $logging,
             string $restartPolicy,
             Response $response,
-            Request $request,
+            ServerRequestInterface $request,
             Runner $runner
         ): void {
             // Parse JSON strings for assoc params when coming from multipart
@@ -239,7 +239,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             );
 
             // Backwards compatibility for headers
-            $responseFormat = $request->getHeaderLine('x-executor-response-format', '0.10.0'); // Last version without support for array value for headers
+            $responseFormat = $request->getHeaderLine('x-executor-response-format') ?: '0.10.0'; // Last version without support for array value for headers
             if (version_compare($responseFormat, '0.11.0', '<')) {
                 foreach ($execution['headers'] as $key => $value) {
                     if (\is_array($value)) {
@@ -249,7 +249,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 }
             }
 
-            $acceptTypes = \explode(', ', $request->getHeaderLine('accept', 'multipart/form-data'));
+            $acceptTypes = \explode(', ', $request->getHeaderLine('accept') ?: 'multipart/form-data');
             $isJson = array_any($acceptTypes, fn ($acceptType): bool => \str_starts_with((string) $acceptType, 'application/json') || \str_starts_with((string) $acceptType, 'application/*'));
 
             if ($isJson) {
@@ -288,8 +288,8 @@ Http::get('/v1/health')
 Http::init()
     ->groups(['api'])
     ->inject('request')
-    ->action(function (Request $request): void {
-        $secretKey = \explode(' ', $request->getHeaderLine('authorization', ''))[1] ?? '';
+    ->action(function (ServerRequestInterface $request): void {
+        $secretKey = \explode(' ', $request->getHeaderLine('authorization'))[1] ?? '';
         if ($secretKey === '' || $secretKey === '0' || $secretKey !== System::getEnv('OPR_EXECUTOR_SECRET', '')) {
             throw new Exception(Exception::GENERAL_UNAUTHORIZED, 'Missing executor key');
         }
