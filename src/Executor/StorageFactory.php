@@ -106,13 +106,13 @@ class StorageFactory
         }
 
         try {
-            $scheme = \strtolower((new DSN($connection))->getScheme() ?? '');
+            $scheme = \strtolower((new DSN($connection))->getScheme());
         } catch (\Throwable) {
             return false;
         }
 
         // Appwrite compose defaults CONNECTION_STORAGE to a local placeholder DSN.
-        return $scheme === Storage::DEVICE_LOCAL || $scheme === 'file' || $scheme === 'local';
+        return $scheme === Storage::DEVICE_LOCAL || $scheme === 'file';
     }
 
     /**
