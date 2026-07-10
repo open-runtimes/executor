@@ -63,12 +63,12 @@ class StorageFactory
         switch ($deviceType) {
             case Storage::DEVICE_S3:
                 if ($url !== '' && $url !== '0') {
-                    return new S3(self::withBucketRoot($root, $bucket), $accessKey, $accessSecret, $url, $dsnRegion, $acl);
+                    return new S3($root, $accessKey, $accessSecret, $url, $dsnRegion, $acl);
                 }
 
                 if ($host !== '' && $host !== '0') {
                     $host = $insecure ? 'http://' . $host : $host;
-                    return new S3(root: self::withBucketRoot($root, $bucket), accessKey: $accessKey, secretKey: $accessSecret, host: $host, region: $dsnRegion, acl: $acl);
+                    return new S3(root: $root, accessKey: $accessKey, secretKey: $accessSecret, host: $host, region: $dsnRegion, acl: $acl);
                 }
 
                 return new AWS(root: $root, accessKey: $accessKey, secretKey: $accessSecret, bucket: $bucket, region: $dsnRegion, acl: $acl);
@@ -105,12 +105,14 @@ class StorageFactory
             return true;
         }
 
-        return \in_array($connection, [
-            'local://localhost',
-            'file://localhost',
-            'local://',
-            'file://',
-        ], true);
+        try {
+            $scheme = \strtolower((new DSN($connection))->getScheme() ?? '');
+        } catch (\Throwable) {
+            return false;
+        }
+
+        // Appwrite compose defaults CONNECTION_STORAGE to a local placeholder DSN.
+        return $scheme === Storage::DEVICE_LOCAL || $scheme === 'file' || $scheme === 'local';
     }
 
     /**
