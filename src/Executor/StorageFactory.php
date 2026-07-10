@@ -106,7 +106,7 @@ class StorageFactory
         }
 
         try {
-            $scheme = \strtolower((new DSN($connection))->getScheme());
+            $scheme = \strtolower(new DSN($connection)->getScheme());
         } catch (\Throwable) {
             return false;
         }
