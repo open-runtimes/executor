@@ -96,7 +96,7 @@ class StorageFactory
      */
     private static function shouldUseEnvFallback(string $connection): bool
     {
-        $device = \strtolower(System::getEnv('OPR_EXECUTOR_STORAGE_DEVICE', Storage::DEVICE_LOCAL) ?? Storage::DEVICE_LOCAL);
+        $device = \strtolower(System::getEnv('OPR_EXECUTOR_STORAGE_DEVICE', Storage::DEVICE_LOCAL));
         if ($device === '' || $device === Storage::DEVICE_LOCAL) {
             return false;
         }
@@ -120,14 +120,14 @@ class StorageFactory
     {
         $acl = 'private';
 
-        switch (\strtolower(System::getEnv('OPR_EXECUTOR_STORAGE_DEVICE', Storage::DEVICE_LOCAL) ?? Storage::DEVICE_LOCAL)) {
+        switch (\strtolower(System::getEnv('OPR_EXECUTOR_STORAGE_DEVICE', Storage::DEVICE_LOCAL))) {
             case Storage::DEVICE_S3:
-                $accessKey = System::getEnv('OPR_EXECUTOR_STORAGE_S3_ACCESS_KEY', '') ?? '';
-                $secretKey = System::getEnv('OPR_EXECUTOR_STORAGE_S3_SECRET', '') ?? '';
-                $host = System::getEnv('OPR_EXECUTOR_STORAGE_S3_HOST', '') ?? '';
-                $region = System::getEnv('OPR_EXECUTOR_STORAGE_S3_REGION', '') ?? '';
-                $bucket = System::getEnv('OPR_EXECUTOR_STORAGE_S3_BUCKET', '') ?? '';
-                $endpointUrl = System::getEnv('OPR_EXECUTOR_STORAGE_S3_ENDPOINT', '') ?? '';
+                $accessKey = System::getEnv('OPR_EXECUTOR_STORAGE_S3_ACCESS_KEY', '');
+                $secretKey = System::getEnv('OPR_EXECUTOR_STORAGE_S3_SECRET', '');
+                $host = System::getEnv('OPR_EXECUTOR_STORAGE_S3_HOST', '');
+                $region = System::getEnv('OPR_EXECUTOR_STORAGE_S3_REGION', '');
+                $bucket = System::getEnv('OPR_EXECUTOR_STORAGE_S3_BUCKET', '');
+                $endpointUrl = System::getEnv('OPR_EXECUTOR_STORAGE_S3_ENDPOINT', '');
 
                 if ($endpointUrl !== '' && $endpointUrl !== '0') {
                     return new S3(self::withBucketRoot($root, $bucket), $accessKey, $secretKey, $endpointUrl, $region, $acl);
@@ -142,40 +142,40 @@ class StorageFactory
             case Storage::DEVICE_DO_SPACES:
                 return new DOSpaces(
                     $root,
-                    System::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_ACCESS_KEY', '') ?? '',
-                    System::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_SECRET', '') ?? '',
-                    System::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_BUCKET', '') ?? '',
-                    System::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_REGION', '') ?? '',
+                    System::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_ACCESS_KEY', ''),
+                    System::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_SECRET', ''),
+                    System::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_BUCKET', ''),
+                    System::getEnv('OPR_EXECUTOR_STORAGE_DO_SPACES_REGION', ''),
                     $acl
                 );
 
             case Storage::DEVICE_BACKBLAZE:
                 return new Backblaze(
                     $root,
-                    System::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_ACCESS_KEY', '') ?? '',
-                    System::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_SECRET', '') ?? '',
-                    System::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_BUCKET', '') ?? '',
-                    System::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_REGION', '') ?? '',
+                    System::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_ACCESS_KEY', ''),
+                    System::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_SECRET', ''),
+                    System::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_BUCKET', ''),
+                    System::getEnv('OPR_EXECUTOR_STORAGE_BACKBLAZE_REGION', ''),
                     $acl
                 );
 
             case Storage::DEVICE_LINODE:
                 return new Linode(
                     $root,
-                    System::getEnv('OPR_EXECUTOR_STORAGE_LINODE_ACCESS_KEY', '') ?? '',
-                    System::getEnv('OPR_EXECUTOR_STORAGE_LINODE_SECRET', '') ?? '',
-                    System::getEnv('OPR_EXECUTOR_STORAGE_LINODE_BUCKET', '') ?? '',
-                    System::getEnv('OPR_EXECUTOR_STORAGE_LINODE_REGION', '') ?? '',
+                    System::getEnv('OPR_EXECUTOR_STORAGE_LINODE_ACCESS_KEY', ''),
+                    System::getEnv('OPR_EXECUTOR_STORAGE_LINODE_SECRET', ''),
+                    System::getEnv('OPR_EXECUTOR_STORAGE_LINODE_BUCKET', ''),
+                    System::getEnv('OPR_EXECUTOR_STORAGE_LINODE_REGION', ''),
                     $acl
                 );
 
             case Storage::DEVICE_WASABI:
                 return new Wasabi(
                     $root,
-                    System::getEnv('OPR_EXECUTOR_STORAGE_WASABI_ACCESS_KEY', '') ?? '',
-                    System::getEnv('OPR_EXECUTOR_STORAGE_WASABI_SECRET', '') ?? '',
-                    System::getEnv('OPR_EXECUTOR_STORAGE_WASABI_BUCKET', '') ?? '',
-                    System::getEnv('OPR_EXECUTOR_STORAGE_WASABI_REGION', '') ?? '',
+                    System::getEnv('OPR_EXECUTOR_STORAGE_WASABI_ACCESS_KEY', ''),
+                    System::getEnv('OPR_EXECUTOR_STORAGE_WASABI_SECRET', ''),
+                    System::getEnv('OPR_EXECUTOR_STORAGE_WASABI_BUCKET', ''),
+                    System::getEnv('OPR_EXECUTOR_STORAGE_WASABI_REGION', ''),
                     $acl
                 );
 
