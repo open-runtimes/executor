@@ -54,10 +54,9 @@ class StorageFactory
 
         switch ($deviceType) {
             case Storage::DEVICE_S3:
-                $bucketRoot = $root;
-                if ($bucket !== '' && $bucket !== '0') {
-                    $bucketRoot = \rtrim($bucket . '/' . \ltrim($root, '/'), '/');
-                }
+                $bucketRoot = ($bucket === '' || $bucket === '0')
+                    ? $root
+                    : \rtrim($bucket . '/' . \ltrim($root, '/'), '/');
 
                 if ($url !== '' && $url !== '0') {
                     return new S3($bucketRoot, $accessKey, $accessSecret, $url, $dsnRegion, $acl);
