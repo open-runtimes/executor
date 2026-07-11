@@ -97,10 +97,10 @@ OPR_EXECUTOR_RETRY_DELAY_MS=500
 > | Storage | DSN |
 > |---------|-----|
 > | Local filesystem | `file://localhost` |
-> | AWS S3 | `s3://access_key:access_secret@host/bucket_name?region=us-east-1` |
+> | AWS S3 | `s3://access_key:access_secret@bucket_name.s3.us-east-1.amazonaws.com?region=us-east-1` |
 > | S3-compatible (MinIO, Garage, etc.) | `s3://access_key:access_secret@localhost/bucket_name?region=us-east-1&url=http%3A%2F%2Fminio%3A9000` |
 >
-> For S3-compatible providers, pass the URL-encoded endpoint via the `url` parameter and use any placeholder host.
+> When a host is provided, the executor connects to it directly using the generic S3 device. For AWS S3, use the bucket's virtual-hosted-style endpoint as the host. For S3-compatible providers, pass the URL-encoded endpoint via the `url` parameter and use any placeholder host.
 
 > For backwards compatibility, executor also supports `OPR_EXECUTOR_STORAGE_*` variables as replacement for `OPR_EXECUTOR_CONNECTION_STORAGE`, as seen in [Appwrite repository](https://github.com/appwrite/appwrite/blob/1.3.8/.env#L26-L46).
 
