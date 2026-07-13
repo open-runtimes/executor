@@ -54,13 +54,17 @@ class StorageFactory
 
         switch ($deviceType) {
             case Storage::DEVICE_S3:
+                $bucketRoot = ($bucket === '' || $bucket === '0')
+                    ? $root
+                    : \rtrim($bucket . '/' . \ltrim($root, '/'), '/');
+
                 if ($url !== '' && $url !== '0') {
-                    return new S3($root, $accessKey, $accessSecret, $url, $dsnRegion, $acl);
+                    return new S3($bucketRoot, $accessKey, $accessSecret, $url, $dsnRegion, $acl);
                 }
 
                 if ($host !== '' && $host !== '0') {
                     $host = $insecure ? 'http://' . $host : $host;
-                    return new S3(root: $root, accessKey: $accessKey, secretKey: $accessSecret, host: $host, region: $dsnRegion, acl: $acl);
+                    return new S3(root: $bucketRoot, accessKey: $accessKey, secretKey: $accessSecret, host: $host, region: $dsnRegion, acl: $acl);
                 }
 
                 return new AWS(root: $root, accessKey: $accessKey, secretKey: $accessSecret, bucket: $bucket, region: $dsnRegion, acl: $acl);

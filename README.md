@@ -92,7 +92,15 @@ OPR_EXECUTOR_RETRY_ATTEMPTS=5
 OPR_EXECUTOR_RETRY_DELAY_MS=500
 ```
 
-> `OPR_EXECUTOR_CONNECTION_STORAGE` takes a DSN string that represents a connection to your storage device. If you would like to use your local filesystem, you can use `file://localhost`. If using S3 or any other provider for storage, use a DSN of the following format `s3://access_key:access_secret@host:port/bucket_name?region=us-east-1`
+> `OPR_EXECUTOR_CONNECTION_STORAGE` takes a DSN string that represents a connection to your storage device. A host is always required in the DSN, even when it is not used to reach the storage backend. For example:
+>
+> | Storage | DSN |
+> |---------|-----|
+> | Local filesystem | `file://localhost` |
+> | AWS S3 | `s3://access_key:access_secret@bucket_name.s3.us-east-1.amazonaws.com?region=us-east-1` |
+> | S3-compatible (MinIO, Garage, etc.) | `s3://access_key:access_secret@localhost/bucket_name?region=us-east-1&url=http%3A%2F%2Fminio%3A9000` |
+>
+> When a host is provided, the executor connects to it directly using the generic S3 device. For AWS S3, use the bucket's virtual-hosted-style endpoint as the host. For S3-compatible providers, pass the URL-encoded endpoint via the `url` parameter and use any placeholder host.
 
 > For backwards compatibility, executor also supports `OPR_EXECUTOR_STORAGE_*` variables as replacement for `OPR_EXECUTOR_CONNECTION_STORAGE`, as seen in [Appwrite repository](https://github.com/appwrite/appwrite/blob/1.3.8/.env#L26-L46).
 
