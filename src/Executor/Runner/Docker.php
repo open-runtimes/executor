@@ -628,8 +628,6 @@ class Docker extends Adapter
         $cacheDevice = $this->getBuildCacheDevice();
         $destinationArtifact = $this->getBuildCacheArtifactPath($cacheDevice, $cacheKey);
 
-        $cacheDevice->createDirectory(\dirname($destinationArtifact));
-
         if (!$localDevice->transfer($artifact, $destinationArtifact, $cacheDevice)) {
             throw new \Exception('Failed to store build cache artifact');
         }

@@ -6,6 +6,7 @@ namespace OpenRuntimes\Executor;
 
 use Utopia\Console;
 use Utopia\DSN\DSN;
+use Utopia\Storage\Acl;
 use Utopia\Storage\Device\AWS;
 use Utopia\Storage\Device\Backblaze;
 use Utopia\Storage\Device\DOSpaces;
@@ -14,7 +15,7 @@ use Utopia\Storage\Device\Local;
 use Utopia\Storage\Device\S3;
 use Utopia\Storage\Device\Wasabi;
 use Utopia\Storage\Device;
-use Utopia\Storage\Storage;
+use Utopia\Storage\DeviceType;
 
 class StorageFactory
 {
@@ -27,8 +28,8 @@ class StorageFactory
     public static function getDevice(string $root, ?string $connection = ''): Device
     {
         $connection ??= '';
-        $acl = 'private';
-        $deviceType = Storage::DEVICE_LOCAL;
+        $acl = Acl::Private;
+        $deviceType = DeviceType::Local->value;
         $accessKey = '';
         $accessSecret = '';
         $host = '';
@@ -52,8 +53,8 @@ class StorageFactory
             Console::warning($throwable->getMessage() . ' - Invalid DSN. Defaulting to Local device.');
         }
 
-        switch ($deviceType) {
-            case Storage::DEVICE_S3:
+        switch (DeviceType::tryFrom($deviceType)) {
+            case DeviceType::S3:
                 $bucketRoot = ($bucket === '' || $bucket === '0')
                     ? $root
                     : \rtrim($bucket . '/' . \ltrim($root, '/'), '/');
@@ -69,19 +70,18 @@ class StorageFactory
 
                 return new AWS(root: $root, accessKey: $accessKey, secretKey: $accessSecret, bucket: $bucket, region: $dsnRegion, acl: $acl);
 
-            case Storage::DEVICE_DO_SPACES:
+            case DeviceType::DoSpaces:
                 return new DOSpaces($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
 
-            case Storage::DEVICE_BACKBLAZE:
+            case DeviceType::Backblaze:
                 return new Backblaze($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
 
-            case Storage::DEVICE_LINODE:
+            case DeviceType::Linode:
                 return new Linode($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
 
-            case Storage::DEVICE_WASABI:
+            case DeviceType::Wasabi:
                 return new Wasabi($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
 
-            case Storage::DEVICE_LOCAL:
             default:
                 return new Local($root);
         }

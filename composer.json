@@ -28,9 +28,9 @@
     "utopia-php/console": "^0.1.1",
     "utopia-php/di": "0.3.*",
     "utopia-php/dsn": "0.2.*",
-    "utopia-php/http": "2.0.0-rc16@RC",
+    "utopia-php/http": "2.0.0-rc18@RC",
     "utopia-php/orchestration": "^0.19.2",
-    "utopia-php/storage": "^2.0",
+    "utopia-php/storage": "^3.0",
     "utopia-php/system": "0.10.*"
   },
   "require-dev": {
