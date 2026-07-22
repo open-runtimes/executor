@@ -91,11 +91,7 @@ class Maintenance
         $tmpPath = DIRECTORY_SEPARATOR . 'tmp' . DIRECTORY_SEPARATOR;
         $prefix = $tmpPath . System::getHostname() . '-';
 
-        foreach ($localDevice->getFiles($tmpPath) as $entry) {
-            if (!\str_starts_with($entry, $prefix)) {
-                continue;
-            }
-
+        foreach (\glob($prefix . '*') ?: [] as $entry) {
             $runtimeName = substr($entry, \strlen($tmpPath));
             if ($this->runtimes->exists($runtimeName)) {
                 continue;
