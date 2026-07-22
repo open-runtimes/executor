@@ -6,7 +6,7 @@ use OpenRuntimes\Executor\Exception;
 use OpenRuntimes\Executor\BodyMultipart;
 use OpenRuntimes\Executor\Runner\Adapter as Runner;
 use Utopia\System\System;
-use Psr\Http\Message\ServerRequestInterface;
+use Utopia\Http\Request;
 use Utopia\Http\Http;
 use Utopia\Http\Response;
 use Utopia\Validator\AnyOf;
@@ -186,7 +186,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             bool $logging,
             string $restartPolicy,
             Response $response,
-            ServerRequestInterface $request,
+            Request $request,
             Runner $runner
         ): void {
             // Parse JSON strings for assoc params when coming from multipart
@@ -288,7 +288,7 @@ Http::get('/v1/health')
 Http::init()
     ->groups(['api'])
     ->inject('request')
-    ->action(function (ServerRequestInterface $request): void {
+    ->action(function (Request $request): void {
         $secretKey = \explode(' ', $request->getHeaderLine('authorization'))[1] ?? '';
         if ($secretKey === '' || $secretKey === '0' || $secretKey !== System::getEnv('OPR_EXECUTOR_SECRET', '')) {
             throw new Exception(Exception::GENERAL_UNAUTHORIZED, 'Missing executor key');
