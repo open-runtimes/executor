@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3201d41fb62f4220b743d0303e695572",
+    "content-hash": "4406170d40da27cf62b09e1728d9a6a9",
     "packages": [
         {
             "name": "brick/math",
@@ -2473,7 +2473,7 @@
         },
         {
             "name": "utopia-php/storage",
-            "version": "dev-main",
+            "version": "4.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/storage.git",
@@ -2497,7 +2497,6 @@
                 "utopia-php/telemetry": "^0.4",
                 "utopia-php/validators": "0.3.*"
             },
-            "default-branch": true,
             "type": "library",
             "autoload": {
                 "psr-4": {
@@ -2518,7 +2517,7 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/storage/issues",
-                "source": "https://github.com/utopia-php/storage/tree/main"
+                "source": "https://github.com/utopia-php/storage/tree/4.0.0"
             },
             "time": "2026-07-23T20:37:10+00:00"
         },
@@ -4773,8 +4772,7 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "utopia-php/http": 5,
-        "utopia-php/storage": 20
+        "utopia-php/http": 5
     },
     "prefer-stable": false,
     "prefer-lowest": false,

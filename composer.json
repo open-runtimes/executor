@@ -30,7 +30,7 @@
     "utopia-php/dsn": "0.2.*",
     "utopia-php/http": "2.0.0-rc18@RC",
     "utopia-php/orchestration": "^0.19.2",
-    "utopia-php/storage": "dev-main#ad05f341a9a62a4de73c5312f4ab6fe69f7d0051",
+    "utopia-php/storage": "^4.0",
     "utopia-php/system": "0.10.*"
   },
   "require-dev": {
