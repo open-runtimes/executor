@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "5f3fc9a1f7ad194ab95cc5fc4c8b7239",
+    "content-hash": "3201d41fb62f4220b743d0303e695572",
     "packages": [
         {
             "name": "brick/math",
@@ -2473,16 +2473,16 @@
         },
         {
             "name": "utopia-php/storage",
-            "version": "3.1.0",
+            "version": "dev-main",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/storage.git",
-                "reference": "38bfc0c14a16a7de2a86b3331865dad1230ed739"
+                "reference": "ad05f341a9a62a4de73c5312f4ab6fe69f7d0051"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/storage/zipball/38bfc0c14a16a7de2a86b3331865dad1230ed739",
-                "reference": "38bfc0c14a16a7de2a86b3331865dad1230ed739",
+                "url": "https://api.github.com/repos/utopia-php/storage/zipball/ad05f341a9a62a4de73c5312f4ab6fe69f7d0051",
+                "reference": "ad05f341a9a62a4de73c5312f4ab6fe69f7d0051",
                 "shasum": ""
             },
             "require": {
@@ -2497,6 +2497,7 @@
                 "utopia-php/telemetry": "^0.4",
                 "utopia-php/validators": "0.3.*"
             },
+            "default-branch": true,
             "type": "library",
             "autoload": {
                 "psr-4": {
@@ -2517,9 +2518,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/storage/issues",
-                "source": "https://github.com/utopia-php/storage/tree/3.1.0"
+                "source": "https://github.com/utopia-php/storage/tree/main"
             },
-            "time": "2026-07-22T15:57:57+00:00"
+            "time": "2026-07-23T20:37:10+00:00"
         },
         {
             "name": "utopia-php/system",
@@ -4772,7 +4773,8 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "utopia-php/http": 5
+        "utopia-php/http": 5,
+        "utopia-php/storage": 20
     },
     "prefer-stable": false,
     "prefer-lowest": false,
