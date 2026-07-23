@@ -297,7 +297,7 @@ class Docker extends Adapter
             /**
              * Copy code files from source to a temporary location on the executor
              */
-            if ($source !== '' && $source !== '0' && !$sourceDevice->transfer($source, $tmpSource, $localDevice)) {
+            if ($source !== '' && $source !== '0' && !$sourceDevice->copy($source, $tmpSource, $localDevice)) {
                 throw new \Exception('Failed to copy source code to temporary directory');
                 ;
             }
@@ -448,7 +448,7 @@ class Docker extends Adapter
                 $destinationDevice = StorageFactory::getDevice($destination, System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE'));
                 $path = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo($tmpBuild, PATHINFO_EXTENSION));
 
-                if (!$localDevice->transfer($tmpBuild, $path, $destinationDevice)) {
+                if (!$localDevice->copy($tmpBuild, $path, $destinationDevice)) {
                     throw new \Exception('Failed to move built code to storage');
                 };
 
@@ -612,7 +612,7 @@ class Docker extends Adapter
             return;
         }
 
-        if (!$cacheDevice->transfer($artifact, $tmpCache . '/stores.sqfs', $localDevice)) {
+        if (!$cacheDevice->copy($artifact, $tmpCache . '/stores.sqfs', $localDevice)) {
             throw new \Exception('Failed to restore build cache artifact');
         }
     }
@@ -628,7 +628,7 @@ class Docker extends Adapter
         $cacheDevice = $this->getBuildCacheDevice();
         $destinationArtifact = $this->getBuildCacheArtifactPath($cacheDevice, $cacheKey);
 
-        if (!$localDevice->transfer($artifact, $destinationArtifact, $cacheDevice)) {
+        if (!$localDevice->copy($artifact, $destinationArtifact, $cacheDevice)) {
             throw new \Exception('Failed to store build cache artifact');
         }
     }
@@ -991,10 +991,10 @@ class Docker extends Adapter
                 if ($logDevice->exists($logFile)) {
                     if ($logDevice->getFileSize($logFile) > MAX_LOG_SIZE) {
                         $maxToRead = MAX_LOG_SIZE;
-                        $logs = $logDevice->read($logFile, 0, $maxToRead);
+                        $logs = (string) $logDevice->read($logFile, 0, $maxToRead);
                         $logs .= "\nLog file has been truncated to " . number_format(MAX_LOG_SIZE / 1048576, 2) . "MB.";
                     } else {
-                        $logs = $logDevice->read($logFile);
+                        $logs = (string) $logDevice->read($logFile);
                     }
 
                     $logDevice->delete($logFile);
@@ -1003,10 +1003,10 @@ class Docker extends Adapter
                 if ($logDevice->exists($errorFile)) {
                     if ($logDevice->getFileSize($errorFile) > MAX_LOG_SIZE) {
                         $maxToRead = MAX_LOG_SIZE;
-                        $errors = $logDevice->read($errorFile, 0, $maxToRead);
+                        $errors = (string) $logDevice->read($errorFile, 0, $maxToRead);
                         $errors .= "\nError file has been truncated to " . number_format(MAX_LOG_SIZE / 1048576, 2) . "MB.";
                     } else {
-                        $errors = $logDevice->read($errorFile);
+                        $errors = (string) $logDevice->read($errorFile);
                     }
 
                     $logDevice->delete($errorFile);
