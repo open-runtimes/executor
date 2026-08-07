@@ -92,18 +92,15 @@ OPR_EXECUTOR_RETRY_ATTEMPTS=5
 OPR_EXECUTOR_RETRY_DELAY_MS=500
 ```
 
-> `OPR_EXECUTOR_CONNECTION_STORAGE` takes a DSN string that represents a connection to your storage device. Every scheme but `file` and `local` requires a host. For example:
+> `OPR_EXECUTOR_CONNECTION_STORAGE` takes a DSN string that represents a connection to your storage device. A host is always required in the DSN, even when it is not used to reach the storage backend. For example:
 >
 > | Storage | DSN |
 > |---------|-----|
 > | Local filesystem | `file://localhost` |
 > | AWS S3 | `s3://access_key:access_secret@bucket_name.s3.us-east-1.amazonaws.com?region=us-east-1` |
-> | S3-compatible (MinIO, Garage, etc.) | `s3://access_key:access_secret@minio:9000/bucket_name?region=us-east-1&insecure=true` |
-> | S3-compatible, endpoint given outright | `s3://access_key:access_secret@localhost/bucket_name?region=us-east-1&url=http%3A%2F%2Fminio%3A9000` |
+> | S3-compatible (MinIO, Garage, etc.) | `s3://access_key:access_secret@localhost/bucket_name?region=us-east-1&url=http%3A%2F%2Fminio%3A9000` |
 >
-> The DSN resolves to an endpoint of `scheme://host[:port][/bucket]`, and every object key hangs off it. `insecure=true` makes that scheme `http`, and the port is used as given. The bucket is the path of the DSN, and it reaches the endpoint exactly once: it is appended for path-style addressing, and left alone where the endpoint already names it, either as the leading label of the host (AWS S3, DigitalOcean Spaces, Backblaze, Linode and Wasabi all address their buckets that way) or as the path of a `url`. `url` replaces the scheme, host and port, so the last two rows above address the same object.
->
-> A DSN that cannot be parsed, or whose scheme has no device, is rejected rather than quietly falling back to the local filesystem. Ask for local storage with `file://` or `local://`, or leave the variable empty.
+> When a host is provided, the executor connects to it directly using the generic S3 device. For AWS S3, use the bucket's virtual-hosted-style endpoint as the host. For S3-compatible providers, pass the URL-encoded endpoint via the `url` parameter and use any placeholder host.
 
 > For backwards compatibility, executor also supports `OPR_EXECUTOR_STORAGE_*` variables as replacement for `OPR_EXECUTOR_CONNECTION_STORAGE`, as seen in [Appwrite repository](https://github.com/appwrite/appwrite/blob/1.3.8/.env#L26-L46).
 
