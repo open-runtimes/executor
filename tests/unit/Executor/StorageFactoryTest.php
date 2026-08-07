@@ -56,6 +56,11 @@ final class StorageFactoryTest extends TestCase
             self::OBJECT_KEY,
             'http://minio.edge.svc.cluster.local/storage/wal-archive/db-abc/000000010000000000000001',
         ];
+        yield 'no bucket leaves the key to name it' => [
+            's3://user:password@minio.edge.svc.cluster.local?insecure=true',
+            self::OBJECT_KEY,
+            'http://minio.edge.svc.cluster.local/wal-archive/db-abc/000000010000000000000001',
+        ];
     }
 
     #[DataProvider('connections')]
