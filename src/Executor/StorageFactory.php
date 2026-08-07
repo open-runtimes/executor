@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace OpenRuntimes\Executor;
 
-use Utopia\Console;
+use InvalidArgumentException;
+use Psr\Http\Client\ClientInterface;
 use Utopia\DSN\DSN;
-use Utopia\Storage\Acl;
+use Utopia\Psr18\StreamingClientInterface;
+use Utopia\Storage\Device;
 use Utopia\Storage\Device\AWS;
 use Utopia\Storage\Device\Backblaze;
 use Utopia\Storage\Device\DOSpaces;
@@ -14,7 +16,6 @@ use Utopia\Storage\Device\Linode;
 use Utopia\Storage\Device\Local;
 use Utopia\Storage\Device\S3;
 use Utopia\Storage\Device\Wasabi;
-use Utopia\Storage\Device;
 use Utopia\Storage\DeviceType;
 
 class StorageFactory
@@ -23,67 +24,67 @@ class StorageFactory
      * Get storage device by connection string
      *
      * @param string $root Root path for storage
-     * @param ?string $connection DSN connection string. If empty or null, the local device will be used.
+     * @param ?string $connection DSN connection string. An empty or null connection means no object storage is configured for this deployment and yields the local device.
+     * @param (ClientInterface&StreamingClientInterface)|null $client HTTP client for the remote devices, defaulting to the one utopia-php/storage builds
+     *
+     * @throws InvalidArgumentException When the connection string cannot be parsed or names a scheme with no device
      */
-    public static function getDevice(string $root, ?string $connection = ''): Device
+    public static function getDevice(string $root, ?string $connection = '', (ClientInterface&StreamingClientInterface)|null $client = null): Device
     {
-        $connection ??= '';
-        $acl = Acl::Private;
-        $deviceType = DeviceType::Local->value;
-        $accessKey = '';
-        $accessSecret = '';
-        $host = '';
-        $bucket = '';
-        $dsnRegion = '';
-        $insecure = false;
-        $url = '';
+        if ($connection === null || $connection === '') {
+            return new Local($root);
+        }
 
         try {
             $dsn = new DSN($connection);
-            $deviceType = $dsn->getScheme();
-            $accessKey = $dsn->getUser() ?? '';
-            $accessSecret = $dsn->getPassword() ?? '';
-            $host = $dsn->getHost();
-            $bucket = $dsn->getPath() ?? '';
-            $dsnRegion = $dsn->getParam('region');
-            $insecure = $dsn->getParam('insecure', 'false') === 'true';
-            $url = $dsn->getParam('url', '');
-
         } catch (\Throwable $throwable) {
-            Console::warning($throwable->getMessage() . ' - Invalid DSN. Defaulting to Local device.');
+            throw new InvalidArgumentException('Unable to parse storage DSN: ' . $throwable->getMessage(), previous: $throwable);
         }
 
-        switch (DeviceType::tryFrom($deviceType)) {
-            case DeviceType::S3:
-                $bucketRoot = ($bucket === '' || $bucket === '0')
-                    ? $root
-                    : \rtrim($bucket . '/' . \ltrim($root, '/'), '/');
+        $scheme = $dsn->getScheme();
+        $deviceType = DeviceType::tryFrom($scheme)
+            ?? throw new InvalidArgumentException(sprintf("Storage DSN scheme '%s' has no device", $scheme));
 
-                if ($url !== '' && $url !== '0') {
-                    return new S3($bucketRoot, $accessKey, $accessSecret, $url, $dsnRegion, $acl);
-                }
+        $accessKey = $dsn->getUser() ?? '';
+        $secretKey = $dsn->getPassword() ?? '';
+        $bucket = $dsn->getPath() ?? '';
+        $region = $dsn->getParam('region');
 
-                if ($host !== '' && $host !== '0') {
-                    $host = $insecure ? 'http://' . $host : $host;
-                    return new S3(root: $bucketRoot, accessKey: $accessKey, secretKey: $accessSecret, host: $host, region: $dsnRegion, acl: $acl);
-                }
+        return match ($deviceType) {
+            DeviceType::Local => new Local($root),
+            DeviceType::S3 => new S3($root, $accessKey, $secretKey, self::getEndpoint($dsn, $bucket), $region, client: $client),
+            DeviceType::AwsS3 => new AWS($root, $accessKey, $secretKey, $bucket, $region, client: $client),
+            DeviceType::DoSpaces => new DOSpaces($root, $accessKey, $secretKey, $bucket, $region, client: $client),
+            DeviceType::Backblaze => new Backblaze($root, $accessKey, $secretKey, $bucket, $region, client: $client),
+            DeviceType::Linode => new Linode($root, $accessKey, $secretKey, $bucket, $region, client: $client),
+            DeviceType::Wasabi => new Wasabi($root, $accessKey, $secretKey, $bucket, $region, client: $client),
+        };
+    }
 
-                return new AWS(root: $root, accessKey: $accessKey, secretKey: $accessSecret, bucket: $bucket, region: $dsnRegion, acl: $acl);
+    /**
+     * Endpoint every object key hangs off, as `scheme://host[:port][/bucket]`.
+     *
+     * The bucket is appended for path-style addressing and left out when the host already
+     * carries it as its leading label, which is how the branded devices address their buckets.
+     */
+    private static function getEndpoint(DSN $dsn, string $bucket): string
+    {
+        $url = $dsn->getParam('url');
 
-            case DeviceType::DoSpaces:
-                return new DOSpaces($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
-
-            case DeviceType::Backblaze:
-                return new Backblaze($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
-
-            case DeviceType::Linode:
-                return new Linode($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
-
-            case DeviceType::Wasabi:
-                return new Wasabi($root, $accessKey, $accessSecret, $bucket, $dsnRegion, $acl);
-
-            default:
-                return new Local($root);
+        if ($url !== '') {
+            return $url;
         }
+
+        $host = $dsn->getHost();
+        $port = $dsn->getPort();
+        $endpoint = ($dsn->getParam('insecure') === 'true' ? 'http://' : 'https://')
+            . $host
+            . ($port === null || $port === '' ? '' : ':' . $port);
+
+        if ($bucket === '' || \str_starts_with($host, $bucket . '.')) {
+            return $endpoint;
+        }
+
+        return $endpoint . '/' . $bucket;
     }
 }
