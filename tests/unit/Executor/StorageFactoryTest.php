@@ -46,8 +46,13 @@ final class StorageFactoryTest extends TestCase
             self::OBJECT_KEY,
             'https://mybucket.s3.us-east-1.amazonaws.com/wal-archive/db-abc/000000010000000000000001',
         ];
-        yield 'explicit url wins' => [
+        yield 'explicit url carrying the bucket' => [
             's3://key:secret@localhost/mybucket?region=garage&url=' . \urlencode('http://127.0.0.1:3900/mybucket'),
+            self::OBJECT_KEY,
+            'http://127.0.0.1:3900/mybucket/wal-archive/db-abc/000000010000000000000001',
+        ];
+        yield 'explicit url without the bucket resolves the same' => [
+            's3://key:secret@localhost/mybucket?region=garage&url=' . \urlencode('http://127.0.0.1:3900'),
             self::OBJECT_KEY,
             'http://127.0.0.1:3900/mybucket/wal-archive/db-abc/000000010000000000000001',
         ];
@@ -60,6 +65,11 @@ final class StorageFactoryTest extends TestCase
             's3://user:password@minio.edge.svc.cluster.local?insecure=true',
             self::OBJECT_KEY,
             'http://minio.edge.svc.cluster.local/wal-archive/db-abc/000000010000000000000001',
+        ];
+        yield 'a bucket named zero is a bucket' => [
+            's3://user:password@minio.edge.svc.cluster.local/0?insecure=true',
+            self::OBJECT_KEY,
+            'http://minio.edge.svc.cluster.local/0/wal-archive/db-abc/000000010000000000000001',
         ];
     }
 
@@ -197,10 +207,13 @@ final class StorageFactoryTest extends TestCase
     {
         yield 'empty' => [''];
         yield 'null' => [null];
+        yield 'documented file scheme' => ['file://localhost'];
+        yield 'file scheme with no host' => ['file:///tmp'];
+        yield 'local scheme' => ['local://localhost'];
     }
 
     #[DataProvider('unconfiguredConnections')]
-    public function testUnconfiguredConnectionResolvesToLocalDevice(?string $connection): void
+    public function testConnectionWithoutObjectStorageResolvesToLocalDevice(?string $connection): void
     {
         $device = StorageFactory::getDevice('/storage/builds/app-test', $connection);
 

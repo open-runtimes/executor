@@ -24,14 +24,17 @@ class StorageFactory
      * Get storage device by connection string
      *
      * @param string $root Root path for storage
-     * @param ?string $connection DSN connection string. An empty or null connection means no object storage is configured for this deployment and yields the local device.
+     * @param ?string $connection DSN connection string. An empty or null connection means no object storage is configured for this deployment, and a `file` or `local` scheme asks for the local device outright. Both yield the local device rooted at $root.
      * @param (ClientInterface&StreamingClientInterface)|null $client HTTP client for the remote devices, defaulting to the one utopia-php/storage builds
      *
      * @throws InvalidArgumentException When the connection string cannot be parsed or names a scheme with no device
      */
     public static function getDevice(string $root, ?string $connection = '', (ClientInterface&StreamingClientInterface)|null $client = null): Device
     {
-        if ($connection === null || $connection === '') {
+        $connection ??= '';
+        $localSchemes = ['file', DeviceType::Local->value];
+
+        if ($connection === '' || \in_array(\strtolower((string) \strstr($connection, '://', true)), $localSchemes, true)) {
             return new Local($root);
         }
 
@@ -64,24 +67,28 @@ class StorageFactory
     /**
      * Endpoint every object key hangs off, as `scheme://host[:port][/bucket]`.
      *
-     * The bucket is appended for path-style addressing and left out when the host already
-     * carries it as its leading label, which is how the branded devices address their buckets.
+     * The `url` parameter replaces the scheme, host and port it would otherwise be built from.
+     * Whether addressing is virtual-hosted or path-style is decided from the endpoint and never
+     * from the scheme: the bucket reaches the endpoint exactly once, so it is appended unless the
+     * endpoint already names it, as the leading label of the host or as the path of a `url`. The
+     * branded devices build a host whose leading label is the bucket, so that same rule holds for
+     * them once utopia-php/storage has resolved their endpoint.
      */
     private static function getEndpoint(DSN $dsn, string $bucket): string
     {
         $url = $dsn->getParam('url');
-
-        if ($url !== '') {
-            return $url;
-        }
-
-        $host = $dsn->getHost();
         $port = $dsn->getPort();
-        $endpoint = ($dsn->getParam('insecure') === 'true' ? 'http://' : 'https://')
-            . $host
-            . ($port === null || $port === '' ? '' : ':' . $port);
 
-        if ($bucket === '' || \str_starts_with($host, $bucket . '.')) {
+        $endpoint = $url === ''
+            ? ($dsn->getParam('insecure') === 'true' ? 'http://' : 'https://')
+                . $dsn->getHost()
+                . ($port === null || $port === '' ? '' : ':' . $port)
+            : \rtrim($url, '/');
+
+        $scheme = \strpos($endpoint, '://');
+        $authority = $scheme === false ? $endpoint : \substr($endpoint, $scheme + 3);
+
+        if ($bucket === '' || \str_starts_with($authority, $bucket . '.') || \str_ends_with($authority, '/' . $bucket)) {
             return $endpoint;
         }
 
