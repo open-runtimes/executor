@@ -443,6 +443,39 @@ class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
+    public function testBuildKeysFromVariables(): void
+    {
+        $output = '';
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
+
+        $runtimeId = \bin2hex(\random_bytes(4));
+
+        $params = [
+            'runtimeId' => 'test-build-keys-' . $runtimeId,
+            'source' => '/storage/functions/node/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-22',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm install" && echo "BUILD_KEYS=$OPEN_RUNTIMES_BUILD_KEYS"',
+            'variables' => [
+                'TEST_VAR' => 'hello_executor'
+            ],
+            'remove' => true
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        $buildOutput = '';
+        foreach ($response['body']['output'] as $outputItem) {
+            $buildOutput .= $outputItem['content'];
+        }
+
+        $this->assertStringContainsString('BUILD_KEYS=TEST_VAR', $buildOutput);
+        $this->assertStringNotContainsString('OPEN_RUNTIMES_SECRET', $buildOutput);
+    }
+
     public function testExecute(): void
     {
         /** Prepare function */
