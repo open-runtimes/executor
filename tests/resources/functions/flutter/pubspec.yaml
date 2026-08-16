@@ -1,0 +1,15 @@
+name: executor_test
+description: Executor E2E test for OPEN_RUNTIMES_BUILD_KEYS
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
