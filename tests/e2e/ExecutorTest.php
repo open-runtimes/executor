@@ -493,6 +493,7 @@ class ExecutorTest extends TestCase
             'variables' => [
                 'TEST_VAR' => 'hello_executor'
             ],
+            'memory' => 2048,
             'remove' => true,
         ];
 
