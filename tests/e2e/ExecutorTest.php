@@ -884,7 +884,11 @@ class ExecutorTest extends TestCase
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"',
             'restartPolicy' => 'always'
         ]);
-        $this->assertEquals(500, $response['headers']['status-code']);
+        // The runtime reports the function's exit() as a failed execution, so the
+        // executor call itself succeeds and carries statusCode 500. The server
+        // process still dies afterwards, which is what the restart count asserts.
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals(500, $response['body']['statusCode']);
 
         \sleep(5);
 
@@ -894,7 +898,8 @@ class ExecutorTest extends TestCase
             'image' => 'openruntimes/php:v5-8.1',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
         ]);
-        $this->assertEquals(500, $response['headers']['status-code']);
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals(500, $response['body']['statusCode']);
 
         \sleep(5);
 
