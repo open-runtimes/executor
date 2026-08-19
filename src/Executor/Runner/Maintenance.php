@@ -4,6 +4,7 @@ namespace OpenRuntimes\Executor\Runner;
 
 use OpenRuntimes\Executor\Runner\Repository\Runtimes;
 use Swoole\Timer;
+use Throwable;
 use Utopia\Console;
 use Utopia\Orchestration\Orchestration;
 use Utopia\Storage\Device\Local;
@@ -62,7 +63,10 @@ class Maintenance
         $threshold = \time() - $inactiveSeconds;
         $candidates = array_filter(
             $this->runtimes->list(),
-            fn (\OpenRuntimes\Executor\Runner\Runtime $runtime): bool => $runtime->updated < $threshold
+            // A runtime that is still being created is never idle, no matter how long
+            // its build runs. Its "updated" timestamp is only refreshed once creation
+            // finishes, so reaping it here would kill the in-flight build container.
+            fn (\OpenRuntimes\Executor\Runner\Runtime $runtime): bool => $runtime->initialised === 1 && $runtime->updated < $threshold
         );
 
         // Remove from in-memory state before removing the container.
@@ -73,8 +77,18 @@ class Maintenance
         }
 
         // Then, remove forcefully terminate the associated running container.
+        // A removal can fail if the container is already gone. Swallow it, an
+        // uncaught exception in this coroutine would take the whole executor down.
         $jobs = array_map(
-            fn (\OpenRuntimes\Executor\Runner\Runtime $candidate): \Closure => fn (): bool => $this->orchestration->remove($candidate->name, force: true),
+            fn (\OpenRuntimes\Executor\Runner\Runtime $candidate): \Closure => function () use ($candidate): bool {
+                try {
+                    return $this->orchestration->remove($candidate->name, force: true);
+                } catch (Throwable $throwable) {
+                    Console::error(sprintf('[Maintenance] Failed to remove %s: %s', $candidate->name, $throwable->getMessage()));
+
+                    return false;
+                }
+            },
             $candidates
         );
         $results = batch($jobs);
