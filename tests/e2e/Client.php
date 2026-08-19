@@ -28,12 +28,12 @@ class Client extends FetchClient
      * @param array<string, mixed> $params
      * @return array<string, mixed>
      */
-    public function call(string $method, string $path = '', array $headers = [], array $params = [], bool $decode = true, ?callable $callback = null): array
+    public function call(string $method, string $path = '', array $headers = [], array $params = [], bool $decode = true, ?callable $callback = null, int $timeout = 60000): array
     {
         $url = $this->endpoint . $path;
 
         $client = new FetchClient();
-        $client->setTimeout(60000);
+        $client->setTimeout($timeout);
 
         foreach ($this->baseHeaders as $key => $value) {
             $client->addHeader($key, $value);

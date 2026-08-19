@@ -79,6 +79,8 @@ Http::post('/v1/runtimes')
         /**
          * Create container
          */
+        $userVariableKeys = \array_keys($variables);
+
         $variables = \array_merge($variables, match ($version) {
             'v2' => [
                 'INTERNAL_RUNTIME_KEY' => $secret,
@@ -104,6 +106,8 @@ Http::post('/v1/runtimes')
         $variables = \array_merge($variables, [
             'CI' => 'true'
         ]);
+
+        $variables['OPEN_RUNTIMES_BUILD_KEYS'] = \implode(' ', $userVariableKeys);
 
         $variables = array_map(strval(...), $variables);
 

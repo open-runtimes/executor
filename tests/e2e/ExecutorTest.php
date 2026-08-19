@@ -443,6 +443,93 @@ class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
+    public function testBuildKeysFromVariables(): void
+    {
+        $output = '';
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
+
+        $runtimeId = \bin2hex(\random_bytes(4));
+
+        $params = [
+            'runtimeId' => 'test-build-keys-' . $runtimeId,
+            'source' => '/storage/functions/node/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-22',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm install" && echo "BUILD_KEYS=$OPEN_RUNTIMES_BUILD_KEYS"',
+            'variables' => [
+                'TEST_VAR' => 'hello_executor'
+            ],
+            'remove' => true
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        $buildOutput = '';
+        foreach ($response['body']['output'] as $outputItem) {
+            $buildOutput .= $outputItem['content'];
+        }
+
+        $this->assertStringContainsString('BUILD_KEYS=TEST_VAR', $buildOutput);
+        $this->assertStringNotContainsString('OPEN_RUNTIMES_SECRET', $buildOutput);
+    }
+
+    public function testBuildKeysFlutter(): void
+    {
+        $output = '';
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/functions/flutter && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
+
+        /** Build runtime */
+        $params = [
+            'runtimeId' => 'test-build-flutter-' . \bin2hex(\random_bytes(4)),
+            'source' => '/storage/functions/flutter/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'image' => 'openruntimes/flutter:v5-3.35',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "flutter build web --release -t lib/main.dart"',
+            'outputDirectory' => './build/web',
+            'variables' => [
+                'TEST_VAR' => 'hello_executor'
+            ],
+            'memory' => 2048,
+            'remove' => true,
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params, timeout: 300000);
+        $this->assertEquals(201, $response['headers']['status-code']);
+        $this->assertIsString($response['body']['path']);
+
+        $buildPath = $response['body']['path'];
+
+        /** Test executions */
+        $command = 'bash helpers/server.sh';
+        $runtimeId = \bin2hex(\random_bytes(4));
+        $params = [
+            'runtimeId' => 'test-exec-flutter-' . $runtimeId,
+            'source' => $buildPath,
+            'image' => 'openruntimes/flutter:v5-3.35',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-flutter-' . $runtimeId . '/executions', [], [
+            'path' => '/main.dart.js'
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals(200, $response['body']['statusCode']);
+        $this->assertStringContainsString('hello_executor', (string) $response['body']['body']);
+        $this->assertStringNotContainsString('not_injected', (string) $response['body']['body']);
+
+        /** Delete runtime */
+        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-flutter-' . $runtimeId, [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
+    }
+
     public function testExecute(): void
     {
         /** Prepare function */
