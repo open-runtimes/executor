@@ -30,9 +30,6 @@ class StreamedResponseTest extends TestCase
         $this->client->setKey($this->key);
     }
 
-    /**
-     * Returns the first capture group, failing the test if the pattern does not match.
-     */
     private function captureGroup(string $pattern, string $subject, string $message): string
     {
         $matches = [];

@@ -3,26 +3,10 @@
 namespace OpenRuntimes\Executor;
 
 /**
- * Incremental writer for the streaming multipart response format (x-executor-response-format
- * 0.12.0 and above).
- *
- * BodyMultipart serialises a finished document, which means the whole response has to exist in
- * memory before a single byte reaches the client. This writes the envelope as parts are produced,
- * so a response can leave the executor while the runtime is still generating it.
- *
- * Part content is length prefixed, in the same shape HTTP uses for chunked transfer encoding:
- *
- *     --BOUNDARY\r\n
- *     Content-Disposition: form-data; name="body"\r\n
- *     Content-Transfer-Encoding: chunked\r\n
- *     \r\n
- *     <hex length>\r\n<content>\r\n     (repeated for each run of content)
- *     0\r\n\r\n                         (terminates the part)
- *     --BOUNDARY--                      (after the last part)
- *
- * The length prefix is what makes an incremental read tractable on the other side: content is
- * never scanned for the boundary, so content that happens to contain the boundary string cannot
- * split the envelope, and the reader needs no lookahead between reads.
+ * Writes the multipart response format of x-executor-response-format 0.12.0, where BodyMultipart
+ * serialises a finished document. Part content is length prefixed as
+ * `<hex length>\r\n<content>\r\n`, closed by `0\r\n\r\n`, so the reader locates content by its
+ * length and never scans for the boundary.
  */
 class BodyMultipartStream
 {
@@ -44,9 +28,6 @@ class BodyMultipartStream
         return 'multipart/form-data; boundary=' . $this->boundary;
     }
 
-    /**
-     * Open a part. Content follows via writeContent(), and the part is closed by endPart().
-     */
     public function startPart(string $name): void
     {
         if ($this->ended || $this->inPart) {
@@ -62,9 +43,6 @@ class BodyMultipartStream
         );
     }
 
-    /**
-     * Append a run of content to the open part.
-     */
     public function writeContent(string $content): void
     {
         // A zero length run is the part terminator, so an empty write has to be dropped rather
@@ -88,8 +66,6 @@ class BodyMultipartStream
     }
 
     /**
-     * Write a part whose content is already known in full.
-     *
      * @param mixed $value Scalars are stringified; arrays are JSON encoded, matching BodyMultipart.
      */
     public function part(string $name, mixed $value): void
@@ -99,9 +75,6 @@ class BodyMultipartStream
         $this->endPart();
     }
 
-    /**
-     * Close the envelope. Any part still open is terminated first.
-     */
     public function end(): void
     {
         if ($this->ended) {
