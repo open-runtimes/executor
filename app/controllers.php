@@ -10,6 +10,7 @@ use Utopia\System\System;
 use Utopia\Http\Request;
 use Utopia\Http\Http;
 use Utopia\Http\Response;
+use Utopia\Http\Adapter\Swoole\Response as SwooleResponse;
 use Utopia\Validator\AnyOf;
 use Utopia\Validator\Assoc;
 use Utopia\Validator\Boolean;
@@ -234,11 +235,13 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             // shape, still get the complete document they expect.
             $stream = null;
             $onStream = null;
+            $streamStarted = false;
 
             if (!$isJson && \version_compare($responseFormat, RESPONSE_FORMAT_STREAM, '>=')) {
                 $stream = new BodyMultipartStream(
                     BodyMultipart::generateBoundary(),
-                    function (string $bytes) use ($response): void {
+                    function (string $bytes) use ($response, &$streamStarted): void {
+                        $streamStarted = true;
                         $response->chunk($bytes);
                     }
                 );
@@ -263,25 +266,39 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 };
             }
 
-            $execution = $runner->createExecution(
-                $runtimeId,
-                $payload,
-                $path,
-                $method,
-                $headers,
-                $timeout,
-                $image,
-                $source,
-                $entrypoint,
-                $variables,
-                $cpus,
-                $memory,
-                $version,
-                $runtimeEntrypoint,
-                $logging,
-                $restartPolicy,
-                onStream: $onStream,
-            );
+            try {
+                $execution = $runner->createExecution(
+                    $runtimeId,
+                    $payload,
+                    $path,
+                    $method,
+                    $headers,
+                    $timeout,
+                    $image,
+                    $source,
+                    $entrypoint,
+                    $variables,
+                    $cpus,
+                    $memory,
+                    $version,
+                    $runtimeEntrypoint,
+                    $logging,
+                    $restartPolicy,
+                    onStream: $onStream,
+                );
+            } catch (\Throwable $throwable) {
+                if (!$streamStarted) {
+                    throw $throwable;
+                }
+
+                // Content is committed, so the error hook's JSON document would be read as part
+                // of the envelope. A broken transfer is the remaining way to report the failure.
+                if ($response instanceof SwooleResponse) {
+                    $response->getSwooleResponse()->close();
+                }
+
+                return;
+            }
 
             $streamed = ($execution['streamed'] ?? false) === true;
             unset($execution['streamed']);
