@@ -288,7 +288,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             // The body left the executor already, so only the trailing metadata is still owed. A
             // response with no body at all never commits to streaming and falls through below.
-            if ($stream !== null && $streamed) {
+            if ($stream instanceof BodyMultipartStream && $streamed) {
                 $stream->endPart();
 
                 foreach (['logs', 'errors', 'duration', 'startTime'] as $key) {

@@ -111,6 +111,7 @@ final class BodyMultipartStreamTest extends TestCase
         $stream = $this->writer();
         $stream->part('logs', 'x');
         $stream->end();
+
         $after = $this->wire;
 
         $stream->part('errors', 'ignored');

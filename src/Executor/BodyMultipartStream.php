@@ -27,10 +27,10 @@ namespace OpenRuntimes\Executor;
 class BodyMultipartStream
 {
     private bool $ended = false;
+
     private bool $inPart = false;
 
     /**
-     * @param string $boundary
      * @param callable(string): void $write Receives raw bytes to put on the wire.
      */
     public function __construct(

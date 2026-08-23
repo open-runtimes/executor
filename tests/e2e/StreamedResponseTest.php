@@ -31,6 +31,17 @@ class StreamedResponseTest extends TestCase
     }
 
     /**
+     * Returns the first capture group, failing the test if the pattern does not match.
+     */
+    private function captureGroup(string $pattern, string $subject, string $message): string
+    {
+        $matches = [];
+        $this->assertSame(1, \preg_match($pattern, $subject, $matches), $message);
+
+        return $matches[1] ?? '';
+    }
+
+    /**
      * Reads the 0.12.0 envelope. Mirrors the reader on the caller's side: content is located by its
      * length prefix and never by scanning for the boundary.
      *
@@ -61,8 +72,7 @@ class StreamedResponseTest extends TestCase
             $offset = $end + 4;
 
             $this->assertMatchesRegularExpression('/Content-Transfer-Encoding:\s*chunked/i', $headers, 'part is not chunked: ' . $headers);
-            $this->assertSame(1, \preg_match('/name="([^"]+)"/', $headers, $m), 'part has no name: ' . $headers);
-            $name = $m[1];
+            $name = $this->captureGroup('/name="([^"]+)"/', $headers, 'part has no name: ' . $headers);
 
             $order[] = $name;
             $parts[$name] = '';
@@ -117,6 +127,7 @@ class StreamedResponseTest extends TestCase
     }
 
     /**
+     * @param array<string, mixed> $params
      * @return array{wire: string, headers: array<string, mixed>, chunks: int}
      */
     private function executeStreamed(string $runtimeId, array $params, string $format = '0.12.0'): array
@@ -164,8 +175,7 @@ class StreamedResponseTest extends TestCase
 
         $contentType = $result['headers']['content-type'] ?? '';
         $this->assertStringStartsWith('multipart/form-data', (string) $contentType);
-        $this->assertSame(1, \preg_match('/boundary=(.+)$/', (string) $contentType, $m), 'no boundary in ' . $contentType);
-        $boundary = \trim($m[1], '"');
+        $boundary = \trim($this->captureGroup('/boundary=(.+)$/', (string) $contentType, 'no boundary in ' . $contentType), '"');
 
         $parsed = $this->parse($boundary, $result['wire']);
 
@@ -218,8 +228,9 @@ class StreamedResponseTest extends TestCase
 
         $this->assertEquals('0.12.0', $result['headers']['x-executor-response-format'] ?? null);
 
-        \preg_match('/boundary=(.+)$/', (string) ($result['headers']['content-type'] ?? ''), $m);
-        $parsed = $this->parse(\trim($m[1] ?? '', '"'), $result['wire']);
+        $contentType = (string) ($result['headers']['content-type'] ?? '');
+        $boundary = \trim($this->captureGroup('/boundary=(.+)$/', $contentType, 'no boundary in ' . $contentType), '"');
+        $parsed = $this->parse($boundary, $result['wire']);
 
         $this->assertGreaterThanOrEqual(1048576, \strlen($parsed['parts']['body']));
         $this->assertSame('200', $parsed['parts']['statusCode']);
