@@ -17,6 +17,10 @@ use Utopia\Config\Config;
 const MAX_LOG_SIZE = 5 * 1024 * 1024;
 const MAX_BUILD_LOG_SIZE = 1000 * 1000;
 
+// First response format whose parts are length prefixed, so a caller can read them as they are
+// framed instead of waiting for the whole document to be serialised.
+const RESPONSE_FORMAT_STREAM = '0.12.0';
+
 Config::load('errors', __DIR__ . '/config/errors.php');
 
 $container = new Container();

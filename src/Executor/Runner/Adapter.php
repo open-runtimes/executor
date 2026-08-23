@@ -55,6 +55,7 @@ abstract class Adapter
         bool $logging,
         string $restartPolicy,
         string $region = '',
+        ?callable $onStream = null,
     ): mixed;
 
     abstract public function getRuntimes(): mixed;

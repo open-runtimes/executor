@@ -4,6 +4,7 @@ require_once __DIR__ . '/init.php';
 
 use OpenRuntimes\Executor\Exception;
 use OpenRuntimes\Executor\BodyMultipart;
+use OpenRuntimes\Executor\BodyMultipartStream;
 use OpenRuntimes\Executor\Runner\Adapter as Runner;
 use Utopia\System\System;
 use Utopia\Http\Request;
@@ -223,6 +224,45 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             $variables = array_map(strval(...), $variables);
 
+            $responseFormat = $request->getHeaderLine('x-executor-response-format') ?: '0.10.0'; // Last version without support for array value for headers
+
+            $acceptTypes = \explode(', ', $request->getHeaderLine('accept') ?: 'multipart/form-data');
+            $isJson = array_any($acceptTypes, fn ($acceptType): bool => \str_starts_with((string) $acceptType, 'application/json') || \str_starts_with((string) $acceptType, 'application/*'));
+
+            // A caller on 0.12.0 or later can read parts as they are framed, so the runtime's body
+            // can be forwarded while it is still being produced. Anything older, and the JSON
+            // shape, still get the complete document they expect.
+            $stream = null;
+            $onStream = null;
+
+            if (!$isJson && \version_compare($responseFormat, RESPONSE_FORMAT_STREAM, '>=')) {
+                $stream = new BodyMultipartStream(
+                    BodyMultipart::generateBoundary(),
+                    function (string $bytes) use ($response): void {
+                        $response->chunk($bytes);
+                    }
+                );
+
+                $onStream = function (string $event, mixed $data) use ($response, $stream): void {
+                    if ($event !== 'headers') {
+                        $stream->writeContent(\strval($data));
+
+                        return;
+                    }
+
+                    // Last chance to set response headers: the first content run follows straight
+                    // after, and chunk() commits them on its first call.
+                    $response
+                        ->setStatusCode(Response::STATUS_CODE_OK)
+                        ->addHeader('content-type', $stream->exportHeader())
+                        ->addHeader('x-executor-response-format', RESPONSE_FORMAT_STREAM);
+
+                    $stream->part('statusCode', $data['statusCode']);
+                    $stream->part('headers', $data['headers']);
+                    $stream->startPart('body');
+                };
+            }
+
             $execution = $runner->createExecution(
                 $runtimeId,
                 $payload,
@@ -240,10 +280,28 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 $runtimeEntrypoint,
                 $logging,
                 $restartPolicy,
+                onStream: $onStream,
             );
 
+            $streamed = ($execution['streamed'] ?? false) === true;
+            unset($execution['streamed']);
+
+            // The body left the executor already, so only the trailing metadata is still owed. A
+            // response with no body at all never commits to streaming and falls through below.
+            if ($stream !== null && $streamed) {
+                $stream->endPart();
+
+                foreach (['logs', 'errors', 'duration', 'startTime'] as $key) {
+                    $stream->part($key, $execution[$key] ?? '');
+                }
+
+                $stream->end();
+                $response->chunk('', true);
+
+                return;
+            }
+
             // Backwards compatibility for headers
-            $responseFormat = $request->getHeaderLine('x-executor-response-format') ?: '0.10.0'; // Last version without support for array value for headers
             if (version_compare($responseFormat, '0.11.0', '<')) {
                 foreach ($execution['headers'] as $key => $value) {
                     if (\is_array($value)) {
@@ -252,9 +310,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     }
                 }
             }
-
-            $acceptTypes = \explode(', ', $request->getHeaderLine('accept') ?: 'multipart/form-data');
-            $isJson = array_any($acceptTypes, fn ($acceptType): bool => \str_starts_with((string) $acceptType, 'application/json') || \str_starts_with((string) $acceptType, 'application/*'));
 
             if ($isJson) {
                 $executionString = \json_encode($execution, JSON_UNESCAPED_UNICODE);

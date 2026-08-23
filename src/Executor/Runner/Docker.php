@@ -681,6 +681,7 @@ class Docker extends Adapter
         bool $logging,
         string $restartPolicy,
         string $region = '',
+        ?callable $onStream = null,
     ): mixed {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
@@ -889,7 +890,11 @@ class Docker extends Adapter
             ];
         };
 
-        $executeV5 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName, $logging): array {
+        // Set once the runtime's body has begun leaving the executor. From that point the response
+        // is committed: it can be neither retried nor turned into an error.
+        $streamed = false;
+
+        $executeV5 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName, $logging, $onStream, &$streamed): array {
             $statusCode = 0;
             $errNo = -1;
             $executorResponse = '';
@@ -910,7 +915,10 @@ class Docker extends Adapter
                 \curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
             }
 
-            \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            if ($onStream === null) {
+                \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            }
+
             \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders): int {
                 $len = strlen($header);
                 $header = explode(':', $header, 2);
@@ -938,6 +946,35 @@ class Docker extends Adapter
                 return $len;
             });
 
+            if ($onStream !== null) {
+                // Forward the runtime's body as it arrives instead of accumulating it. The header
+                // callback above has already run by the time the first body byte lands, so status
+                // and headers are known and can be announced before any content goes out.
+                \curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($curl, $data) use ($onStream, &$responseHeaders, &$streamed): int {
+                    if (!$streamed) {
+                        $streamed = true;
+
+                        $outputHeaders = [];
+                        foreach ($responseHeaders as $key => $value) {
+                            if (\str_starts_with($key, 'x-open-runtimes-')) {
+                                continue;
+                            }
+
+                            $outputHeaders[$key] = $value;
+                        }
+
+                        $onStream('headers', [
+                            'statusCode' => \intval(\curl_getinfo($curl, CURLINFO_HTTP_CODE)),
+                            'headers' => $outputHeaders,
+                        ]);
+                    }
+
+                    $onStream('body', $data);
+
+                    return \strlen($data);
+                });
+            }
+
             \curl_setopt($ch, CURLOPT_TIMEOUT, (int) $timeout + 5); // Gives extra 5s after safe timeout to recieve response
             \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
             $headers['x-open-runtimes-logging'] = $logging ? 'enabled' : 'disabled';
@@ -954,7 +991,10 @@ class Docker extends Adapter
             \curl_setopt($ch, CURLOPT_HEADEROPT, CURLHEADER_UNIFIED);
             \curl_setopt($ch, CURLOPT_HTTPHEADER, $headersArr);
 
-            $executorResponse = \curl_exec($ch);
+            // With a write callback installed curl_exec returns a bool and the body has already
+            // been forwarded, so there is nothing left to keep here.
+            $result = \curl_exec($ch);
+            $executorResponse = \is_string($result) ? $result : '';
 
             $statusCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
@@ -1086,6 +1126,13 @@ class Docker extends Adapter
                 break;
             }
 
+            // Content is already on the wire, so a second attempt would append a second response
+            // to it. The retryable errors here all happen before a connection is established, so
+            // this is a guard rather than an expected path.
+            if ($streamed) {
+                break;
+            }
+
             usleep($retryDelayMs * 1000);
         } while ((++$attempts < $retryAttempts) || (\microtime(true) - $startTime < $timeout));
 
@@ -1118,6 +1165,8 @@ class Docker extends Adapter
             'errors' => $errors,
             'duration' => $duration,
             'startTime' => $startTime,
+            // Lets the caller tell an empty body apart from one that has already been forwarded.
+            'streamed' => $streamed,
         ];
 
         // Update swoole table
