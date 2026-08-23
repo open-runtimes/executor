@@ -70,8 +70,17 @@ class BodyMultipartStream
      */
     public function part(string $name, mixed $value): void
     {
+        if (\is_array($value)) {
+            $value = \json_encode($value);
+
+            // Nothing has been written yet, so the failure can still surface as an error.
+            if ($value === false) {
+                throw new \Exception('Part "' . $name . '" could not be encoded');
+            }
+        }
+
         $this->startPart($name);
-        $this->writeContent(\is_array($value) ? (\json_encode($value) ?: '') : \strval($value));
+        $this->writeContent(\strval($value));
         $this->endPart();
     }
 
