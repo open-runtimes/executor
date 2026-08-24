@@ -139,6 +139,18 @@ final class BodyMultipartStreamTest extends TestCase
         $this->assertStringNotContainsString('name="other"', $this->wire);
     }
 
+    public function testAbandonedEnvelopeCarriesNoClosingDelimiter(): void
+    {
+        $stream = $this->writer();
+        $stream->startPart('body');
+        $stream->writeContent('half a page');
+        unset($stream);
+
+        // An execution that dies here never calls end(). The caller reads a missing closing
+        // delimiter as a failed execution, so nothing may close the envelope on its behalf.
+        $this->assertStringNotContainsString('--BOUNDARY--', $this->wire);
+    }
+
     public function testExportHeaderCarriesBoundary(): void
     {
         $stream = $this->writer('abc123');
