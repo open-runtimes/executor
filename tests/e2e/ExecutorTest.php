@@ -545,10 +545,12 @@ class ExecutorTest extends TestCase
             'image' => 'openruntimes/php:v5-8.1',
             'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "composer install"',
             'remove' => true,
+            // An empty object is as valid a map as an empty array, here too
+            'variables' => new \stdClass(),
         ];
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
-        $this->assertEquals(201, $response['headers']['status-code']);
+        $this->assertEquals(201, $response['headers']['status-code'], 'Failed to create runtime, response ' . json_encode($response, JSON_PRETTY_PRINT));
         $this->assertNotEmpty($response['body']['path']);
 
         $buildPath = $response['body']['path'];
@@ -580,6 +582,15 @@ class ExecutorTest extends TestCase
         ]);
 
         $this->assertEquals(200, $response['headers']['status-code']);
+
+        /** Empty object is as valid a map as an empty array */
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions', [], [
+            'body' => 'test payload',
+            'variables' => new \stdClass(),
+            'headers' => new \stdClass(),
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code'], 'Empty object rejected, response ' . json_encode($response, JSON_PRETTY_PRINT));
 
         /** Delete runtime */
         $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec', [], []);
