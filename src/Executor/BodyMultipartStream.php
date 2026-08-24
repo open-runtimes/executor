@@ -15,11 +15,11 @@ class BodyMultipartStream
     private bool $inPart = false;
 
     /**
-     * @param callable(string): void $write Receives raw bytes to put on the wire.
+     * @param \Closure(string): void $write Receives raw bytes to put on the wire.
      */
     public function __construct(
         private readonly string $boundary,
-        private readonly mixed $write,
+        private readonly \Closure $write,
     ) {
     }
 
