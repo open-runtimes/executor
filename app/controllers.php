@@ -295,11 +295,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 return;
             }
 
-            $streamed = ($execution['streamed'] ?? false) === true;
-            unset($execution['streamed']);
-
             // The body already left, so only the trailing metadata is still owed.
-            if ($stream instanceof BodyMultipartStream && $streamed) {
+            if ($stream instanceof BodyMultipartStream && $streamStarted) {
                 $stream->endPart();
 
                 foreach (['logs', 'errors', 'duration', 'startTime'] as $key) {

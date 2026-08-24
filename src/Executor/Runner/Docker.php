@@ -1159,8 +1159,6 @@ class Docker extends Adapter
             'errors' => $errors,
             'duration' => $duration,
             'startTime' => $startTime,
-            // Lets the caller tell an empty body apart from one that has already been forwarded.
-            'streamed' => $streamed,
         ];
 
         // Update swoole table

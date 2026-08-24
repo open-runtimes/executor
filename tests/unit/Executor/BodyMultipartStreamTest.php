@@ -93,7 +93,6 @@ final class BodyMultipartStreamTest extends TestCase
         $stream->end();
 
         $this->assertStringEndsWith('--BOUNDARY--', $this->wire);
-        $this->assertTrue($stream->isEnded());
     }
 
     public function testEndTerminatesAnOpenPartFirst(): void

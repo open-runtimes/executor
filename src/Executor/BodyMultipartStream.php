@@ -94,9 +94,4 @@ class BodyMultipartStream
 
         ($this->write)('--' . $this->boundary . '--');
     }
-
-    public function isEnded(): bool
-    {
-        return $this->ended;
-    }
 }
