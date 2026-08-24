@@ -581,6 +581,15 @@ class ExecutorTest extends TestCase
 
         $this->assertEquals(200, $response['headers']['status-code']);
 
+        /** Empty object is as valid a map as an empty array */
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions', [], [
+            'body' => 'test payload',
+            'variables' => new \stdClass(),
+            'headers' => new \stdClass(),
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code'], 'Empty object rejected, response ' . json_encode($response, JSON_PRETTY_PRINT));
+
         /** Delete runtime */
         $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);

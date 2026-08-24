@@ -11,6 +11,7 @@ use Swoole\Runtime;
 use Utopia\Console;
 use Utopia\DI\Container;
 use Utopia\Http\Http;
+use Utopia\Http\Request;
 use Utopia\Http\Response;
 use Utopia\Http\Adapter\SwooleCoroutine\Server;
 use Utopia\System\System;
@@ -64,9 +65,27 @@ Http::onStart()
     });
 
 Http::onRequest()
+    ->inject('request')
     ->inject('response')
-    ->action(function (Response $response): void {
+    ->action(function (Request $request, Response $response): void {
         $response->addHeader('Server', 'Executor');
+
+        // utopia-php/http keeps an empty JSON object as stdClass so `{}` stays
+        // distinguishable from `[]`. No param here wants that distinction — the
+        // object-shaped ones are string maps, and an empty map is an empty map —
+        // while the Assoc validator takes arrays only, so `"variables": {}` would
+        // be a 400 that older executors accepted.
+        $params = $request->getParams();
+        $flattened = array_map(
+            fn (mixed $value): mixed => $value instanceof stdClass && (array)$value === [] ? [] : $value,
+            $params
+        );
+
+        // Only the payload is rewritten, and only when it held such an object; a
+        // query string cannot, and writing one back as the payload would move it.
+        if ($flattened !== $params) {
+            $request->setPayload($flattened);
+        }
     });
 
 run(function () use ($settings): void {
