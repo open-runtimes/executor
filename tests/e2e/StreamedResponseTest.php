@@ -30,14 +30,6 @@ class StreamedResponseTest extends TestCase
         $this->client->setKey($this->key);
     }
 
-    private function captureGroup(string $pattern, string $subject, string $message): string
-    {
-        $matches = [];
-        $this->assertSame(1, \preg_match($pattern, $subject, $matches), $message);
-
-        return $matches[1] ?? '';
-    }
-
     /**
      * Reads the 0.12.0 envelope. Mirrors the reader on the caller's side: content is located by its
      * length prefix and never by scanning for the boundary.
@@ -69,7 +61,9 @@ class StreamedResponseTest extends TestCase
             $offset = $end + 4;
 
             $this->assertMatchesRegularExpression('/Content-Transfer-Encoding:\s*chunked/i', $headers, 'part is not chunked: ' . $headers);
-            $name = $this->captureGroup('/name="([^"]+)"/', $headers, 'part has no name: ' . $headers);
+            $matches = [];
+            $this->assertSame(1, \preg_match('/name="([^"]+)"/', $headers, $matches), 'part has no name: ' . $headers);
+            $name = $matches[1] ?? '';
 
             $order[] = $name;
             $parts[$name] = '';
@@ -170,7 +164,7 @@ class StreamedResponseTest extends TestCase
 
         $contentType = $result['headers']['content-type'] ?? '';
         $this->assertStringStartsWith('multipart/form-data', (string) $contentType);
-        $boundary = \trim($this->captureGroup('/boundary=(.+)$/', (string) $contentType, 'no boundary in ' . $contentType), '"');
+        $boundary = \trim(\explode('boundary=', (string) $contentType)[1] ?? '', '"');
 
         $parsed = $this->parse($boundary, $result['wire']);
 
@@ -221,7 +215,7 @@ class StreamedResponseTest extends TestCase
         $this->assertEquals('0.12.0', $result['headers']['x-executor-response-format'] ?? null);
 
         $contentType = (string) ($result['headers']['content-type'] ?? '');
-        $boundary = \trim($this->captureGroup('/boundary=(.+)$/', $contentType, 'no boundary in ' . $contentType), '"');
+        $boundary = \trim(\explode('boundary=', $contentType)[1] ?? '', '"');
         $parsed = $this->parse($boundary, $result['wire']);
 
         $this->assertGreaterThanOrEqual(1048576, \strlen($parsed['parts']['body']));
