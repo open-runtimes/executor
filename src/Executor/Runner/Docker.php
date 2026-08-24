@@ -890,8 +890,7 @@ class Docker extends Adapter
             ];
         };
 
-        // Set once the runtime's body has begun leaving the executor. From that point the response
-        // is committed: it can be neither retried nor turned into an error.
+        // Once set, the response is committed: it can be neither retried nor turned into an error.
         $streamed = false;
 
         $executeV5 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName, $logging, $onStream, &$streamed): array {
@@ -947,9 +946,7 @@ class Docker extends Adapter
             });
 
             if ($onStream !== null) {
-                // Forward the runtime's body as it arrives instead of accumulating it. The header
-                // callback above has already run by the time the first body byte lands, so status
-                // and headers are known and can be announced before any content goes out.
+                // The header callback has already run, so status and headers are known here.
                 \curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($curl, $data) use ($onStream, &$responseHeaders, &$streamed): int {
                     if (!$streamed) {
                         $streamed = true;
@@ -991,8 +988,7 @@ class Docker extends Adapter
             \curl_setopt($ch, CURLOPT_HEADEROPT, CURLHEADER_UNIFIED);
             \curl_setopt($ch, CURLOPT_HTTPHEADER, $headersArr);
 
-            // With a write callback installed curl_exec returns a bool and the body has already
-            // been forwarded, so there is nothing left to keep here.
+            // With a write callback the body is already forwarded, so curl_exec returns a bool.
             $result = \curl_exec($ch);
             $executorResponse = \is_string($result) ? $result : '';
 
@@ -1126,9 +1122,7 @@ class Docker extends Adapter
                 break;
             }
 
-            // Content is already on the wire, so a second attempt would append a second response
-            // to it. The retryable errors here all happen before a connection is established, so
-            // this is a guard rather than an expected path.
+            // A retry would append a second response to content already on the wire.
             if ($streamed) {
                 break;
             }

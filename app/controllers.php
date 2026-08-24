@@ -230,9 +230,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $acceptTypes = \explode(', ', $request->getHeaderLine('accept') ?: 'multipart/form-data');
             $isJson = array_any($acceptTypes, fn ($acceptType): bool => \str_starts_with((string) $acceptType, 'application/json') || \str_starts_with((string) $acceptType, 'application/*'));
 
-            // A caller on 0.12.0 or later can read parts as they are framed, so the runtime's body
-            // can be forwarded while it is still being produced. Anything older, and the JSON
-            // shape, still get the complete document they expect.
             $stream = null;
             $onStream = null;
             $streamStarted = false;
@@ -253,8 +250,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                         return;
                     }
 
-                    // Last chance to set response headers: the first content run follows straight
-                    // after, and chunk() commits them on its first call.
+                    // Last chance to set headers: chunk() commits them on its first call.
                     $response
                         ->setStatusCode(Response::STATUS_CODE_OK)
                         ->addHeader('content-type', $stream->exportHeader())
@@ -291,8 +287,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     throw $throwable;
                 }
 
-                // Content is committed, so the error hook's JSON document would be read as part
-                // of the envelope. A broken transfer is the remaining way to report the failure.
+                // Content is committed, so the error hook's JSON would land inside the envelope.
                 if ($response instanceof SwooleResponse) {
                     $response->getSwooleResponse()->close();
                 }
@@ -303,8 +298,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $streamed = ($execution['streamed'] ?? false) === true;
             unset($execution['streamed']);
 
-            // The body left the executor already, so only the trailing metadata is still owed. A
-            // response with no body at all never commits to streaming and falls through below.
+            // The body already left, so only the trailing metadata is still owed.
             if ($stream instanceof BodyMultipartStream && $streamed) {
                 $stream->endPart();
 

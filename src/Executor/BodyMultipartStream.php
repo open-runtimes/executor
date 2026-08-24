@@ -45,8 +45,7 @@ class BodyMultipartStream
 
     public function writeContent(string $content): void
     {
-        // A zero length run is the part terminator, so an empty write has to be dropped rather
-        // than forwarded. Callers stream whatever curl hands them, and curl can hand over nothing.
+        // A zero length run is the part terminator, so an empty write has to be dropped.
         if ($this->ended || !$this->inPart || $content === '') {
             return;
         }
