@@ -73,8 +73,14 @@ final class BodyMultipartStreamTest extends TestCase
         $stream->endPart();
 
         // A zero length run would read as the part terminator, orphaning everything after it.
-        $this->assertStringNotContainsString("0\r\n\r\nafter", $this->wire);
-        $this->assertStringContainsString("5\r\nafter\r\n0\r\n\r\n", $this->wire);
+        $this->assertSame(
+            "--BOUNDARY\r\n"
+            . "Content-Disposition: form-data; name=\"body\"\r\n"
+            . "Content-Transfer-Encoding: chunked\r\n\r\n"
+            . "5\r\nafter\r\n"
+            . "0\r\n\r\n",
+            $this->wire
+        );
     }
 
     public function testEmptyPartStillFramesSoTheKeyExists(): void
@@ -82,8 +88,13 @@ final class BodyMultipartStreamTest extends TestCase
         $stream = $this->writer();
         $stream->part('errors', '');
 
-        $this->assertStringContainsString('name="errors"', $this->wire);
-        $this->assertStringEndsWith("0\r\n\r\n", $this->wire);
+        $this->assertSame(
+            "--BOUNDARY\r\n"
+            . "Content-Disposition: form-data; name=\"errors\"\r\n"
+            . "Content-Transfer-Encoding: chunked\r\n\r\n"
+            . "0\r\n\r\n",
+            $this->wire
+        );
     }
 
     public function testEndClosesEnvelopeWithTerminalDelimiter(): void

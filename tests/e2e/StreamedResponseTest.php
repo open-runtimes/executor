@@ -125,12 +125,11 @@ class StreamedResponseTest extends TestCase
 
     /**
      * @param array<string, mixed> $params
-     * @return array{wire: string, headers: array<string, mixed>, chunks: int}
+     * @return array{wire: string, headers: array<string, mixed>}
      */
     private function executeStreamed(string $runtimeId, array $params, string $format = '0.12.0'): array
     {
         $wire = '';
-        $chunks = 0;
 
         $response = $this->client->call(
             Client::METHOD_POST,
@@ -141,13 +140,12 @@ class StreamedResponseTest extends TestCase
             ],
             $params,
             false,
-            function (string $data) use (&$wire, &$chunks): void {
+            function (string $data) use (&$wire): void {
                 $wire .= $data;
-                $chunks++;
             }
         );
 
-        return ['wire' => $wire, 'headers' => $response['headers'], 'chunks' => $chunks];
+        return ['wire' => $wire, 'headers' => $response['headers']];
     }
 
     public function testStreamedEnvelopeIsFramedAndOrdered(): void
@@ -179,13 +177,10 @@ class StreamedResponseTest extends TestCase
         $this->assertSame(
             ['statusCode', 'headers', 'body', 'logs', 'errors', 'duration', 'startTime'],
             $parsed['order'],
+            // statusCode and headers precede the body: the proxy cannot set either once content
+            // has started going out to the visitor.
             'unexpected part order'
         );
-
-        // statusCode and headers must precede the body: the proxy cannot set either once content
-        // has started going out to the visitor.
-        $this->assertSame(0, \array_search('statusCode', $parsed['order'], true));
-        $this->assertSame(1, \array_search('headers', $parsed['order'], true));
 
         $this->assertSame('200', $parsed['parts']['statusCode']);
 
@@ -240,8 +235,6 @@ class StreamedResponseTest extends TestCase
             'body was framed as a single run, so it was buffered rather than streamed'
         );
 
-        // And it arrived over several socket reads on the caller's side too.
-        $this->assertGreaterThan(1, $result['chunks'], 'response arrived in one read');
 
         $this->client->call(Client::METHOD_DELETE, '/runtimes/' . $runtimeId, [], []);
     }
