@@ -4,7 +4,6 @@ require_once __DIR__ . '/init.php';
 
 use OpenRuntimes\Executor\Exception;
 use OpenRuntimes\Executor\BodyMultipart;
-use OpenRuntimes\Executor\BodyMultipartWriter;
 use OpenRuntimes\Executor\Runner\Adapter as Runner;
 use Utopia\System\System;
 use Utopia\Http\Request;
@@ -230,37 +229,61 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $acceptTypes = \explode(', ', $request->getHeaderLine('accept') ?: 'multipart/form-data');
             $isJson = array_any($acceptTypes, fn ($acceptType): bool => \str_starts_with((string) $acceptType, 'application/json') || \str_starts_with((string) $acceptType, 'application/*'));
 
-            $stream = null;
+            $boundary = BodyMultipart::generateBoundary();
             $onHeaders = null;
             $onBody = null;
             $streamStarted = false;
 
-            if (!$isJson && \version_compare($responseFormat, RESPONSE_FORMAT_STREAM, '>=')) {
-                $stream = new BodyMultipartWriter(
-                    BodyMultipart::generateBoundary(),
-                    function (string $bytes) use ($response, &$streamStarted): void {
-                        $streamStarted = true;
-                        $response->chunk($bytes);
-                    }
+            // Writes one whole part. Content is length prefixed as `<hex>\r\n<content>\r\n` and the
+            // part is closed by a zero length run, so a reader locates content by its length and
+            // never scans for the boundary. An empty value writes no run at all, since a zero
+            // length run is what closes the part.
+            $writePart = function (string $name, string $content) use ($boundary, $response, &$streamStarted): void {
+                $streamStarted = true;
+                $response->chunk(
+                    '--' . $boundary . "\r\n"
+                    . 'Content-Disposition: form-data; name="' . $name . '"' . "\r\n"
+                    . "Content-Transfer-Encoding: chunked\r\n\r\n"
+                    . ($content === '' ? '' : \dechex(\strlen($content)) . "\r\n" . $content . "\r\n")
+                    . "0\r\n\r\n"
                 );
+            };
 
+            if (!$isJson && \version_compare($responseFormat, RESPONSE_FORMAT_STREAM, '>=')) {
                 /**
                  * @param array<string, mixed> $headers
                  */
-                $onHeaders = function (int $statusCode, array $headers) use ($response, $stream): void {
+                $onHeaders = function (int $statusCode, array $headers) use ($response, $boundary, $writePart): void {
+                    $encoded = \json_encode($headers);
+
+                    // Nothing has been written yet, so this can still surface as an error.
+                    if ($encoded === false) {
+                        throw new Exception(Exception::GENERAL_UNKNOWN, 'Response headers could not be encoded', 500);
+                    }
+
                     // Last chance to set headers: chunk() commits them on its first call.
                     $response
                         ->setStatusCode(Response::STATUS_CODE_OK)
-                        ->addHeader('content-type', $stream->exportHeader())
+                        ->addHeader('content-type', 'multipart/form-data; boundary=' . $boundary)
                         ->addHeader('x-executor-response-format', RESPONSE_FORMAT_STREAM);
 
-                    $stream->writePart('statusCode', $statusCode);
-                    $stream->writePart('headers', $headers);
-                    $stream->startPart('body');
+                    $writePart('statusCode', \strval($statusCode));
+                    $writePart('headers', $encoded);
+
+                    $response->chunk(
+                        '--' . $boundary . "\r\n"
+                        . 'Content-Disposition: form-data; name="body"' . "\r\n"
+                        . "Content-Transfer-Encoding: chunked\r\n\r\n"
+                    );
                 };
 
-                $onBody = function (string $chunk) use ($stream): void {
-                    $stream->writeContent($chunk);
+                $onBody = function (string $chunk) use ($response): void {
+                    // curl hands over empty writes, and a zero length run would close the part.
+                    if ($chunk === '') {
+                        return;
+                    }
+
+                    $response->chunk(\dechex(\strlen($chunk)) . "\r\n" . $chunk . "\r\n");
                 };
             }
 
@@ -299,14 +322,14 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             }
 
             // The body already left, so only the trailing metadata is still owed.
-            if ($stream instanceof BodyMultipartWriter && $streamStarted) {
-                $stream->endPart();
+            if ($streamStarted) {
+                $response->chunk("0\r\n\r\n"); // closes the body part
 
                 foreach (['logs', 'errors', 'duration', 'startTime'] as $key) {
-                    $stream->writePart($key, $execution[$key] ?? '');
+                    $writePart($key, \strval($execution[$key] ?? ''));
                 }
 
-                $stream->end();
+                $response->chunk('--' . $boundary . '--');
                 $response->chunk('', true);
 
                 return;
