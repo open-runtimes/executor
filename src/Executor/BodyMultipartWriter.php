@@ -67,7 +67,7 @@ class BodyMultipartWriter
     /**
      * @param mixed $value Scalars are stringified; arrays are JSON encoded, matching BodyMultipart.
      */
-    public function part(string $name, mixed $value): void
+    public function writePart(string $name, mixed $value): void
     {
         if (\is_array($value)) {
             $value = \json_encode($value);

@@ -23,7 +23,7 @@ final class BodyMultipartWriterTest extends TestCase
     public function testPartIsLengthPrefixedAndChunkMarked(): void
     {
         $stream = $this->writer();
-        $stream->part('statusCode', 200);
+        $stream->writePart('statusCode', 200);
 
         $this->assertSame(
             "--BOUNDARY\r\n"
@@ -48,7 +48,7 @@ final class BodyMultipartWriterTest extends TestCase
     public function testArrayPartIsJsonEncoded(): void
     {
         $stream = $this->writer();
-        $stream->part('headers', ['content-type' => 'text/html']);
+        $stream->writePart('headers', ['content-type' => 'text/html']);
 
         $this->assertStringContainsString('{"content-type":"text\/html"}', $this->wire);
     }
@@ -86,7 +86,7 @@ final class BodyMultipartWriterTest extends TestCase
     public function testEmptyPartStillFramesSoTheKeyExists(): void
     {
         $stream = $this->writer();
-        $stream->part('errors', '');
+        $stream->writePart('errors', '');
 
         $this->assertSame(
             "--BOUNDARY\r\n"
@@ -100,7 +100,7 @@ final class BodyMultipartWriterTest extends TestCase
     public function testEndClosesEnvelopeWithTerminalDelimiter(): void
     {
         $stream = $this->writer();
-        $stream->part('logs', 'hello');
+        $stream->writePart('logs', 'hello');
         $stream->end();
 
         $this->assertStringEndsWith('--BOUNDARY--', $this->wire);
@@ -119,12 +119,12 @@ final class BodyMultipartWriterTest extends TestCase
     public function testWritesAfterEndAreIgnored(): void
     {
         $stream = $this->writer();
-        $stream->part('logs', 'x');
+        $stream->writePart('logs', 'x');
         $stream->end();
 
         $after = $this->wire;
 
-        $stream->part('errors', 'ignored');
+        $stream->writePart('errors', 'ignored');
         $stream->end();
 
         $this->assertSame($after, $this->wire);

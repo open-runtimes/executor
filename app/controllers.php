@@ -256,8 +256,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                         ->addHeader('content-type', $stream->exportHeader())
                         ->addHeader('x-executor-response-format', RESPONSE_FORMAT_STREAM);
 
-                    $stream->part('statusCode', $data['statusCode']);
-                    $stream->part('headers', $data['headers']);
+                    $stream->writePart('statusCode', $data['statusCode']);
+                    $stream->writePart('headers', $data['headers']);
                     $stream->startPart('body');
                 };
             }
@@ -300,7 +300,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 $stream->endPart();
 
                 foreach (['logs', 'errors', 'duration', 'startTime'] as $key) {
-                    $stream->part($key, $execution[$key] ?? '');
+                    $stream->writePart($key, $execution[$key] ?? '');
                 }
 
                 $stream->end();
