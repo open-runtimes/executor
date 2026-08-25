@@ -224,7 +224,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             $variables = array_map(strval(...), $variables);
 
-            $responseFormat = $request->getHeaderLine('x-executor-response-format') ?: '0.10.0'; // Last version without support for array value for headers
+            $responseFormat = $request->getHeaderLine('x-executor-response-format') ?: RESPONSE_FORMAT_STRING_HEADERS;
 
             $acceptTypes = \explode(', ', $request->getHeaderLine('accept') ?: 'multipart/form-data');
             $isJson = array_any($acceptTypes, fn ($acceptType): bool => \str_starts_with((string) $acceptType, 'application/json') || \str_starts_with((string) $acceptType, 'application/*'));
@@ -336,7 +336,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             }
 
             // Backwards compatibility for headers
-            if (version_compare($responseFormat, '0.11.0', '<')) {
+            if (version_compare($responseFormat, RESPONSE_FORMAT_ARRAY_HEADERS, '<')) {
                 foreach ($execution['headers'] as $key => $value) {
                     if (\is_array($value)) {
                         $lastKey = \array_key_last($value);

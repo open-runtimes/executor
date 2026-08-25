@@ -17,6 +17,14 @@ use Utopia\Config\Config;
 const MAX_LOG_SIZE = 5 * 1024 * 1024;
 const MAX_BUILD_LOG_SIZE = 1000 * 1000;
 
+// Response formats negotiated via x-executor-response-format. A caller sends
+// the newest format it understands; no header means the oldest.
+const RESPONSE_FORMAT_STRING_HEADERS = '0.10.0';
+
+// First response format whose header values may be arrays, keeping every value
+// of a duplicated response header instead of only the last.
+const RESPONSE_FORMAT_ARRAY_HEADERS = '0.11.0';
+
 // First response format whose parts are length prefixed, so a caller can read them as they are
 // framed instead of waiting for the whole document to be serialised.
 const RESPONSE_FORMAT_STREAM = '0.12.0';
