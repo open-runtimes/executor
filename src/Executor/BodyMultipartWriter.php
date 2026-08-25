@@ -8,7 +8,7 @@ namespace OpenRuntimes\Executor;
  * `<hex length>\r\n<content>\r\n`, closed by `0\r\n\r\n`, so the reader locates content by its
  * length and never scans for the boundary.
  */
-class BodyMultipartStream
+class BodyMultipartWriter
 {
     private bool $ended = false;
 

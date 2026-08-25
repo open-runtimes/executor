@@ -4,7 +4,7 @@ require_once __DIR__ . '/init.php';
 
 use OpenRuntimes\Executor\Exception;
 use OpenRuntimes\Executor\BodyMultipart;
-use OpenRuntimes\Executor\BodyMultipartStream;
+use OpenRuntimes\Executor\BodyMultipartWriter;
 use OpenRuntimes\Executor\Runner\Adapter as Runner;
 use Utopia\System\System;
 use Utopia\Http\Request;
@@ -235,7 +235,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $streamStarted = false;
 
             if (!$isJson && \version_compare($responseFormat, RESPONSE_FORMAT_STREAM, '>=')) {
-                $stream = new BodyMultipartStream(
+                $stream = new BodyMultipartWriter(
                     BodyMultipart::generateBoundary(),
                     function (string $bytes) use ($response, &$streamStarted): void {
                         $streamStarted = true;
@@ -296,7 +296,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             }
 
             // The body already left, so only the trailing metadata is still owed.
-            if ($stream instanceof BodyMultipartStream && $streamStarted) {
+            if ($stream instanceof BodyMultipartWriter && $streamStarted) {
                 $stream->endPart();
 
                 foreach (['logs', 'errors', 'duration', 'startTime'] as $key) {

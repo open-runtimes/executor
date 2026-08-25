@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Executor;
 
-use OpenRuntimes\Executor\BodyMultipartStream;
+use OpenRuntimes\Executor\BodyMultipartWriter;
 use PHPUnit\Framework\TestCase;
 
-final class BodyMultipartStreamTest extends TestCase
+final class BodyMultipartWriterTest extends TestCase
 {
     private string $wire = '';
 
-    private function writer(string $boundary = 'BOUNDARY'): BodyMultipartStream
+    private function writer(string $boundary = 'BOUNDARY'): BodyMultipartWriter
     {
         $this->wire = '';
 
-        return new BodyMultipartStream($boundary, function (string $bytes): void {
+        return new BodyMultipartWriter($boundary, function (string $bytes): void {
             $this->wire .= $bytes;
         });
     }
