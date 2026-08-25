@@ -231,7 +231,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $isJson = array_any($acceptTypes, fn ($acceptType): bool => \str_starts_with((string) $acceptType, 'application/json') || \str_starts_with((string) $acceptType, 'application/*'));
 
             $stream = null;
-            $onStream = null;
+            $onHeaders = null;
+            $onBody = null;
             $streamStarted = false;
 
             if (!$isJson && \version_compare($responseFormat, RESPONSE_FORMAT_STREAM, '>=')) {
@@ -243,22 +244,23 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     }
                 );
 
-                $onStream = function (string $event, mixed $data) use ($response, $stream): void {
-                    if ($event !== 'headers') {
-                        $stream->writeContent(\strval($data));
-
-                        return;
-                    }
-
+                /**
+                 * @param array<string, mixed> $headers
+                 */
+                $onHeaders = function (int $statusCode, array $headers) use ($response, $stream): void {
                     // Last chance to set headers: chunk() commits them on its first call.
                     $response
                         ->setStatusCode(Response::STATUS_CODE_OK)
                         ->addHeader('content-type', $stream->exportHeader())
                         ->addHeader('x-executor-response-format', RESPONSE_FORMAT_STREAM);
 
-                    $stream->writePart('statusCode', $data['statusCode']);
-                    $stream->writePart('headers', $data['headers']);
+                    $stream->writePart('statusCode', $statusCode);
+                    $stream->writePart('headers', $headers);
                     $stream->startPart('body');
+                };
+
+                $onBody = function (string $chunk) use ($stream): void {
+                    $stream->writeContent($chunk);
                 };
             }
 
@@ -280,7 +282,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     $runtimeEntrypoint,
                     $logging,
                     $restartPolicy,
-                    onStream: $onStream,
+                    onHeaders: $onHeaders,
+                    onBody: $onBody,
                 );
             } catch (\Throwable $throwable) {
                 if (!$streamStarted) {
