@@ -683,17 +683,19 @@ class Docker extends Adapter
      * @param array<string, mixed> $params
      * @return array{errNo: int, error: string, statusCode: int, executorResponse: mixed}
      */
-    protected function sendCreateRuntimeRequest(array $params): array
+    protected function sendCreateRuntimeRequest(array $params, float $timeout): array
     {
         $ch = \curl_init();
 
         $body = \json_encode($params);
+        $seconds = (int) \max(1, \ceil($timeout));
 
         \curl_setopt($ch, CURLOPT_URL, "http://127.0.0.1/v1/runtimes");
         \curl_setopt($ch, CURLOPT_POST, true);
         \curl_setopt($ch, CURLOPT_POSTFIELDS, $body ?: '');
         \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+        \curl_setopt($ch, CURLOPT_TIMEOUT, $seconds);
+        \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, \min(10, $seconds));
 
         \curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Content-Type: application/json',
@@ -779,6 +781,7 @@ class Docker extends Adapter
                     throw new ExecutorException(ExecutorException::RUNTIME_TIMEOUT);
                 }
 
+                $remaining = $readyTimeout - (\microtime(true) - $readyStart);
                 ['errNo' => $errNo, 'error' => $error, 'statusCode' => $statusCode, 'executorResponse' => $executorResponse] = $this->sendCreateRuntimeRequest([
                     'runtimeId' => $runtimeId,
                     'image' => $image,
@@ -790,7 +793,7 @@ class Docker extends Adapter
                     'version' => $version,
                     'restartPolicy' => $restartPolicy,
                     'runtimeEntrypoint' => $runtimeEntrypoint
-                ]);
+                ], $remaining);
 
                 if ($errNo === 0) {
                     $body = \is_string($executorResponse) ? \json_decode($executorResponse, true) : [];
@@ -806,6 +809,8 @@ class Docker extends Adapter
                     } else {
                         break;
                     }
+                } elseif ($errNo === \CURLE_OPERATION_TIMEDOUT) {
+                    throw new ExecutorException(ExecutorException::RUNTIME_TIMEOUT);
                 } elseif ($errNo !== 111) {
                     // Connection refused - see https://openswoole.com/docs/swoole-error-code
                     throw new \Exception('An internal curl error has occurred while starting runtime! Error Msg: ' . $error, 500);

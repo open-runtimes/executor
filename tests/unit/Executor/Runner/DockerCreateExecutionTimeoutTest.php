@@ -130,6 +130,25 @@ final class DockerCreateExecutionTimeoutTest extends TestCase
         }
     }
 
+    public function testPrepareCurlHonorsRemainingReadyBudget(): void
+    {
+        $this->setReadyTimeoutEnv('1');
+
+        $docker = $this->createFakeDocker(new Runtimes(16));
+        $docker->prepareDelaySeconds = 2.0;
+
+        $started = \microtime(true);
+        try {
+            $this->runCreateExecution($docker, 'prepare-over-ready', timeout: 15);
+            $this->fail('Expected runtime_timeout when docker create exceeds the ready budget');
+        } catch (ExecutorException $executorException) {
+            $elapsed = \microtime(true) - $started;
+            $this->assertSame(ExecutorException::RUNTIME_TIMEOUT, $executorException->getType());
+            $this->assertLessThan(1.5, $elapsed);
+            $this->assertSame(-1, $docker->seenHandlerTimeout);
+        }
+    }
+
     public function testAlreadyListeningSkipsColdStartAndKeepsHandlerTimeout(): void
     {
         $runtimes = new Runtimes(16);
@@ -229,16 +248,23 @@ final class FakeExecutionDocker extends Docker
      * @return array{errNo: int, error: string, statusCode: int, executorResponse: mixed}
      */
     #[\Override]
-    protected function sendCreateRuntimeRequest(array $params): array
+    protected function sendCreateRuntimeRequest(array $params, float $timeout): array
     {
         $this->createCalls++;
 
-        if ($this->prepareDelaySeconds > 0) {
-            \usleep((int) ($this->prepareDelaySeconds * 1_000_000));
+        $delay = $this->prepareDelaySeconds + $this->launchDelaySeconds;
+        $sleep = \min($delay, \max(0.0, $timeout));
+        if ($sleep > 0) {
+            \usleep((int) ($sleep * 1_000_000));
         }
 
-        if ($this->launchDelaySeconds > 0) {
-            \usleep((int) ($this->launchDelaySeconds * 1_000_000));
+        if ($delay > $timeout) {
+            return [
+                'errNo' => \CURLE_OPERATION_TIMEDOUT,
+                'error' => 'Operation timed out',
+                'statusCode' => 0,
+                'executorResponse' => '',
+            ];
         }
 
         $this->seedRuntime((string) $params['runtimeId'], status: 'Up 0.1s', listening: 0);
