@@ -22,6 +22,12 @@ use function Swoole\Coroutine\batch;
 class Docker extends Adapter
 {
     /**
+     * Cold start (docker create, pending, HTTP listen) is not a failed execution.
+     * This budget is independent of the function handler timeout.
+     */
+    private const float DEFAULT_RUNTIME_READY_TIMEOUT = 30.0;
+
+    /**
      * @param string[] $networks
      */
     public function __construct(
@@ -660,6 +666,75 @@ class Docker extends Adapter
         $this->runtimes->remove($runtimeName);
     }
 
+    protected function getRuntimeReadyTimeout(): float
+    {
+        $configured = System::getEnv('OPR_EXECUTOR_RUNTIME_READY_TIMEOUT', '');
+        if ($configured !== '' && $configured !== '0') {
+            $timeout = \floatval($configured);
+            if ($timeout > 0) {
+                return $timeout;
+            }
+        }
+
+        return self::DEFAULT_RUNTIME_READY_TIMEOUT;
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     * @return array{errNo: int, error: string, statusCode: int, executorResponse: mixed}
+     */
+    protected function sendCreateRuntimeRequest(array $params): array
+    {
+        $ch = \curl_init();
+
+        $body = \json_encode($params);
+
+        \curl_setopt($ch, CURLOPT_URL, "http://127.0.0.1/v1/runtimes");
+        \curl_setopt($ch, CURLOPT_POST, true);
+        \curl_setopt($ch, CURLOPT_POSTFIELDS, $body ?: '');
+        \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+
+        \curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'Content-Length: ' . \strlen($body ?: ''),
+            'authorization: Bearer ' . System::getEnv('OPR_EXECUTOR_SECRET', '')
+        ]);
+
+        $executorResponse = \curl_exec($ch);
+
+        $statusCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        $error = \curl_error($ch);
+
+        $errNo = \curl_errno($ch);
+
+        return [
+            'errNo' => $errNo,
+            'error' => $error,
+            'statusCode' => $statusCode,
+            'executorResponse' => $executorResponse
+        ];
+    }
+
+    protected function isRuntimeListening(string $hostname): bool
+    {
+        $validator = new TCP(1);
+
+        return $validator->isValid($hostname . ':3000');
+    }
+
+    /**
+     * @param callable(): array{errNo: int, error: string, statusCode: int, body: mixed, logs: string, errors: string, headers: mixed} $executionRequest
+     * @return array{errNo: int, error: string, statusCode: int, body: mixed, logs: string, errors: string, headers: mixed}
+     */
+    protected function dispatchExecution(callable $executionRequest, int $timeout): array
+    {
+        \assert($timeout >= 0);
+
+        return $executionRequest();
+    }
+
     /**
      * @throws ExecutorException
      */
@@ -688,19 +763,25 @@ class Docker extends Adapter
             'INERNAL_EXECUTOR_HOSTNAME' => System::getHostname()
         ]);
 
-        $prepareStart = \microtime(true);
+        $readyTimeout = $this->getRuntimeReadyTimeout();
+        $readyStart = \microtime(true);
+        $runtimeReadyTimedOut = function () use ($readyStart, $readyTimeout): bool {
+            return \microtime(true) - $readyStart >= $readyTimeout;
+        };
 
-        // Prepare runtime
+        // Prepare runtime. Cold start uses $readyTimeout, not the handler $timeout.
         if (!$this->runtimes->exists($runtimeName)) {
             if ($image === '' || $image === '0' || ($source === '' || $source === '0')) {
                 throw new ExecutorException(ExecutorException::RUNTIME_NOT_FOUND, 'Runtime not found. Please start it first or provide runtime-related parameters.');
             }
 
-            // Prepare request to executor
-            $sendCreateRuntimeRequest = function () use ($runtimeId, $image, $source, $entrypoint, $variables, $cpus, $memory, $version, $restartPolicy, $runtimeEntrypoint): array {
-                $ch = \curl_init();
+            // Prepare runtime
+            while (true) {
+                if ($runtimeReadyTimedOut()) {
+                    throw new ExecutorException(ExecutorException::RUNTIME_TIMEOUT);
+                }
 
-                $body = \json_encode([
+                ['errNo' => $errNo, 'error' => $error, 'statusCode' => $statusCode, 'executorResponse' => $executorResponse] = $this->sendCreateRuntimeRequest([
                     'runtimeId' => $runtimeId,
                     'image' => $image,
                     'source' => $source,
@@ -712,43 +793,6 @@ class Docker extends Adapter
                     'restartPolicy' => $restartPolicy,
                     'runtimeEntrypoint' => $runtimeEntrypoint
                 ]);
-
-                \curl_setopt($ch, CURLOPT_URL, "http://127.0.0.1/v1/runtimes");
-                \curl_setopt($ch, CURLOPT_POST, true);
-                \curl_setopt($ch, CURLOPT_POSTFIELDS, $body ?: '');
-                \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-
-                \curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                    'Content-Type: application/json',
-                    'Content-Length: ' . \strlen($body ?: ''),
-                    'authorization: Bearer ' . System::getEnv('OPR_EXECUTOR_SECRET', '')
-                ]);
-
-                $executorResponse = \curl_exec($ch);
-
-                $statusCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-                $error = \curl_error($ch);
-
-                $errNo = \curl_errno($ch);
-
-                return [
-                    'errNo' => $errNo,
-                    'error' => $error,
-                    'statusCode' => $statusCode,
-                    'executorResponse' => $executorResponse
-                ];
-            };
-
-            // Prepare runtime
-            while (true) {
-                // If timeout is passed, stop and return error
-                if (\microtime(true) - $prepareStart >= $timeout) {
-                    throw new ExecutorException(ExecutorException::RUNTIME_TIMEOUT);
-                }
-
-                ['errNo' => $errNo, 'error' => $error, 'statusCode' => $statusCode, 'executorResponse' => $executorResponse] = \call_user_func($sendCreateRuntimeRequest);
 
                 if ($errNo === 0) {
                     $body = \is_string($executorResponse) ? \json_decode($executorResponse, true) : [];
@@ -773,9 +817,6 @@ class Docker extends Adapter
             }
         }
 
-        // Lower timeout by time it took to prepare container
-        $timeout -= (\microtime(true) - $prepareStart);
-
         // Update runtimes
         $runtime = $this->runtimes->get($runtimeName);
         if ($runtime instanceof \OpenRuntimes\Executor\Runner\Runtime) {
@@ -784,10 +825,8 @@ class Docker extends Adapter
         }
 
         // Ensure runtime started
-        $launchStart = \microtime(true);
         while (true) {
-            // If timeout is passed, stop and return error
-            if (\microtime(true) - $launchStart >= $timeout) {
+            if ($runtimeReadyTimedOut()) {
                 throw new ExecutorException(ExecutorException::RUNTIME_TIMEOUT);
             }
 
@@ -802,9 +841,6 @@ class Docker extends Adapter
 
             \usleep(500000); // 0.5s
         }
-
-        // Lower timeout by time it took to launch container
-        $timeout -= (\microtime(true) - $launchStart);
 
         // Ensure we have secret
         $runtime = $this->runtimes->get($runtimeName);
@@ -1038,16 +1074,12 @@ class Docker extends Adapter
 
         if ($runtime->listening === 0) {
             // Wait for cold-start to finish (app listening on port)
-            $pingStart = \microtime(true);
-            $validator = new TCP();
             while (true) {
-                // If timeout is passed, stop and return error
-                if (\microtime(true) - $pingStart >= $timeout) {
+                if ($runtimeReadyTimedOut()) {
                     throw new ExecutorException(ExecutorException::RUNTIME_TIMEOUT);
                 }
 
-                $online = $validator->isValid($hostname . ':' . 3000);
-                if ($online) {
+                if ($this->isRuntimeListening($hostname)) {
                     break;
                 }
 
@@ -1060,12 +1092,9 @@ class Docker extends Adapter
                 $runtime->listening = 1;
                 $this->runtimes->set($runtimeName, $runtime);
             }
-
-            // Lower timeout by time it took to cold-start
-            $timeout -= (\microtime(true) - $pingStart);
         }
 
-        // Execute function
+        // Execute function with the original handler timeout. Cold start is not deducted.
         $executionRequest = $version === 'v2' ? $executeV2 : $executeV5;
 
         $retryDelayMs = \intval(System::getEnv('OPR_EXECUTOR_RETRY_DELAY_MS', '500'));
@@ -1073,7 +1102,7 @@ class Docker extends Adapter
 
         $attempts = 0;
         do {
-            $executionResponse = \call_user_func($executionRequest);
+            $executionResponse = $this->dispatchExecution($executionRequest, $timeout);
             if ($executionResponse['errNo'] === CURLE_OK) {
                 break;
             }

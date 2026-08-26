@@ -61,6 +61,7 @@ services:
       - OPR_EXECUTOR_RUNTIME_VERSIONS
       - OPR_EXECUTOR_RETRY_ATTEMPTS
       - OPR_EXECUTOR_RETRY_DELAY_MS
+      - OPR_EXECUTOR_RUNTIME_READY_TIMEOUT
       - OPR_EXECUTOR_IMAGE_PULL
 
 networks:
@@ -90,6 +91,7 @@ OPR_EXECUTOR_DOCKER_HUB_PASSWORD=
 OPR_EXECUTOR_RUNTIME_VERSIONS=v5
 OPR_EXECUTOR_RETRY_ATTEMPTS=5
 OPR_EXECUTOR_RETRY_DELAY_MS=500
+OPR_EXECUTOR_RUNTIME_READY_TIMEOUT=30
 ```
 
 > `OPR_EXECUTOR_CONNECTION_STORAGE` takes a DSN string that represents a connection to your storage device. Every scheme but `file` and `local` requires a host. For example:
@@ -212,6 +214,7 @@ docker compose down
 | OPR_EXECUTOR_RUNTIME_VERSIONS    | Version tag for runtime environments, ex: `v5`                                                                                                |
 | OPR_EXECUTOR_RETRY_ATTEMPTS      | Number of retry attempts for failed executions, ex: `5`                                                                                       |
 | OPR_EXECUTOR_RETRY_DELAY_MS      | Delay (in milliseconds) between retry attempts, ex: `500`                                                                                    |
+| OPR_EXECUTOR_RUNTIME_READY_TIMEOUT | Seconds allowed for cold start (container create, pending, HTTP listen) during `createExecution`. Independent of the function timeout. Default: `30` |
 
 ## Contributing
 

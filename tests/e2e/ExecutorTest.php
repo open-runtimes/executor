@@ -1341,6 +1341,101 @@ class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
+    public function testColdStartDoesNotConsumeFunctionTimeout(): void
+    {
+        $folder = 'node-long-coldstart';
+        $output = '';
+        $stderr = '';
+        Console::execute(sprintf('cd /app/tests/resources/functions/%s && tar --exclude code.tar.gz -czf code.tar.gz .', $folder), '', $output, $stderr);
+
+        $runtimeId = \bin2hex(\random_bytes(4));
+        $buildResponse = $this->client->call(Client::METHOD_POST, '/runtimes', [], [
+            'runtimeId' => sprintf('coldstart-timeout-build-%s', $runtimeId),
+            'source' => sprintf('/storage/functions/%s/code.tar.gz', $folder),
+            'destination' => '/storage/builds/test',
+            'version' => 'v5',
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-18.0',
+            'workdir' => '/usr/code',
+            'remove' => true,
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
+        ]);
+        $this->assertEquals(201, $buildResponse['headers']['status-code']);
+
+        $executeId = sprintf('coldstart-timeout-exec-%s', $runtimeId);
+        $response = $this->client->call(Client::METHOD_POST, sprintf('/runtimes/%s/executions', $executeId), [
+            'content-type' => 'application/json',
+            'accept' => 'application/json',
+        ], [
+            'source' => $buildResponse['body']['path'],
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-18.0',
+            'version' => 'v5',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
+            'timeout' => 5,
+            'logging' => true,
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals(200, $response['body']['statusCode']);
+        $this->assertEquals('OK', $response['body']['body']);
+        $this->assertGreaterThan(10, $response['body']['duration']);
+
+        $delete = $this->client->call(Client::METHOD_DELETE, sprintf('/runtimes/%s', $executeId), [], []);
+        $this->assertEquals(200, $delete['headers']['status-code']);
+    }
+
+    public function testExecutionTimeoutAfterRuntimeIsListening(): void
+    {
+        $folder = 'node-timeout';
+        $output = '';
+        $stderr = '';
+        Console::execute(sprintf('cd /app/tests/resources/functions/%s && tar --exclude code.tar.gz -czf code.tar.gz .', $folder), '', $output, $stderr);
+
+        $runtimeId = \bin2hex(\random_bytes(4));
+        $buildResponse = $this->client->call(Client::METHOD_POST, '/runtimes', [], [
+            'runtimeId' => sprintf('handler-timeout-build-%s', $runtimeId),
+            'source' => sprintf('/storage/functions/%s/code.tar.gz', $folder),
+            'destination' => '/storage/builds/test',
+            'version' => 'v5',
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-18.0',
+            'workdir' => '/usr/code',
+            'remove' => true,
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
+        ]);
+        $this->assertEquals(201, $buildResponse['headers']['status-code']);
+
+        $executeId = sprintf('handler-timeout-exec-%s', $runtimeId);
+        $startResponse = $this->client->call(Client::METHOD_POST, '/runtimes', [], [
+            'runtimeId' => $executeId,
+            'source' => $buildResponse['body']['path'],
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-18.0',
+            'version' => 'v5',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
+        ]);
+        $this->assertEquals(201, $startResponse['headers']['status-code']);
+
+        $started = \microtime(true);
+        $response = $this->client->call(Client::METHOD_POST, sprintf('/runtimes/%s/executions', $executeId), [
+            'content-type' => 'application/json',
+            'accept' => 'application/json',
+        ], [
+            'timeout' => 1,
+            'logging' => true,
+        ]);
+        $elapsed = \microtime(true) - $started;
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals(500, $response['body']['statusCode']);
+        $this->assertStringContainsString('Execution timed out.', (string) $response['body']['errors']);
+        $this->assertGreaterThan(0.5, $elapsed);
+        $this->assertLessThan(10.0, $elapsed);
+
+        $delete = $this->client->call(Client::METHOD_DELETE, sprintf('/runtimes/%s', $executeId), [], []);
+        $this->assertEquals(200, $delete['headers']['status-code']);
+    }
 
     /**
      *
