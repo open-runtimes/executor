@@ -765,9 +765,7 @@ class Docker extends Adapter
 
         $readyTimeout = $this->getRuntimeReadyTimeout();
         $readyStart = \microtime(true);
-        $runtimeReadyTimedOut = function () use ($readyStart, $readyTimeout): bool {
-            return \microtime(true) - $readyStart >= $readyTimeout;
-        };
+        $runtimeReadyTimedOut = (fn (): bool => \microtime(true) - $readyStart >= $readyTimeout);
 
         // Prepare runtime. Cold start uses $readyTimeout, not the handler $timeout.
         if (!$this->runtimes->exists($runtimeName)) {
@@ -871,7 +869,7 @@ class Docker extends Adapter
             \curl_setopt($ch, CURLOPT_POST, true);
             \curl_setopt($ch, CURLOPT_POSTFIELDS, $body ?: '');
             \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            \curl_setopt($ch, CURLOPT_TIMEOUT, (int) $timeout);
+            \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
             \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
 
             \curl_setopt($ch, CURLOPT_HTTPHEADER, [
@@ -974,7 +972,7 @@ class Docker extends Adapter
                 return $len;
             });
 
-            \curl_setopt($ch, CURLOPT_TIMEOUT, (int) $timeout + 5); // Gives extra 5s after safe timeout to recieve response
+            \curl_setopt($ch, CURLOPT_TIMEOUT, $timeout + 5); // Gives extra 5s after safe timeout to recieve response
             \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
             $headers['x-open-runtimes-logging'] = $logging ? 'enabled' : 'disabled';
 

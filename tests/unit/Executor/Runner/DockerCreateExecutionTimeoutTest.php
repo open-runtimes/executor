@@ -32,18 +32,18 @@ final class DockerCreateExecutionTimeoutTest extends TestCase
     public function testRuntimeReadyTimeoutDefaultAndEnv(): void
     {
         $docker = $this->createFakeDocker(new Runtimes(16));
-        $method = (new ReflectionClass(Docker::class))->getMethod('getRuntimeReadyTimeout');
+        $method = new ReflectionClass(Docker::class)->getMethod('getRuntimeReadyTimeout');
 
-        $this->assertSame(30.0, $method->invoke($docker));
+        $this->assertEqualsWithDelta(30.0, $method->invoke($docker), PHP_FLOAT_EPSILON);
 
         $this->setReadyTimeoutEnv('12');
-        $this->assertSame(12.0, $method->invoke($docker));
+        $this->assertEqualsWithDelta(12.0, $method->invoke($docker), PHP_FLOAT_EPSILON);
 
         $this->setReadyTimeoutEnv('0');
-        $this->assertSame(30.0, $method->invoke($docker));
+        $this->assertEqualsWithDelta(30.0, $method->invoke($docker), PHP_FLOAT_EPSILON);
 
         $this->setReadyTimeoutEnv('-5');
-        $this->assertSame(30.0, $method->invoke($docker));
+        $this->assertEqualsWithDelta(30.0, $method->invoke($docker), PHP_FLOAT_EPSILON);
     }
 
     public function testSlowPrepareAndLaunchDoesNotReduceHandlerTimeout(): void
@@ -174,7 +174,7 @@ final class DockerCreateExecutionTimeoutTest extends TestCase
 
     private function createFakeDocker(Runtimes $runtimes): FakeExecutionDocker
     {
-        $orchestration = $this->createMock(Orchestration::class);
+        $orchestration = $this->createStub(Orchestration::class);
 
         return new FakeExecutionDocker($orchestration, $runtimes);
     }
@@ -217,9 +217,18 @@ final class FakeExecutionDocker extends Docker
     private ?float $listenSince = null;
 
     /**
+     * @param string[] $networks
+     */
+    public function __construct(Orchestration $orchestration, Runtimes $runtimes, array $networks = ['test'])
+    {
+        parent::__construct($orchestration, $runtimes, $networks);
+    }
+
+    /**
      * @param array<string, mixed> $params
      * @return array{errNo: int, error: string, statusCode: int, executorResponse: mixed}
      */
+    #[\Override]
     protected function sendCreateRuntimeRequest(array $params): array
     {
         $this->createCalls++;
@@ -242,6 +251,7 @@ final class FakeExecutionDocker extends Docker
         ];
     }
 
+    #[\Override]
     protected function isRuntimeListening(string $hostname): bool
     {
         $this->listenCalls++;
@@ -259,6 +269,7 @@ final class FakeExecutionDocker extends Docker
      * @param callable(): array{errNo: int, error: string, statusCode: int, body: mixed, logs: string, errors: string, headers: mixed} $executionRequest
      * @return array{errNo: int, error: string, statusCode: int, body: mixed, logs: string, errors: string, headers: mixed}
      */
+    #[\Override]
     protected function dispatchExecution(callable $executionRequest, int $timeout): array
     {
         $this->seenHandlerTimeout = $timeout;
@@ -290,7 +301,7 @@ final class FakeExecutionDocker extends Docker
     {
         $name = System::getHostname() . '-' . $runtimeId;
         $now = \microtime(true);
-        $runtimes = (new ReflectionClass(Docker::class))->getProperty('runtimes')->getValue($this);
+        $runtimes = new ReflectionClass(Docker::class)->getProperty('runtimes')->getValue($this);
         \assert($runtimes instanceof Runtimes);
 
         $runtimes->set($name, new Runtime(
