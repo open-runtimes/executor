@@ -279,11 +279,16 @@ class Docker extends Adapter
         $buildFile = "code.tar.gz";
 
         // Keep the source's extension so the archive keeps its identity
-        // inside the runtime (code.tar.gz, code.tar, code.sqfs, ...).
+        // inside the runtime (code.tar.gz, code.tar, code.sqfs, ...). Build
+        // artifacts are stored as <uniqid>.gz — pathinfo() below drops the
+        // .tar — so a bare .gz still means a gzipped tar named code.tar.gz.
         $sourceFile = 'code.tar.gz';
         $sourceExtension = \strpos(\basename($source), '.');
         if ($source !== '' && $source !== '0' && $sourceExtension !== false) {
-            $sourceFile = 'code' . \substr(\basename($source), $sourceExtension);
+            $extension = \substr(\basename($source), $sourceExtension);
+            if ($extension !== '.gz') {
+                $sourceFile = 'code' . $extension;
+            }
         }
 
         // The source dir is mounted at /tmp inside the runtime, so this is
