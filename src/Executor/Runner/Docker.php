@@ -278,9 +278,12 @@ class Docker extends Adapter
          */
         $buildFile = "code.tar.gz";
 
-        $sourceFile = "code.tar.gz";
-        if ($source !== '' && $source !== '0' && \pathinfo($source, PATHINFO_EXTENSION) === 'tar') {
-            $sourceFile = "code.tar";
+        // Keep the source's extension so the archive keeps its identity
+        // inside the runtime (code.tar.gz, code.tar, code.sqfs, ...).
+        $sourceFile = 'code.tar.gz';
+        $sourceExtension = \strpos(\basename($source), '.');
+        if ($source !== '' && $source !== '0' && $sourceExtension !== false) {
+            $sourceFile = 'code' . \substr(\basename($source), $sourceExtension);
         }
 
         // The source dir is mounted at /tmp inside the runtime, so this is
