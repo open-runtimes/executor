@@ -283,6 +283,12 @@ class Docker extends Adapter
             $sourceFile = "code.tar";
         }
 
+        // The source dir is mounted at /tmp inside the runtime, so this is
+        // where the start helper (extract.sh) finds the archive.
+        if ($source !== '' && $source !== '0' && $version !== 'v2') {
+            $variables['OPEN_RUNTIMES_CODE_PATH'] = '/tmp/' . $sourceFile;
+        }
+
         $tmpFolder = sprintf('tmp/%s/', $runtimeName);
         $tmpSource = sprintf('/%ssrc/%s', $tmpFolder, $sourceFile);
         $tmpBuild = sprintf('/%sbuilds/%s', $tmpFolder, $buildFile);
