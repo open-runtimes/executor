@@ -29,7 +29,7 @@ class StorageFactory
      *
      * @throws InvalidArgumentException When the connection string cannot be parsed or names a scheme with no device
      */
-    public static function getDevice(string $root, ?string $connection = '', (ClientInterface&StreamingClientInterface)|null $client = null): Device
+    public static function getDevice(string $root, #[\SensitiveParameter] ?string $connection = '', (ClientInterface&StreamingClientInterface)|null $client = null): Device
     {
         $connection ??= '';
         $localSchemes = ['file', DeviceType::Local->value];
@@ -40,8 +40,8 @@ class StorageFactory
 
         try {
             $dsn = new DSN($connection);
-        } catch (\Throwable $throwable) {
-            throw new InvalidArgumentException('Unable to parse storage DSN: ' . $throwable->getMessage(), previous: $throwable);
+        } catch (\Throwable) {
+            throw new InvalidArgumentException('Unable to parse storage DSN');
         }
 
         $scheme = $dsn->getScheme();
