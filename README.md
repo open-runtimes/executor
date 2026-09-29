@@ -34,7 +34,7 @@ version: '3'
 services:
   openruntimes-executor:
     container_name: openruntimes-executor
-    hostname: executor
+    hostname: openruntimes-executor
     stop_signal: SIGINT
     image: openruntimes/executor
     networks:
@@ -73,6 +73,8 @@ volumes:
 ```
 
 > Notice we added bind to local `./functions` directory. That is only nessessary for this getting started, since we will be executing our custom function.
+
+> Keep `hostname` the same as `container_name`. On startup, executor looks up its own container by the hostname to connect it to the runtime networks, and exits if no container name matches.
 
 3. Create `.env` file:
 
