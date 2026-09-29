@@ -41,7 +41,7 @@ Http::onStart()
         /* Fetch own container information */
         $hostname = gethostname() ?: throw new \RuntimeException('Could not determine hostname');
         $selfContainer = $orchestration->list(['name' => $hostname])[0]
-            ?? throw new \RuntimeException(sprintf('Own container not found: no container name matches hostname "%s". Set the executor hostname to its container name', $hostname));
+            ?? throw new \RuntimeException(sprintf('Own container not found for hostname "%s". Set the executor hostname to its container name.', $hostname));
 
         /* Create desired networks if they don't exist */
         $network->setup(
