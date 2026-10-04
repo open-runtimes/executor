@@ -250,6 +250,17 @@ class ExecutorTest extends TestCase
         $this->client->setKey($this->key);
     }
 
+    public function testCommandsUnauthorized(): void
+    {
+        $this->client->setKey('');
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-commands-unauth/commands', [], [
+            'command' => 'true',
+        ]);
+        $this->assertEquals(401, $response['headers']['status-code']);
+        $this->assertEquals('Missing executor key', $response['body']['message']);
+        $this->client->setKey($this->key);
+    }
+
     public function testBuild(): void
     {
         $output = '';

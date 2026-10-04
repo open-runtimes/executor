@@ -37,6 +37,7 @@ Http::get('/v1/runtimes/:runtimeId/logs')
     });
 
 Http::post('/v1/runtimes/:runtimeId/commands')
+    ->groups(['api', 'runtimes'])
     ->desc('Execute a command inside an existing runtime')
     ->param('runtimeId', '', new Text(64), 'Unique runtime ID.')
     ->param('command', '', new Text(1024), 'Command to execute.')
