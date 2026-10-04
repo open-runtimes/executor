@@ -10,8 +10,13 @@ final class RouteAuthTest extends TestCase
 {
     public function testNonPublicRoutesDeclareApiGroup(): void
     {
-        $source = (string) file_get_contents(\dirname(__DIR__, 3) . '/app/controllers.php');
+        $controllers = \dirname(__DIR__, 3) . '/app/controllers.php';
+        $source = \file_get_contents($controllers);
+        if ($source === false) {
+            $this->fail('Unable to read app/controllers.php');
+        }
 
+        $matches = [];
         \preg_match_all(
             "/Http::(?:get|post|put|patch|delete)\\('([^']+)'\\)(.*?)(?=Http::(?:get|post|put|patch|delete|init|error)\\()/s",
             $source,
@@ -23,8 +28,8 @@ final class RouteAuthTest extends TestCase
 
         $paths = [];
         foreach ($matches as $match) {
-            $path = $match[1];
-            $body = $match[2];
+            $path = $match[1] ?? '';
+            $body = $match[2] ?? '';
             $paths[] = $path;
 
             if ($path === '/v1/health') {
