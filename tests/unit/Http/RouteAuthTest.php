@@ -28,8 +28,8 @@ final class RouteAuthTest extends TestCase
 
         $paths = [];
         foreach ($matches as $match) {
-            $path = $match[1] ?? '';
-            $body = $match[2] ?? '';
+            $path = $match[1];
+            $body = $match[2];
             $paths[] = $path;
 
             if ($path === '/v1/health') {
@@ -44,7 +44,7 @@ final class RouteAuthTest extends TestCase
             $this->assertMatchesRegularExpression(
                 "/->groups\\(\\[[^\\]]*?'api'/",
                 $body,
-                "Route {$path} must declare the api group so the executor secret check applies"
+                \sprintf('Route %s must declare the api group so the executor secret check applies', $path)
             );
         }
 
