@@ -22,6 +22,31 @@ use function Swoole\Coroutine\batch;
 class Docker extends Adapter
 {
     /**
+     * Max idle curl handles (open connections) kept per runtime
+     */
+    private const int RUNTIME_HANDLES_MAX = 128;
+
+    /**
+     * Seconds after which idle curl handles of an unused runtime are closed
+     */
+    private const int RUNTIME_HANDLES_TTL = 60;
+
+    /**
+     * Idle curl handles per runtime hostname. Reusing a handle reuses its open connection,
+     * instead of opening (and leaving in TIME_WAIT) a new connection for every execution.
+     *
+     * @var array<string, \CurlHandle[]>
+     */
+    private array $runtimeHandles = [];
+
+    /**
+     * Last time idle curl handles were used, per runtime hostname
+     *
+     * @var array<string, int>
+     */
+    private array $runtimeHandlesUsed = [];
+
+    /**
      * @param string[] $networks
      */
     public function __construct(
@@ -835,7 +860,7 @@ class Docker extends Adapter
             $errNo = -1;
             $executorResponse = '';
 
-            $ch = \curl_init();
+            $ch = $this->getRuntimeHandle($hostname);
 
             $body = \json_encode([
                 'variables' => $variables,
@@ -877,6 +902,8 @@ class Docker extends Adapter
                 ];
             }
 
+            $this->releaseRuntimeHandle($hostname, $ch);
+
             // Extract response
             $executorResponse = json_decode(\strval($executorResponse), false);
 
@@ -906,7 +933,7 @@ class Docker extends Adapter
             $errNo = -1;
             $executorResponse = '';
 
-            $ch = \curl_init();
+            $ch = $this->getRuntimeHandle($hostname);
 
             $responseHeaders = [];
 
@@ -985,6 +1012,8 @@ class Docker extends Adapter
                     'headers' => $responseHeaders
                 ];
             }
+
+            $this->releaseRuntimeHandle($hostname, $ch);
 
             // Extract logs and errors from file based on fileId in header
             $fileId = $responseHeaders['x-open-runtimes-log-id'] ?? '';
@@ -1175,6 +1204,43 @@ class Docker extends Adapter
         batch($jobsRuntimes);
 
         Console::success('Cleanup finished.');
+    }
+
+    /**
+     * Get a curl handle for a request to a runtime, reusing an idle one if available.
+     */
+    private function getRuntimeHandle(string $hostname): \CurlHandle
+    {
+        if (($this->runtimeHandles[$hostname] ?? []) === []) {
+            return \curl_init();
+        }
+
+        $ch = \array_pop($this->runtimeHandles[$hostname]);
+        \curl_reset($ch); // Keeps the open connection
+
+        return $ch;
+    }
+
+    /**
+     * Return a curl handle after a successful request, so its connection can be reused.
+     */
+    private function releaseRuntimeHandle(string $hostname, \CurlHandle $ch): void
+    {
+        $now = \time();
+
+        // Close connections of runtimes not used for a while, they are likely removed
+        foreach ($this->runtimeHandlesUsed as $key => $used) {
+            if ($now - $used > self::RUNTIME_HANDLES_TTL) {
+                unset($this->runtimeHandles[$key], $this->runtimeHandlesUsed[$key]);
+            }
+        }
+
+        $this->runtimeHandles[$hostname] ??= [];
+        if (\count($this->runtimeHandles[$hostname]) < self::RUNTIME_HANDLES_MAX) {
+            $this->runtimeHandles[$hostname][] = $ch;
+        }
+
+        $this->runtimeHandlesUsed[$hostname] = $now;
     }
 
     public function getRuntimes(): mixed
