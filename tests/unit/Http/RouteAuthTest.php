@@ -18,7 +18,7 @@ final class RouteAuthTest extends TestCase
 
         $matches = [];
         \preg_match_all(
-            "/Http::(?:get|post|put|patch|delete)\\('([^']+)'\\)(.*?)(?=Http::(?:get|post|put|patch|delete|init|error)\\()/s",
+            "/Http::(?:get|post|put|patch|delete)\\('([^']+)'\\)(.*?)(?=Http::(?:get|post|put|patch|delete|init|error)\\(|\\z)/s",
             $source,
             $matches,
             PREG_SET_ORDER
