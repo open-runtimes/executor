@@ -278,9 +278,21 @@ class Docker extends Adapter
          */
         $buildFile = "code.tar.gz";
 
-        $sourceFile = "code.tar.gz";
-        if ($source !== '' && $source !== '0' && \pathinfo($source, PATHINFO_EXTENSION) === 'tar') {
-            $sourceFile = "code.tar";
+        // Known archive formats keep their identity inside the runtime;
+        // anything else keeps the legacy code.tar.gz name, which client
+        // commands reference regardless of the real format (zip sources,
+        // build artifacts stored as <uniqid>.gz).
+        $sourceFile = match (\pathinfo($source, PATHINFO_EXTENSION)) {
+            'tar' => 'code.tar',
+            'sqfs' => 'code.sqfs',
+            'erofs' => 'code.erofs',
+            default => 'code.tar.gz',
+        };
+
+        // The source dir is mounted at /tmp inside the runtime, so this is
+        // where the start helper (extract.sh) finds the archive.
+        if ($source !== '' && $source !== '0' && $version !== 'v2') {
+            $variables['OPEN_RUNTIMES_CODE_PATH'] = '/tmp/' . $sourceFile;
         }
 
         $tmpFolder = sprintf('tmp/%s/', $runtimeName);

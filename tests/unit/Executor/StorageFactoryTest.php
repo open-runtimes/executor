@@ -200,6 +200,28 @@ final class StorageFactoryTest extends TestCase
         StorageFactory::getDevice('/storage/builds/app-test', $connection);
     }
 
+    public function testRefusalDoesNotPrintTheConnection(): void
+    {
+        $ignoreArgs = \ini_set('zend.exception_ignore_args', '0');
+        $maxLength = \ini_set('zend.exception_string_param_max_len', '1000000');
+
+        try {
+            foreach (self::unusableConnections() as $name => [$connection]) {
+                try {
+                    StorageFactory::getDevice('/storage/builds/app-test', $connection);
+                    $this->fail(sprintf("Connection '%s' was accepted", $name));
+                } catch (InvalidArgumentException $exception) {
+                    $printed = (string) $exception;
+                    $this->assertStringContainsString('/storage/builds/app-test', $printed, $name);
+                    $this->assertStringNotContainsString($connection, $printed, $name);
+                }
+            }
+        } finally {
+            \ini_set('zend.exception_ignore_args', $ignoreArgs);
+            \ini_set('zend.exception_string_param_max_len', $maxLength);
+        }
+    }
+
     /**
      * @return \Iterator<string, array{(string | null)}>
      */
