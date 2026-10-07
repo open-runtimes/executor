@@ -110,8 +110,9 @@ class Client
 
     /**
      * Header names are case-insensitive, so the last value sent under any casing wins.
-     * GET parameters go in the query string, anything else is a JSON or form body
-     * chosen by the request's content type.
+     * GET parameters go in the query string, anything else is a JSON, form or
+     * multipart body chosen by the request's content type. A multipart body keeps
+     * the content type the factory sets, since that one carries the boundary.
      *
      * @param array<string, string> $headers
      * @param array<string, mixed> $params
@@ -128,9 +129,13 @@ class Client
             $url .= (str_contains($url, '?') ? '&' : '?') . http_build_query($params);
         }
 
-        $request = new RequestFactory()->createRequest($method, $url);
+        $factory = new RequestFactory();
+        $request = $factory->createRequest($method, $url);
 
-        if ($method !== self::METHOD_GET) {
+        if ($method !== self::METHOD_GET && ($merged['content-type'] ?? '') === ContentType::MULTIPART_FORM_DATA) {
+            unset($merged['content-type']);
+            $request = $factory->multipart($method, $url, self::flatten($params));
+        } elseif ($method !== self::METHOD_GET) {
             $body = match ($merged['content-type'] ?? '') {
                 ContentType::JSON => json_encode($params, JSON_THROW_ON_ERROR),
                 ContentType::FORM_URLENCODED => http_build_query($params),
@@ -144,6 +149,33 @@ class Client
         }
 
         return $request;
+    }
+
+    /**
+     * Nested parameters become `parent[child]` fields and null an empty field, as
+     * curl sent them.
+     *
+     * @param array<array-key, mixed> $data
+     * @return array<array-key, scalar>
+     */
+    private static function flatten(array $data, string $prefix = ''): array
+    {
+        $output = [];
+        foreach ($data as $key => $value) {
+            $name = $prefix === '' ? (string) $key : $prefix . '[' . $key . ']';
+
+            if (is_array($value)) {
+                $output += self::flatten($value, $name);
+            } elseif (is_scalar($value)) {
+                $output[$name] = $value;
+            } elseif ($value === null) {
+                $output[$name] = '';
+            } else {
+                throw new \InvalidArgumentException('Unsupported multipart field value for ' . $name);
+            }
+        }
+
+        return $output;
     }
 
     /**
