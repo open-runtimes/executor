@@ -11,7 +11,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
-use Utopia\Psr18\StreamingClientInterface;
+use Utopia\Client\Psr18\StreamingClientInterface;
 use Utopia\Psr7\Response;
 use Utopia\Psr7\Stream;
 use Utopia\Storage\Device;
@@ -83,7 +83,7 @@ final class StorageFactoryTest extends TestCase
             {
                 $this->url = (string) $request->getUri();
 
-                return new Response(200);
+                return new Response(200)->withHeader('ETag', '"etag"');
             }
 
             public function stream(RequestInterface $request, callable $sink): ResponseInterface
@@ -107,7 +107,7 @@ final class StorageFactoryTest extends TestCase
             {
                 $this->url = (string) $request->getUri();
 
-                return new Response(200);
+                return new Response(200)->withHeader('ETag', '"etag"');
             }
 
             public function stream(RequestInterface $request, callable $sink): ResponseInterface
