@@ -6,8 +6,8 @@ namespace OpenRuntimes\Executor;
 
 use InvalidArgumentException;
 use Psr\Http\Client\ClientInterface;
+use Utopia\Client\Psr18\StreamingClientInterface;
 use Utopia\DSN\DSN;
-use Utopia\Psr18\StreamingClientInterface;
 use Utopia\Storage\Device;
 use Utopia\Storage\Device\AWS;
 use Utopia\Storage\Device\Backblaze;
