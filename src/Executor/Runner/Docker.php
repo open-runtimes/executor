@@ -693,6 +693,8 @@ class Docker extends Adapter
         bool $logging,
         string $restartPolicy,
         string $region = '',
+        ?callable $onHeaders = null,
+        ?callable $onBody = null,
     ): mixed {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
@@ -901,7 +903,10 @@ class Docker extends Adapter
             ];
         };
 
-        $executeV5 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName, $logging): array {
+        // Once set, the response is committed: it can be neither retried nor turned into an error.
+        $streamed = false;
+
+        $executeV5 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName, $logging, $onHeaders, $onBody, &$streamed): array {
             $statusCode = 0;
             $errNo = -1;
             $executorResponse = '';
@@ -922,7 +927,10 @@ class Docker extends Adapter
                 \curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
             }
 
-            \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            if ($onHeaders === null || $onBody === null) {
+                \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            }
+
             \curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($curl, $header) use (&$responseHeaders): int {
                 $len = strlen($header);
                 $header = explode(':', $header, 2);
@@ -950,6 +958,30 @@ class Docker extends Adapter
                 return $len;
             });
 
+            if ($onHeaders !== null && $onBody !== null) {
+                \curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($curl, $data) use ($onHeaders, $onBody, &$responseHeaders, &$streamed): int {
+                    if (!$streamed) {
+                        $streamed = true;
+
+                        $outputHeaders = [];
+                        foreach ($responseHeaders as $key => $value) {
+                            if (\str_starts_with($key, 'x-open-runtimes-')) {
+                                continue;
+                            }
+
+                            $outputHeaders[$key] = $value;
+                        }
+
+                        // The header callback has already run, so the status is known here.
+                        $onHeaders(\intval(\curl_getinfo($curl, CURLINFO_HTTP_CODE)), $outputHeaders);
+                    }
+
+                    $onBody($data);
+
+                    return \strlen($data);
+                });
+            }
+
             \curl_setopt($ch, CURLOPT_TIMEOUT, (int) $timeout + 5); // Gives extra 5s after safe timeout to recieve response
             \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
             $headers['x-open-runtimes-logging'] = $logging ? 'enabled' : 'disabled';
@@ -966,7 +998,9 @@ class Docker extends Adapter
             \curl_setopt($ch, CURLOPT_HEADEROPT, CURLHEADER_UNIFIED);
             \curl_setopt($ch, CURLOPT_HTTPHEADER, $headersArr);
 
-            $executorResponse = \curl_exec($ch);
+            // With a write callback the body is already forwarded, so curl_exec returns a bool.
+            $result = \curl_exec($ch);
+            $executorResponse = \is_string($result) ? $result : '';
 
             $statusCode = \curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
@@ -1095,6 +1129,11 @@ class Docker extends Adapter
                 CURLE_COULDNT_RESOLVE_HOST, // 6
                 CURLE_COULDNT_CONNECT, // 7
             ])) {
+                break;
+            }
+
+            // A retry would append a second response to content already on the wire.
+            if ($streamed) {
                 break;
             }
 
