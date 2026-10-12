@@ -38,6 +38,9 @@ Http::onStart()
         /** @var Container $container */
         global $container;
 
+        /* Remove runtimes left behind by a previous executor process */
+        $maintenance->removeOrphans();
+
         /* Fetch own container information */
         $hostname = gethostname() ?: throw new \RuntimeException('Could not determine hostname');
         $selfContainer = $orchestration->list(['name' => $hostname])[0] ?? throw new \RuntimeException('Own container not found');
