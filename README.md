@@ -74,6 +74,8 @@ volumes:
 
 > Notice we added bind to local `./functions` directory. That is only nessessary for this getting started, since we will be executing our custom function.
 
+> On startup, executor looks up its own container by hostname to connect it to the runtime networks, and exits if the hostname is not part of any container name. In the example above, `executor` is part of `openruntimes-executor`, so the lookup succeeds; using the full container name as the hostname avoids relying on a partial match.
+
 3. Create `.env` file:
 
 ```
