@@ -874,6 +874,65 @@ class ExecutorTest extends TestCase
         $this->assertEquals('astroCookie1=astroValue1; Max-Age=1800; HttpOnly', $setCookieList[0]);
     }
 
+    public function testSSRStream(): void
+    {
+        /** Prepare site */
+        $output = '';
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/sites/astro && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
+
+        $params = [
+            'runtimeId' => 'test-ssr-stream-build',
+            'source' => '/storage/sites/astro/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'image' => 'openruntimes/node:v5-22',
+            'outputDirectory' => './dist',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "source /usr/local/server/helpers/astro/env.sh && npm install && npm run build && bash /usr/local/server/helpers/astro/bundle.sh"',
+            'remove' => true
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        $params = [
+            'runtimeId' => 'test-ssr-stream-exec',
+            'source' => $response['body']['path'],
+            'image' => 'openruntimes/node:v5-22',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "source /usr/local/server/helpers/astro/env.sh && bash helpers/astro/server.sh"',
+            'path' => '/stream'
+        ];
+
+        /** Execute site, noting when each piece of the page arrives */
+        $wire = '';
+        $arrivals = [];
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-ssr-stream-exec/executions', [
+            'x-executor-response-format' => '0.12.0',
+            'accept' => 'multipart/form-data',
+        ], $params, false, function (string $data) use (&$wire, &$arrivals): void {
+            $wire .= $data;
+            foreach (['first', 'second', 'third'] as $text) {
+                if (!isset($arrivals[$text]) && \str_contains($wire, $text)) {
+                    $arrivals[$text] = \microtime(true);
+                }
+            }
+        });
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals('0.12.0', $response['headers']['x-executor-response-format']);
+
+        $boundary = \explode('boundary=', (string) $response['headers']['content-type'])[1];
+        $this->assertStringEndsWith('--' . $boundary . '--', $wire);
+
+        // The page renders over 4s; buffered, every piece would arrive together at the end.
+        $this->assertCount(3, $arrivals);
+        $this->assertGreaterThan(1.5, $arrivals['second'] - $arrivals['first']);
+        $this->assertGreaterThan(1.5, $arrivals['third'] - $arrivals['second']);
+
+        /** Delete runtime */
+        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-ssr-stream-exec', [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
+    }
+
     public function testRestartPolicy(): void
     {
         $output = '';
