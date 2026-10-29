@@ -9,6 +9,7 @@ use Utopia\System\System;
 use Utopia\Http\Request;
 use Utopia\Http\Http;
 use Utopia\Http\Response;
+use Utopia\Http\Adapter\Swoole\Response as SwooleResponse;
 use Utopia\Validator\AnyOf;
 use Utopia\Validator\Assoc;
 use Utopia\Validator\Boolean;
@@ -224,28 +225,101 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             $variables = array_map(strval(...), $variables);
 
-            $execution = $runner->createExecution(
-                $runtimeId,
-                $payload,
-                $path,
-                $method,
-                $headers,
-                $timeout,
-                $image,
-                $source,
-                $entrypoint,
-                $variables,
-                $cpus,
-                $memory,
-                $version,
-                $runtimeEntrypoint,
-                $logging,
-                $restartPolicy,
-            );
+            $responseFormat = $request->getHeaderLine('x-executor-response-format') ?: RESPONSE_FORMAT_STRING_HEADERS;
+
+            $acceptTypes = \explode(', ', $request->getHeaderLine('accept') ?: 'multipart/form-data');
+            $isJson = array_any($acceptTypes, fn ($acceptType): bool => \str_starts_with((string) $acceptType, 'application/json') || \str_starts_with((string) $acceptType, 'application/*'));
+
+            $boundary = BodyMultipart::generateBoundary();
+            $onHeaders = null;
+            $onBody = null;
+            $streamStarted = false;
+
+            // Content is length prefixed as `<hex>\r\n<content>\r\n` and a part is closed by a zero
+            // length run, so a reader locates content by its length and never scans for the boundary.
+            $partHeader = fn (string $name): string => '--' . $boundary . "\r\n"
+                . 'Content-Disposition: form-data; name="' . $name . '"' . "\r\n"
+                . "Content-Transfer-Encoding: chunked\r\n\r\n";
+            $run = fn (string $content): string => $content === '' ? '' : \dechex(\strlen($content)) . "\r\n" . $content . "\r\n";
+            $part = fn (string $name, string $content): string => $partHeader($name) . $run($content) . "0\r\n\r\n";
+
+            if (!$isJson && \version_compare($responseFormat, RESPONSE_FORMAT_STREAM, '>=')) {
+                /**
+                 * @param array<string, mixed> $headers
+                 */
+                $onHeaders = function (int $statusCode, array $headers) use ($response, $boundary, $part, $partHeader, &$streamStarted): void {
+                    $encoded = \json_encode($headers);
+
+                    // Nothing has been written yet, so this can still surface as an error.
+                    if ($encoded === false) {
+                        throw new Exception(Exception::GENERAL_UNKNOWN, 'Response headers could not be encoded', 500);
+                    }
+
+                    $response
+                        ->setStatusCode(Response::STATUS_CODE_OK)
+                        ->addHeader('content-type', 'multipart/form-data; boundary=' . $boundary)
+                        ->addHeader('x-executor-response-format', RESPONSE_FORMAT_STREAM);
+
+                    $streamStarted = true;
+                    $response->chunk($part('statusCode', \strval($statusCode)) . $part('headers', $encoded) . $partHeader('body'));
+                };
+
+                $onBody = function (string $chunk) use ($response, $run): void {
+                    // curl hands over empty writes, and Swoole rejects an empty chunk.
+                    if ($chunk !== '') {
+                        $response->chunk($run($chunk));
+                    }
+                };
+            }
+
+            try {
+                $execution = $runner->createExecution(
+                    $runtimeId,
+                    $payload,
+                    $path,
+                    $method,
+                    $headers,
+                    $timeout,
+                    $image,
+                    $source,
+                    $entrypoint,
+                    $variables,
+                    $cpus,
+                    $memory,
+                    $version,
+                    $runtimeEntrypoint,
+                    $logging,
+                    $restartPolicy,
+                    onHeaders: $onHeaders,
+                    onBody: $onBody,
+                );
+            } catch (\Throwable $throwable) {
+                if (!$streamStarted) {
+                    throw $throwable;
+                }
+
+                // Content is committed, so the error hook's JSON would land inside the envelope.
+                if ($response instanceof SwooleResponse) {
+                    $response->getSwooleResponse()->close();
+                }
+
+                return;
+            }
+
+            // The body already left, so only the trailing metadata is still owed.
+            if ($streamStarted) {
+                $trailer = "0\r\n\r\n"; // closes the body part
+                foreach (['logs', 'errors', 'duration', 'startTime'] as $key) {
+                    $trailer .= $part($key, \strval($execution[$key] ?? ''));
+                }
+
+                $response->chunk($trailer . '--' . $boundary . '--', true);
+
+                return;
+            }
 
             // Backwards compatibility for headers
-            $responseFormat = $request->getHeaderLine('x-executor-response-format') ?: '0.10.0'; // Last version without support for array value for headers
-            if (version_compare($responseFormat, '0.11.0', '<')) {
+            if (version_compare($responseFormat, RESPONSE_FORMAT_ARRAY_HEADERS, '<')) {
                 foreach ($execution['headers'] as $key => $value) {
                     if (\is_array($value)) {
                         $lastKey = \array_key_last($value);
@@ -253,9 +327,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     }
                 }
             }
-
-            $acceptTypes = \explode(', ', $request->getHeaderLine('accept') ?: 'multipart/form-data');
-            $isJson = array_any($acceptTypes, fn ($acceptType): bool => \str_starts_with((string) $acceptType, 'application/json') || \str_starts_with((string) $acceptType, 'application/*'));
 
             if ($isJson) {
                 $executionString = \json_encode($execution, JSON_UNESCAPED_UNICODE);
