@@ -6,6 +6,7 @@ use OpenRuntimes\Executor\Runner\Repository\Runtimes;
 use Swoole\Timer;
 use Throwable;
 use Utopia\Console;
+use Utopia\Orchestration\Container;
 use Utopia\Orchestration\Orchestration;
 use Utopia\Storage\Device\Local;
 use Utopia\System\System;
@@ -13,7 +14,7 @@ use Utopia\System\System;
 use function Swoole\Coroutine\batch;
 
 /**
- * Handles periodic cleanup of inactive runtimes and orphaned temp directories.
+ * Handles cleanup of inactive and orphaned runtimes and their temp directories.
  */
 class Maintenance
 {
@@ -37,6 +38,36 @@ class Maintenance
         $intervalMs = $intervalSeconds * 1000;
         $this->timerId = Timer::tick($intervalMs, fn () => $this->tick($inactiveSeconds));
         Console::info(sprintf('[Maintenance] Started task on interval %d seconds.', $intervalSeconds));
+    }
+
+    /**
+     * Removes runtime containers this executor no longer tracks, such as those
+     * left running by a previous executor process. Their temp directories get
+     * cleaned up, so a restart would leave them crash looping without code.
+     */
+    public function removeOrphans(): void
+    {
+        $containers = $this->orchestration->list(['label' => 'openruntimes-executor=' . System::getHostname()]);
+        $orphans = array_filter(
+            $containers,
+            fn (Container $container): bool => !$this->runtimes->exists($container->getName())
+        );
+
+        $jobs = array_map(
+            fn (Container $orphan): \Closure => function () use ($orphan): bool {
+                try {
+                    return $this->orchestration->remove($orphan->getId(), force: true);
+                } catch (Throwable $throwable) {
+                    Console::error(sprintf('[Maintenance] Failed to remove orphan %s: %s', $orphan->getName(), $throwable->getMessage()));
+
+                    return false;
+                }
+            },
+            $orphans
+        );
+        $removed = \count(array_filter(batch($jobs)));
+
+        Console::info(sprintf('[Maintenance] Removed %d/', $removed) . \count($orphans) . ' orphaned runtimes.');
     }
 
     /**

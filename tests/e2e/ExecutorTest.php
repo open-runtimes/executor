@@ -1576,4 +1576,40 @@ class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_DELETE, "/runtimes/test-log-stream-persistent", [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
     }
+
+    public function testRestartRemovesOrphanedRuntimes(): void
+    {
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], [
+            'runtimeId' => 'test-orphan',
+            'remove' => false,
+            'image' => 'openruntimes/php:v5-8.1',
+            'entrypoint' => 'tail -f /dev/null',
+            'restartPolicy' => 'always',
+        ]);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        $output = [];
+        \exec('docker ps -aq --filter name=^executor-test-orphan$', $output);
+        $this->assertCount(1, $output);
+
+        $output = [];
+        \exec('docker restart $(docker ps -q --filter label=com.docker.compose.service=openruntimes-executor)', $output, $status);
+        $this->assertSame(0, $status);
+
+        $healthy = false;
+        for ($attempt = 0; $attempt < 60 && !$healthy; $attempt++) {
+            \sleep(2);
+            try {
+                $healthy = $this->client->call(Client::METHOD_GET, '/health', [], [])['headers']['status-code'] === 200;
+            } catch (\Throwable) {
+                // Still restarting
+            }
+        }
+
+        $this->assertTrue($healthy);
+
+        $output = [];
+        \exec('docker ps -aq --filter name=^executor-test-orphan$', $output);
+        $this->assertSame([], $output);
+    }
 }

@@ -17,8 +17,6 @@ use Utopia\Orchestration\Exception\Orchestration as OrchestrationException;
 use Utopia\Storage\Device\Local;
 use Utopia\System\System;
 
-use function Swoole\Coroutine\batch;
-
 class Docker extends Adapter
 {
     /**
@@ -1179,41 +1177,6 @@ class Docker extends Adapter
         }
 
         return $execution;
-    }
-
-    public function cleanup(): void
-    {
-        Console::log('Cleaning up containers and networks...');
-
-        $functionsToRemove = $this->orchestration->list(['label' => 'openruntimes-executor=' . System::getHostname()]);
-
-        if ($functionsToRemove === []) {
-            Console::info('No containers found to clean up.');
-        }
-
-        $jobsRuntimes = [];
-        foreach ($functionsToRemove as $container) {
-            $jobsRuntimes[] = function () use ($container): void {
-                try {
-                    $this->orchestration->remove($container->getId(), true);
-
-                    $activeRuntimeId = $container->getName();
-
-                    if ($this->runtimes->exists($activeRuntimeId)) {
-                        $this->runtimes->remove($activeRuntimeId);
-                    }
-
-                    Console::success('Removed container ' . $container->getName());
-                } catch (\Throwable $throwable) {
-                    Console::error('Failed to remove container: ' . $container->getName());
-                    Console::error($throwable);
-                }
-            };
-        }
-
-        batch($jobsRuntimes);
-
-        Console::success('Cleanup finished.');
     }
 
     public function getRuntimes(): mixed
