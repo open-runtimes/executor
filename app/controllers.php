@@ -235,26 +235,19 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $onBody = null;
             $streamStarted = false;
 
-            // Writes one whole part. Content is length prefixed as `<hex>\r\n<content>\r\n` and the
-            // part is closed by a zero length run, so a reader locates content by its length and
-            // never scans for the boundary. An empty value writes no run at all, since a zero
-            // length run is what closes the part.
-            $writePart = function (string $name, string $content) use ($boundary, $response, &$streamStarted): void {
-                $streamStarted = true;
-                $response->chunk(
-                    '--' . $boundary . "\r\n"
-                    . 'Content-Disposition: form-data; name="' . $name . '"' . "\r\n"
-                    . "Content-Transfer-Encoding: chunked\r\n\r\n"
-                    . ($content === '' ? '' : \dechex(\strlen($content)) . "\r\n" . $content . "\r\n")
-                    . "0\r\n\r\n"
-                );
-            };
+            // Content is length prefixed as `<hex>\r\n<content>\r\n` and a part is closed by a zero
+            // length run, so a reader locates content by its length and never scans for the boundary.
+            $partHeader = fn (string $name): string => '--' . $boundary . "\r\n"
+                . 'Content-Disposition: form-data; name="' . $name . '"' . "\r\n"
+                . "Content-Transfer-Encoding: chunked\r\n\r\n";
+            $run = fn (string $content): string => $content === '' ? '' : \dechex(\strlen($content)) . "\r\n" . $content . "\r\n";
+            $part = fn (string $name, string $content): string => $partHeader($name) . $run($content) . "0\r\n\r\n";
 
             if (!$isJson && \version_compare($responseFormat, RESPONSE_FORMAT_STREAM, '>=')) {
                 /**
                  * @param array<string, mixed> $headers
                  */
-                $onHeaders = function (int $statusCode, array $headers) use ($response, $boundary, $writePart): void {
+                $onHeaders = function (int $statusCode, array $headers) use ($response, $boundary, $part, $partHeader, &$streamStarted): void {
                     $encoded = \json_encode($headers);
 
                     // Nothing has been written yet, so this can still surface as an error.
@@ -262,29 +255,20 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                         throw new Exception(Exception::GENERAL_UNKNOWN, 'Response headers could not be encoded', 500);
                     }
 
-                    // Last chance to set headers: chunk() commits them on its first call.
                     $response
                         ->setStatusCode(Response::STATUS_CODE_OK)
                         ->addHeader('content-type', 'multipart/form-data; boundary=' . $boundary)
                         ->addHeader('x-executor-response-format', RESPONSE_FORMAT_STREAM);
 
-                    $writePart('statusCode', \strval($statusCode));
-                    $writePart('headers', $encoded);
-
-                    $response->chunk(
-                        '--' . $boundary . "\r\n"
-                        . 'Content-Disposition: form-data; name="body"' . "\r\n"
-                        . "Content-Transfer-Encoding: chunked\r\n\r\n"
-                    );
+                    $streamStarted = true;
+                    $response->chunk($part('statusCode', \strval($statusCode)) . $part('headers', $encoded) . $partHeader('body'));
                 };
 
-                $onBody = function (string $chunk) use ($response): void {
-                    // curl hands over empty writes, and a zero length run would close the part.
-                    if ($chunk === '') {
-                        return;
+                $onBody = function (string $chunk) use ($response, $run): void {
+                    // curl hands over empty writes, and Swoole rejects an empty chunk.
+                    if ($chunk !== '') {
+                        $response->chunk($run($chunk));
                     }
-
-                    $response->chunk(\dechex(\strlen($chunk)) . "\r\n" . $chunk . "\r\n");
                 };
             }
 
@@ -324,14 +308,12 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             // The body already left, so only the trailing metadata is still owed.
             if ($streamStarted) {
-                $response->chunk("0\r\n\r\n"); // closes the body part
-
+                $trailer = "0\r\n\r\n"; // closes the body part
                 foreach (['logs', 'errors', 'duration', 'startTime'] as $key) {
-                    $writePart($key, \strval($execution[$key] ?? ''));
+                    $trailer .= $part($key, \strval($execution[$key] ?? ''));
                 }
 
-                $response->chunk('--' . $boundary . '--');
-                $response->chunk('', true);
+                $response->chunk($trailer . '--' . $boundary . '--', true);
 
                 return;
             }
