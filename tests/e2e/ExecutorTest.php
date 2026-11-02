@@ -250,6 +250,21 @@ class ExecutorTest extends TestCase
         $this->client->setKey($this->key);
     }
 
+    public function testPreviousSecretAuthorizes(): void
+    {
+        // docker-compose.yml sets OPR_EXECUTOR_SECRET_PREVIOUS so a rotation can be exercised end to end.
+        $this->client->setKey('executor-secret-key-previous');
+        $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertIsArray($response['body']);
+
+        $this->client->setKey('executor-secret-key-unknown');
+        $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
+        $this->assertEquals(401, $response['headers']['status-code']);
+
+        $this->client->setKey($this->key);
+    }
+
     public function testCommandsUnauthorized(): void
     {
         $this->client->setKey('');

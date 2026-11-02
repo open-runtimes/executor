@@ -295,7 +295,14 @@ Http::init()
     ->inject('request')
     ->action(function (Request $request): void {
         $secretKey = \explode(' ', $request->getHeaderLine('authorization'))[1] ?? '';
-        if ($secretKey === '' || $secretKey === '0' || $secretKey !== System::getEnv('OPR_EXECUTOR_SECRET', '')) {
+
+        // OPR_EXECUTOR_SECRET_PREVIOUS keeps the old secret valid while callers move to a new one.
+        $accepted = \array_filter(
+            [System::getEnv('OPR_EXECUTOR_SECRET', ''), System::getEnv('OPR_EXECUTOR_SECRET_PREVIOUS', '')],
+            fn (string $secret): bool => $secret !== '' && $secret !== '0',
+        );
+
+        if ($secretKey === '' || $secretKey === '0' || \array_filter($accepted, fn (string $secret): bool => \hash_equals($secret, $secretKey)) === []) {
             throw new Exception(Exception::GENERAL_UNAUTHORIZED, 'Missing executor key');
         }
     });

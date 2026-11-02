@@ -207,6 +207,7 @@ docker compose down
 | OPR_EXECUTOR_MAINTENANCE_INTERVAL| Interval (in seconds) at which the Executor performs maintenance tasks, ex: `60`                                                              |
 | OPR_EXECUTOR_NETWORK             | Network used by the executor for runtimes, ex: `openruntimes-runtimes`                                                                        |
 | OPR_EXECUTOR_SECRET              | Secret key used by the executor for authentication                                                                                            |
+| OPR_EXECUTOR_SECRET_PREVIOUS     | Optional second key the executor also accepts, so callers can move to a new `OPR_EXECUTOR_SECRET` without downtime                           |
 | OPR_EXECUTOR_DOCKER_HUB_USERNAME | Username for Docker Hub authentication (if applicable)                                                                                        |
 | OPR_EXECUTOR_DOCKER_HUB_PASSWORD | Password for Docker Hub authentication (if applicable)                                                                                        |
 | OPR_EXECUTOR_RUNTIME_VERSIONS    | Version tag for runtime environments, ex: `v5`                                                                                                |
