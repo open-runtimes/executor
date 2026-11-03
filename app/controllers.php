@@ -230,7 +230,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $acceptTypes = \explode(', ', $request->getHeaderLine('accept') ?: 'multipart/form-data');
             $isJson = array_any($acceptTypes, fn ($acceptType): bool => \str_starts_with((string) $acceptType, 'application/json') || \str_starts_with((string) $acceptType, 'application/*'));
 
-            $boundary = BodyMultipart::generateBoundary();
+            $multipart = new BodyMultipart();
+            $boundary = $multipart->getBoundary();
             $headersCallback = null;
             $bodyCallback = null;
             $streamStarted = false;
@@ -247,7 +248,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 /**
                  * @param array<string, mixed> $headers
                  */
-                $headersCallback = function (int $statusCode, array $headers) use ($response, $boundary, $part, $partHeader, &$streamStarted): void {
+                $headersCallback = function (int $statusCode, array $headers) use ($response, $multipart, $part, $partHeader, &$streamStarted): void {
                     $encoded = \json_encode($headers);
 
                     // Nothing has been written yet, so this can still surface as an error.
@@ -257,7 +258,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                     $response
                         ->setStatusCode(Response::STATUS_CODE_OK)
-                        ->addHeader('content-type', 'multipart/form-data; boundary=' . $boundary)
+                        ->addHeader('content-type', $multipart->exportHeader())
                         ->addHeader('x-executor-response-format', '0.12.0');
 
                     $streamStarted = true;
