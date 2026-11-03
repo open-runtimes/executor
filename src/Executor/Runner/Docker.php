@@ -691,8 +691,8 @@ class Docker extends Adapter
         bool $logging,
         string $restartPolicy,
         string $region = '',
-        ?callable $onHeaders = null,
-        ?callable $onBody = null,
+        ?callable $headersCallback = null,
+        ?callable $bodyCallback = null,
     ): mixed {
         $runtimeName = System::getHostname() . '-' . $runtimeId;
 
@@ -904,7 +904,7 @@ class Docker extends Adapter
         // Once set, the response is committed: it can be neither retried nor turned into an error.
         $streamed = false;
 
-        $executeV5 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName, $logging, $onHeaders, $onBody, &$streamed): array {
+        $executeV5 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName, $logging, $headersCallback, $bodyCallback, &$streamed): array {
             $statusCode = 0;
             $errNo = -1;
             $executorResponse = '';
@@ -925,7 +925,7 @@ class Docker extends Adapter
                 \curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
             }
 
-            if ($onHeaders === null || $onBody === null) {
+            if ($headersCallback === null || $bodyCallback === null) {
                 \curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             }
 
@@ -956,8 +956,8 @@ class Docker extends Adapter
                 return $len;
             });
 
-            if ($onHeaders !== null && $onBody !== null) {
-                \curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($curl, $data) use ($onHeaders, $onBody, &$responseHeaders, &$streamed): int {
+            if ($headersCallback !== null && $bodyCallback !== null) {
+                \curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($curl, $data) use ($headersCallback, $bodyCallback, &$responseHeaders, &$streamed): int {
                     if (!$streamed) {
                         $streamed = true;
 
@@ -971,10 +971,10 @@ class Docker extends Adapter
                         }
 
                         // The header callback has already run, so the status is known here.
-                        $onHeaders(\intval(\curl_getinfo($curl, CURLINFO_HTTP_CODE)), $outputHeaders);
+                        $headersCallback(\intval(\curl_getinfo($curl, CURLINFO_HTTP_CODE)), $outputHeaders);
                     }
 
-                    $onBody($data);
+                    $bodyCallback($data);
 
                     return \strlen($data);
                 });

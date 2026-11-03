@@ -231,8 +231,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $isJson = array_any($acceptTypes, fn ($acceptType): bool => \str_starts_with((string) $acceptType, 'application/json') || \str_starts_with((string) $acceptType, 'application/*'));
 
             $boundary = BodyMultipart::generateBoundary();
-            $onHeaders = null;
-            $onBody = null;
+            $headersCallback = null;
+            $bodyCallback = null;
             $streamStarted = false;
 
             // Content is length prefixed as `<hex>\r\n<content>\r\n` and a part is closed by a zero
@@ -247,7 +247,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 /**
                  * @param array<string, mixed> $headers
                  */
-                $onHeaders = function (int $statusCode, array $headers) use ($response, $boundary, $part, $partHeader, &$streamStarted): void {
+                $headersCallback = function (int $statusCode, array $headers) use ($response, $boundary, $part, $partHeader, &$streamStarted): void {
                     $encoded = \json_encode($headers);
 
                     // Nothing has been written yet, so this can still surface as an error.
@@ -264,7 +264,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     $response->chunk($part('statusCode', \strval($statusCode)) . $part('headers', $encoded) . $partHeader('body'));
                 };
 
-                $onBody = function (string $chunk) use ($response, $run): void {
+                $bodyCallback = function (string $chunk) use ($response, $run): void {
                     // curl hands over empty writes, and Swoole rejects an empty chunk.
                     if ($chunk !== '') {
                         $response->chunk($run($chunk));
@@ -290,8 +290,8 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     $runtimeEntrypoint,
                     $logging,
                     $restartPolicy,
-                    onHeaders: $onHeaders,
-                    onBody: $onBody,
+                    headersCallback: $headersCallback,
+                    bodyCallback: $bodyCallback,
                 );
             } catch (\Throwable $throwable) {
                 if (!$streamStarted) {
