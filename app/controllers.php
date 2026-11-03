@@ -225,7 +225,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             $variables = array_map(strval(...), $variables);
 
-            $responseFormat = $request->getHeaderLine('x-executor-response-format') ?: RESPONSE_FORMAT_STRING_HEADERS;
+            $responseFormat = $request->getHeaderLine('x-executor-response-format') ?: '0.10.0'; // Last version without support for array value for headers
 
             $acceptTypes = \explode(', ', $request->getHeaderLine('accept') ?: 'multipart/form-data');
             $isJson = array_any($acceptTypes, fn ($acceptType): bool => \str_starts_with((string) $acceptType, 'application/json') || \str_starts_with((string) $acceptType, 'application/*'));
@@ -243,7 +243,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $run = fn (string $content): string => $content === '' ? '' : \dechex(\strlen($content)) . "\r\n" . $content . "\r\n";
             $part = fn (string $name, string $content): string => $partHeader($name) . $run($content) . "0\r\n\r\n";
 
-            if (!$isJson && \version_compare($responseFormat, RESPONSE_FORMAT_STREAM, '>=')) {
+            if (!$isJson && \version_compare($responseFormat, '0.12.0', '>=')) { // First version with length-prefixed (streamable) parts
                 /**
                  * @param array<string, mixed> $headers
                  */
@@ -258,7 +258,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     $response
                         ->setStatusCode(Response::STATUS_CODE_OK)
                         ->addHeader('content-type', 'multipart/form-data; boundary=' . $boundary)
-                        ->addHeader('x-executor-response-format', RESPONSE_FORMAT_STREAM);
+                        ->addHeader('x-executor-response-format', '0.12.0');
 
                     $streamStarted = true;
                     $response->chunk($part('statusCode', \strval($statusCode)) . $part('headers', $encoded) . $partHeader('body'));
@@ -319,7 +319,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             }
 
             // Backwards compatibility for headers
-            if (version_compare($responseFormat, RESPONSE_FORMAT_ARRAY_HEADERS, '<')) {
+            if (version_compare($responseFormat, '0.11.0', '<')) {
                 foreach ($execution['headers'] as $key => $value) {
                     if (\is_array($value)) {
                         $lastKey = \array_key_last($value);
