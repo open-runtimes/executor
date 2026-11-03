@@ -906,8 +906,7 @@ class ExecutorTest extends TestCase
         $wire = '';
         $arrivals = [];
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-ssr-stream-exec/executions', [
-            'x-executor-response-format' => '0.12.0',
-            'accept' => 'multipart/form-data',
+            'x-executor-response-format' => '0.12.0' // First version to stream length-prefixed parts
         ], $params, false, function (string $data) use (&$wire, &$arrivals): void {
             $wire .= $data;
             foreach (['first', 'second', 'third'] as $text) {
