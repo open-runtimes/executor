@@ -253,7 +253,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
                     // Nothing has been written yet, so this can still surface as an error.
                     if ($encoded === false) {
-                        throw new Exception(Exception::GENERAL_UNKNOWN, 'Response headers could not be encoded', 500);
+                        throw new Exception(Exception::GENERAL_UNKNOWN, 'Response headers could not be encoded');
                     }
 
                     $response
