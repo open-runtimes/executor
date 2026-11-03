@@ -876,7 +876,7 @@ class ExecutorTest extends TestCase
 
     public function testSSRStream(): void
     {
-        /** Prepare site */
+        /** Prepare function */
         $output = '';
         $stderr = '';
         Console::execute('cd /app/tests/resources/sites/astro && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
@@ -902,7 +902,7 @@ class ExecutorTest extends TestCase
             'path' => '/stream'
         ];
 
-        /** Execute site, noting when each piece of the page arrives */
+        /** Execute function */
         $wire = '';
         $arrivals = [];
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-ssr-stream-exec/executions', [
