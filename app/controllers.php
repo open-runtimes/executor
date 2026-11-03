@@ -236,8 +236,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $bodyCallback = null;
             $streamStarted = false;
 
-            // Content is length prefixed as `<hex>\r\n<content>\r\n` and a part is closed by a zero
-            // length run, so a reader locates content by its length and never scans for the boundary.
+            // Parts are length-prefixed: <hex>\r\n<content>\r\n, closed by 0\r\n\r\n
             $partHeader = fn (string $name): string => '--' . $boundary . "\r\n"
                 . 'Content-Disposition: form-data; name="' . $name . '"' . "\r\n"
                 . "Content-Transfer-Encoding: chunked\r\n\r\n";
@@ -251,7 +250,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 $headersCallback = function (int $statusCode, array $headers) use ($response, $multipart, $part, $partHeader, &$streamStarted): void {
                     $encoded = \json_encode($headers);
 
-                    // Nothing has been written yet, so this can still surface as an error.
                     if ($encoded === false) {
                         throw new Exception(Exception::GENERAL_UNKNOWN, 'Response headers could not be encoded');
                     }
@@ -266,8 +264,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 };
 
                 $bodyCallback = function (string $chunk) use ($response, $run): void {
-                    // curl hands over empty writes, and Swoole rejects an empty chunk.
-                    if ($chunk !== '') {
+                    if ($chunk !== '') { // Swoole rejects empty chunks
                         $response->chunk($run($chunk));
                     }
                 };
@@ -299,7 +296,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     throw $throwable;
                 }
 
-                // Content is committed, so the error hook's JSON would land inside the envelope.
+                // Already streaming, so the error response cannot be sent
                 if ($response instanceof SwooleResponse) {
                     $response->getSwooleResponse()->close();
                 }
@@ -307,7 +304,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                 return;
             }
 
-            // The body already left, so only the trailing metadata is still owed.
             if ($streamStarted) {
                 $trailer = "0\r\n\r\n"; // closes the body part
                 foreach (['logs', 'errors', 'duration', 'startTime'] as $key) {

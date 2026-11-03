@@ -901,8 +901,7 @@ class Docker extends Adapter
             ];
         };
 
-        // Once set, the response is committed: it can be neither retried nor turned into an error.
-        $streamed = false;
+        $streamed = false; // Response is committed once streaming starts
 
         $executeV5 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName, $logging, $headersCallback, $bodyCallback, &$streamed): array {
             $statusCode = 0;
@@ -970,7 +969,6 @@ class Docker extends Adapter
                             $outputHeaders[$key] = $value;
                         }
 
-                        // The header callback has already run, so the status is known here.
                         $headersCallback(\intval(\curl_getinfo($curl, CURLINFO_HTTP_CODE)), $outputHeaders);
                     }
 
@@ -996,7 +994,6 @@ class Docker extends Adapter
             \curl_setopt($ch, CURLOPT_HEADEROPT, CURLHEADER_UNIFIED);
             \curl_setopt($ch, CURLOPT_HTTPHEADER, $headersArr);
 
-            // With a write callback the body is already forwarded, so curl_exec returns a bool.
             $result = \curl_exec($ch);
             $executorResponse = \is_string($result) ? $result : '';
 
@@ -1130,7 +1127,7 @@ class Docker extends Adapter
                 break;
             }
 
-            // A retry would append a second response to content already on the wire.
+            // Streamed responses cannot be retried
             if ($streamed) {
                 break;
             }
