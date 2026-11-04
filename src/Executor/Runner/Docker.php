@@ -83,8 +83,8 @@ class Docker extends Adapter
                 throw new ExecutorException(ExecutorException::LOGS_TIMEOUT);
             }
 
-            // The build container writes these files, so only regular files are read (see RegularFile).
-            if (RegularFile::stat($tmpLogging . '/logs.txt') !== null) {
+            if (\file_exists($tmpLogging . '/logs.txt') && \file_exists($tmpLogging . '/timings.txt')) {
+                // The build container writes these files, so they are read through RegularFile.
                 $timings = RegularFile::read($tmpLogging . '/timings.txt');
                 if ($timings !== '') {
                     break;
@@ -161,7 +161,7 @@ class Docker extends Adapter
             $logsProcess = $process;
 
             $logsPath = $tmpLogging . '/logs.txt';
-            if (RegularFile::stat($logsPath) === null) {
+            if (!\file_exists($logsPath)) {
                 if (!empty($logsProcess)) {
                     \proc_terminate($logsProcess, 9);
                 }
@@ -455,11 +455,7 @@ class Docker extends Adapter
                 $snapshot = \dirname($tmpBuild, 2) . '/output-' . \basename($tmpBuild);
                 $size = RegularFile::copy($tmpBuild, $snapshot);
                 if ($size === null) {
-                    if (!\is_link($tmpBuild) && !\file_exists($tmpBuild)) {
-                        throw new \Exception('Something went wrong when starting runtime.');
-                    }
-
-                    throw new ExecutorException(ExecutorException::BUILD_FAILED, 'Build output must be a regular file.');
+                    throw new \Exception('Something went wrong when starting runtime.');
                 }
 
                 $container['size'] = $size;

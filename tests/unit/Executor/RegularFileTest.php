@@ -41,7 +41,6 @@ final class RegularFileTest extends TestCase
         $this->assertSame('hello world', RegularFile::read($this->dir . '/logs.log'));
         $this->assertSame('world', RegularFile::read($this->dir . '/logs.log', 6));
         $this->assertSame('hello', RegularFile::read($this->dir . '/logs.log', 0, 5));
-        $this->assertNotNull(RegularFile::stat($this->dir . '/logs.log'));
     }
 
     public function testDoesNotFollowASymlinkTheContainerPlanted(): void
@@ -49,7 +48,6 @@ final class RegularFileTest extends TestCase
         \symlink($this->secret, $this->dir . '/logs.log');
 
         $this->assertSame('', RegularFile::read($this->dir . '/logs.log'));
-        $this->assertNull(RegularFile::stat($this->dir . '/logs.log'));
         $this->assertStringContainsString('leaked', (string) \file_get_contents($this->secret));
     }
 
@@ -62,13 +60,11 @@ final class RegularFileTest extends TestCase
         \posix_mkfifo($this->dir . '/logs.log', 0600);
 
         $this->assertSame('', RegularFile::read($this->dir . '/logs.log'));
-        $this->assertNull(RegularFile::stat($this->dir . '/logs.log'));
     }
 
     public function testMissingPathReadsAsEmpty(): void
     {
         $this->assertSame('', RegularFile::read($this->dir . '/missing.log'));
-        $this->assertNull(RegularFile::stat($this->dir . '/missing.log'));
     }
 
     public function testCopiesARegularFile(): void

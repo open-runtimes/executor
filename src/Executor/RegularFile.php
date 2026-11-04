@@ -13,24 +13,6 @@ namespace OpenRuntimes\Executor;
 final class RegularFile
 {
     /**
-     * The lstat of $path when it is a regular file that opens as itself, otherwise null:
-     * a symlink, FIFO, device, directory or missing path.
-     *
-     * @return array<int|string, int>|null
-     */
-    public static function stat(string $path): ?array
-    {
-        $handle = self::open($path, $stat);
-        if ($handle === null) {
-            return null;
-        }
-
-        \fclose($handle);
-
-        return $stat;
-    }
-
-    /**
      * Copy $path to $destination, a new file outside the container's reach, from the handle that
      * passed the checks, and return the bytes copied. Null when $path is not a regular file.
      *
@@ -85,10 +67,12 @@ final class RegularFile
     }
 
     /**
-     * @param array<int|string, int>|null $stat
+     * The open handle when $path is a regular file that opens as itself, otherwise null:
+     * a symlink, FIFO, device, directory or missing path.
+     *
      * @return resource|null
      */
-    private static function open(string $path, ?array &$stat = null)
+    private static function open(string $path)
     {
         $link = @\lstat($path);
         // lstat describes the entry itself, so a symlink is refused rather than followed.
@@ -109,8 +93,6 @@ final class RegularFile
             \fclose($handle);
             return null;
         }
-
-        $stat = $link;
 
         return $handle;
     }
