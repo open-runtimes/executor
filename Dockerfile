@@ -9,7 +9,7 @@ RUN composer install --ignore-platform-reqs --optimize-autoloader \
     --no-plugins --no-scripts --prefer-dist
 
 # Executor
-FROM appwrite/utopia-base:php-8.5-2.0.0 AS final
+FROM appwrite/utopia-base:php-8.5-2.1.5 AS final
 
 RUN apk add --no-cache docker-cli
 
