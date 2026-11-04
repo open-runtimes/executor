@@ -888,6 +888,44 @@ class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
+    public function testBuildCacheSymlinkIsNotStored(): void
+    {
+        $output = '';
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
+
+        $runtimeId = \bin2hex(\random_bytes(4));
+        $cacheKey = 'test-build-cache-symlink-' . $runtimeId;
+
+        // The first build swaps its cache artifact for a link to /proc/self/environ. Followed, the
+        // executor stores its own environment, secret included, as the project's build cache.
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], [
+            'runtimeId' => 'test-build-cache-plant-' . $runtimeId,
+            'source' => '/storage/functions/node/code.tar.gz',
+            'destination' => '/storage/builds/test-cache-plant',
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-18.0',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm install" && ln -sf /proc/self/environ /cache/stores.sqfs',
+            'cacheKey' => $cacheKey,
+            'remove' => true,
+        ]);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        // The second build prints whatever the executor restored as its cache.
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], [
+            'runtimeId' => 'test-build-cache-read-' . $runtimeId,
+            'source' => '/storage/functions/node/code.tar.gz',
+            'destination' => '/storage/builds/test-cache-read',
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-18.0',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && (cat /cache/stores.sqfs || true) && bash helpers/build.sh "npm install"',
+            'cacheKey' => $cacheKey,
+            'remove' => true,
+        ]);
+        $this->assertEquals(201, $response['headers']['status-code']);
+        $this->assertStringNotContainsString('OPR_EXECUTOR_SECRET', (string) \json_encode($response['body']));
+    }
+
     // We also test SSR two Set-cookie here
     public function testSSRLogs(): void
     {
