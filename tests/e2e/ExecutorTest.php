@@ -425,6 +425,68 @@ class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
+    public function testBuildOutputSymlinkIsNotUploaded(): void
+    {
+        $output = '';
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
+
+        $runtimeId = \bin2hex(\random_bytes(4));
+
+        // The build leaves a link to /proc/self/environ as its output. Followed, the executor
+        // uploads its own environment, secret included, as a build the owner can download.
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], [
+            'runtimeId' => 'test-build-symlink-' . $runtimeId,
+            'source' => '/storage/functions/node/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-22',
+            'command' => 'ln -sf /proc/self/environ /mnt/code/code.tar.gz',
+            'remove' => true
+        ]);
+
+        $this->assertNotEquals(201, $response['headers']['status-code']);
+        $this->assertArrayNotHasKey('path', (array) $response['body']);
+        $this->assertStringNotContainsString('OPR_EXECUTOR_SECRET', (string) \json_encode($response['body']));
+    }
+
+    public function testExecutionLogSymlinkIsNotFollowed(): void
+    {
+        $output = '';
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/functions/node-log-symlink && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
+
+        $runtimeId = \bin2hex(\random_bytes(4));
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], [
+            'runtimeId' => 'test-build-log-symlink-' . $runtimeId,
+            'source' => '/storage/functions/node-log-symlink/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-22',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
+            'remove' => true
+        ]);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        // The function swaps its log files for links to /proc/self/environ. Followed, they return
+        // the executor's own environment, secret included, as the execution's logs.
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-log-symlink-' . $runtimeId . '/executions', [], [
+            'source' => $response['body']['path'],
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-22',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals('OK', $response['body']['body']);
+        $this->assertStringNotContainsString('OPR_EXECUTOR_SECRET', (string) $response['body']['logs']);
+        $this->assertStringNotContainsString('OPR_EXECUTOR_SECRET', (string) $response['body']['errors']);
+
+        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-log-symlink-' . $runtimeId, [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
+    }
+
     public function testBuildUncompressed(): void
     {
         $output = '';
@@ -824,6 +886,44 @@ class ExecutorTest extends TestCase
 
         $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-cache-' . $runtimeId, [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
+    }
+
+    public function testBuildCacheSymlinkIsNotStored(): void
+    {
+        $output = '';
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
+
+        $runtimeId = \bin2hex(\random_bytes(4));
+        $cacheKey = 'test-build-cache-symlink-' . $runtimeId;
+
+        // The first build swaps its cache artifact for a link to /proc/self/environ. Followed, the
+        // executor stores its own environment, secret included, as the project's build cache.
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], [
+            'runtimeId' => 'test-build-cache-plant-' . $runtimeId,
+            'source' => '/storage/functions/node/code.tar.gz',
+            'destination' => '/storage/builds/test-cache-plant',
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-18.0',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm install" && ln -sf /proc/self/environ /cache/stores.sqfs',
+            'cacheKey' => $cacheKey,
+            'remove' => true,
+        ]);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        // The second build prints whatever the executor restored as its cache.
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], [
+            'runtimeId' => 'test-build-cache-read-' . $runtimeId,
+            'source' => '/storage/functions/node/code.tar.gz',
+            'destination' => '/storage/builds/test-cache-read',
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-18.0',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && (cat /cache/stores.sqfs || true) && bash helpers/build.sh "npm install"',
+            'cacheKey' => $cacheKey,
+            'remove' => true,
+        ]);
+        $this->assertEquals(201, $response['headers']['status-code']);
+        $this->assertStringNotContainsString('OPR_EXECUTOR_SECRET', (string) \json_encode($response['body']));
     }
 
     // We also test SSR two Set-cookie here

@@ -4,6 +4,7 @@ namespace OpenRuntimes\Executor\Runner;
 
 use OpenRuntimes\Executor\Logs;
 use OpenRuntimes\Executor\Exception as ExecutorException;
+use OpenRuntimes\Executor\RegularFile;
 use OpenRuntimes\Executor\Runner\Repository\Runtimes;
 use OpenRuntimes\Executor\StorageFactory;
 use OpenRuntimes\Executor\Validator\TCP;
@@ -83,7 +84,8 @@ class Docker extends Adapter
             }
 
             if (\file_exists($tmpLogging . '/logs.txt') && \file_exists($tmpLogging . '/timings.txt')) {
-                $timings = \file_get_contents($tmpLogging . '/timings.txt') ?: '';
+                // The build container writes these files, so they are read through RegularFile.
+                $timings = RegularFile::read($tmpLogging . '/timings.txt');
                 if ($timings !== '') {
                     break;
                 }
@@ -148,7 +150,7 @@ class Docker extends Adapter
         });
 
         $offset = 0; // Current offset from timing for reading logs content
-        $tempLogsContent = \file_get_contents($tmpLogging . '/logs.txt') ?: '';
+        $tempLogsContent = RegularFile::read($tmpLogging . '/logs.txt');
         $introOffset = Logs::getLogOffset($tempLogsContent);
 
         $datetime = new \DateTime("now", new \DateTimeZone("UTC")); // Date used for tracking absolute log timing
@@ -173,7 +175,7 @@ class Docker extends Adapter
                 $timestamp = $part['timestamp'] ?? '';
                 $length = \intval($part['length'] ?? '0');
 
-                $logContent = \file_get_contents($tmpLogging . '/logs.txt', false, null, $introOffset + $offset, \abs($length)) ?: '';
+                $logContent = RegularFile::read($logsPath, $introOffset + $offset, \abs($length));
 
                 $logContent = \str_replace("\n", "\\n", $logContent);
 
@@ -447,20 +449,28 @@ class Docker extends Adapter
              * Move built code to expected build directory
              */
             if ($destination !== '' && $destination !== '0') {
-                // Check if the build was successful by checking if file exists
-                if (!$localDevice->exists($tmpBuild)) {
-                    throw new \Exception('Something went wrong when starting runtime.');
+                // The build container can write this path. Following a symlink there would upload the
+                // executor's own files (its environment) as the build, for the owner to download.
+                // The upload reads a copy in /tmp/<runtime>, which no container mounts.
+                $snapshot = \dirname($tmpBuild, 2) . '/output-' . \basename($tmpBuild);
+                try {
+                    $size = RegularFile::copy($tmpBuild, $snapshot);
+                    if ($size === null) {
+                        throw new \Exception('Something went wrong when starting runtime.');
+                    }
+
+                    $container['size'] = $size;
+
+                    $destinationDevice = StorageFactory::getDevice($destination, System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE'));
+                    $path = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo($tmpBuild, PATHINFO_EXTENSION));
+
+                    if (!$localDevice->copy($snapshot, $path, $destinationDevice)) {
+                        throw new \Exception('Failed to move built code to storage');
+                    };
+                } finally {
+                    // A runtime kept after its build keeps /tmp/<runtime>, so the copy is removed here.
+                    @\unlink($snapshot);
                 }
-
-                $size = $localDevice->getFileSize($tmpBuild);
-                $container['size'] = $size;
-
-                $destinationDevice = StorageFactory::getDevice($destination, System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE'));
-                $path = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo($tmpBuild, PATHINFO_EXTENSION));
-
-                if (!$localDevice->copy($tmpBuild, $path, $destinationDevice)) {
-                    throw new \Exception('Failed to move built code to storage');
-                };
 
                 $container['path'] = $path;
             }
@@ -631,15 +641,22 @@ class Docker extends Adapter
     {
         $artifact = $tmpCache . '/stores.sqfs';
 
-        if (!$localDevice->exists($artifact)) {
-            return;
-        }
+        // /cache is mounted into the build container, so anything but a regular file is skipped, and
+        // the upload reads a copy in /tmp/<runtime>, which no container mounts.
+        $snapshot = \dirname($tmpCache) . '/cache-stores.sqfs';
+        try {
+            if (RegularFile::copy($artifact, $snapshot) === null) {
+                return;
+            }
 
-        $cacheDevice = $this->getBuildCacheDevice();
-        $destinationArtifact = $this->getBuildCacheArtifactPath($cacheDevice, $cacheKey);
+            $cacheDevice = $this->getBuildCacheDevice();
+            $destinationArtifact = $this->getBuildCacheArtifactPath($cacheDevice, $cacheKey);
 
-        if (!$localDevice->copy($artifact, $destinationArtifact, $cacheDevice)) {
-            throw new \Exception('Failed to store build cache artifact');
+            if (!$localDevice->copy($snapshot, $destinationArtifact, $cacheDevice)) {
+                throw new \Exception('Failed to store build cache artifact');
+            }
+        } finally {
+            @\unlink($snapshot);
         }
     }
 
@@ -1023,34 +1040,23 @@ class Docker extends Adapter
 
             $logs = '';
             $errors = '';
-            if ($fileId !== '' && $fileId !== '0') {
+            // The runtime sends this id, so it may only name a file directly in its own logs directory.
+            if ($fileId !== '' && $fileId !== '0' && \ctype_alnum($fileId)) {
                 $logFile = '/tmp/' . $runtimeName . '/logs/' . $fileId . '_logs.log';
                 $errorFile = '/tmp/' . $runtimeName . '/logs/' . $fileId . '_errors.log';
 
-                $logDevice = new Local();
-
-                if ($logDevice->exists($logFile)) {
-                    if ($logDevice->getFileSize($logFile) > MAX_LOG_SIZE) {
-                        $maxToRead = MAX_LOG_SIZE;
-                        $logs = (string) $logDevice->read($logFile, 0, $maxToRead);
-                        $logs .= "\nLog file has been truncated to " . number_format(MAX_LOG_SIZE / 1048576, 2) . "MB.";
-                    } else {
-                        $logs = (string) $logDevice->read($logFile);
-                    }
-
-                    $logDevice->delete($logFile);
+                // The runtime writes these files, so a symlink is refused, never followed. unlink
+                // removes a symlink itself, never its target.
+                $logs = RegularFile::read($logFile, 0, MAX_LOG_SIZE + 1);
+                @\unlink($logFile);
+                if (\strlen($logs) > MAX_LOG_SIZE) {
+                    $logs = \substr($logs, 0, MAX_LOG_SIZE) . "\nLog file has been truncated to " . number_format(MAX_LOG_SIZE / 1048576, 2) . "MB.";
                 }
 
-                if ($logDevice->exists($errorFile)) {
-                    if ($logDevice->getFileSize($errorFile) > MAX_LOG_SIZE) {
-                        $maxToRead = MAX_LOG_SIZE;
-                        $errors = (string) $logDevice->read($errorFile, 0, $maxToRead);
-                        $errors .= "\nError file has been truncated to " . number_format(MAX_LOG_SIZE / 1048576, 2) . "MB.";
-                    } else {
-                        $errors = (string) $logDevice->read($errorFile);
-                    }
-
-                    $logDevice->delete($errorFile);
+                $errors = RegularFile::read($errorFile, 0, MAX_LOG_SIZE + 1);
+                @\unlink($errorFile);
+                if (\strlen($errors) > MAX_LOG_SIZE) {
+                    $errors = \substr($errors, 0, MAX_LOG_SIZE) . "\nError file has been truncated to " . number_format(MAX_LOG_SIZE / 1048576, 2) . "MB.";
                 }
             }
 
