@@ -31,15 +31,39 @@ final class RegularFile
     }
 
     /**
-     * Whether $path is still the regular file $stat described, with the same size.
+     * Copy $path to $destination, a new file outside the container's reach, from the handle that
+     * passed the checks, and return the bytes copied. Null when $path is not a regular file.
      *
-     * @param array<int|string, int> $stat
+     * Uploading $path by name would reopen it, and a container still running can swap a symlink
+     * in for that open and back again. The copy is what gets uploaded instead.
      */
-    public static function unchanged(string $path, array $stat): bool
+    public static function copy(string $path, string $destination): ?int
     {
-        $now = self::stat($path);
+        $source = self::open($path);
+        if ($source === null) {
+            return null;
+        }
 
-        return $now !== null && $now['dev'] === $stat['dev'] && $now['ino'] === $stat['ino'] && $now['size'] === $stat['size'];
+        try {
+            // 'x' fails if anything already sits at $destination, a symlink included.
+            $target = @\fopen($destination, 'xb');
+            if ($target === false) {
+                throw new \Exception('Failed to create ' . $destination);
+            }
+
+            try {
+                $copied = \stream_copy_to_stream($source, $target);
+                if ($copied === false) {
+                    throw new \Exception('Failed to copy ' . $path);
+                }
+
+                return $copied;
+            } finally {
+                \fclose($target);
+            }
+        } finally {
+            \fclose($source);
+        }
     }
 
     /**

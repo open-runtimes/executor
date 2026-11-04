@@ -451,8 +451,10 @@ class Docker extends Adapter
             if ($destination !== '' && $destination !== '0') {
                 // The build container can write this path. Following a symlink there would upload the
                 // executor's own files (its environment) as the build, for the owner to download.
-                $stat = RegularFile::stat($tmpBuild);
-                if ($stat === null) {
+                // The upload reads a copy in /tmp/<runtime>, which no container mounts.
+                $snapshot = \dirname($tmpBuild, 2) . '/output-' . \basename($tmpBuild);
+                $size = RegularFile::copy($tmpBuild, $snapshot);
+                if ($size === null) {
                     if (!\is_link($tmpBuild) && !\file_exists($tmpBuild)) {
                         throw new \Exception('Something went wrong when starting runtime.');
                     }
@@ -460,20 +462,14 @@ class Docker extends Adapter
                     throw new ExecutorException(ExecutorException::BUILD_FAILED, 'Build output must be a regular file.');
                 }
 
-                $container['size'] = $stat['size'];
+                $container['size'] = $size;
 
                 $destinationDevice = StorageFactory::getDevice($destination, System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE'));
                 $path = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo($tmpBuild, PATHINFO_EXTENSION));
 
-                if (!$localDevice->copy($tmpBuild, $path, $destinationDevice)) {
+                if (!$localDevice->copy($snapshot, $path, $destinationDevice)) {
                     throw new \Exception('Failed to move built code to storage');
                 };
-
-                // The build container is still running, so the file could have been swapped mid-copy.
-                if (!RegularFile::unchanged($tmpBuild, $stat)) {
-                    $destinationDevice->delete($path);
-                    throw new ExecutorException(ExecutorException::BUILD_FAILED, 'Build output changed while it was being stored.');
-                }
 
                 $container['path'] = $path;
             }
@@ -644,22 +640,18 @@ class Docker extends Adapter
     {
         $artifact = $tmpCache . '/stores.sqfs';
 
-        // /cache is mounted into the build container, so anything but a regular file is skipped.
-        $stat = RegularFile::stat($artifact);
-        if ($stat === null) {
+        // /cache is mounted into the build container, so anything but a regular file is skipped, and
+        // the upload reads a copy in /tmp/<runtime>, which no container mounts.
+        $snapshot = \dirname($tmpCache) . '/cache-stores.sqfs';
+        if (RegularFile::copy($artifact, $snapshot) === null) {
             return;
         }
 
         $cacheDevice = $this->getBuildCacheDevice();
         $destinationArtifact = $this->getBuildCacheArtifactPath($cacheDevice, $cacheKey);
 
-        if (!$localDevice->copy($artifact, $destinationArtifact, $cacheDevice)) {
+        if (!$localDevice->copy($snapshot, $destinationArtifact, $cacheDevice)) {
             throw new \Exception('Failed to store build cache artifact');
-        }
-
-        if (!RegularFile::unchanged($artifact, $stat)) {
-            $cacheDevice->delete($destinationArtifact);
-            throw new \Exception('Build cache artifact changed while it was being stored');
         }
     }
 

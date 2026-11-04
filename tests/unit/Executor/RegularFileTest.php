@@ -71,18 +71,34 @@ final class RegularFileTest extends TestCase
         $this->assertNull(RegularFile::stat($this->dir . '/missing.log'));
     }
 
-    public function testDetectsAFileSwappedForASymlinkAfterTheCheck(): void
+    public function testCopiesARegularFile(): void
     {
-        $path = $this->dir . '/code.tar.gz';
-        \file_put_contents($path, 'build');
-        $stat = RegularFile::stat($path);
-        $this->assertNotNull($stat);
-        $this->assertTrue(RegularFile::unchanged($path, $stat));
+        \file_put_contents($this->dir . '/code.tar.gz', 'build');
 
-        \unlink($path);
-        \symlink($this->secret, $path);
+        $this->assertSame(5, RegularFile::copy($this->dir . '/code.tar.gz', $this->dir . '/output'));
+        $this->assertSame('build', \file_get_contents($this->dir . '/output'));
+    }
 
-        $this->assertFalse(RegularFile::unchanged($path, $stat));
+    public function testDoesNotCopyASymlinkTheBuildPlanted(): void
+    {
+        \symlink($this->secret, $this->dir . '/code.tar.gz');
+
+        $this->assertNull(RegularFile::copy($this->dir . '/code.tar.gz', $this->dir . '/output'));
+        $this->assertFileDoesNotExist($this->dir . '/output');
+    }
+
+    public function testDoesNotCopyOverAnExistingEntry(): void
+    {
+        \file_put_contents($this->dir . '/code.tar.gz', 'build');
+        \symlink($this->secret, $this->dir . '/output');
+
+        try {
+            RegularFile::copy($this->dir . '/code.tar.gz', $this->dir . '/output');
+            $this->fail('Copied over an existing entry');
+        } catch (\Exception) {
+            $this->assertStringContainsString('leaked', (string) \file_get_contents($this->secret));
+            $this->assertStringNotContainsString('build', (string) \file_get_contents($this->secret));
+        }
     }
 
     public function testBuildLogsDoNotFollowASymlinkTheBuildPlanted(): void
