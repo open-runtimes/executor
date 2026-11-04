@@ -453,19 +453,24 @@ class Docker extends Adapter
                 // executor's own files (its environment) as the build, for the owner to download.
                 // The upload reads a copy in /tmp/<runtime>, which no container mounts.
                 $snapshot = \dirname($tmpBuild, 2) . '/output-' . \basename($tmpBuild);
-                $size = RegularFile::copy($tmpBuild, $snapshot);
-                if ($size === null) {
-                    throw new \Exception('Something went wrong when starting runtime.');
+                try {
+                    $size = RegularFile::copy($tmpBuild, $snapshot);
+                    if ($size === null) {
+                        throw new \Exception('Something went wrong when starting runtime.');
+                    }
+
+                    $container['size'] = $size;
+
+                    $destinationDevice = StorageFactory::getDevice($destination, System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE'));
+                    $path = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo($tmpBuild, PATHINFO_EXTENSION));
+
+                    if (!$localDevice->copy($snapshot, $path, $destinationDevice)) {
+                        throw new \Exception('Failed to move built code to storage');
+                    };
+                } finally {
+                    // A runtime kept after its build keeps /tmp/<runtime>, so the copy is removed here.
+                    @\unlink($snapshot);
                 }
-
-                $container['size'] = $size;
-
-                $destinationDevice = StorageFactory::getDevice($destination, System::getEnv('OPR_EXECUTOR_CONNECTION_STORAGE'));
-                $path = $destinationDevice->getPath(\uniqid() . '.' . \pathinfo($tmpBuild, PATHINFO_EXTENSION));
-
-                if (!$localDevice->copy($snapshot, $path, $destinationDevice)) {
-                    throw new \Exception('Failed to move built code to storage');
-                };
 
                 $container['path'] = $path;
             }
@@ -639,15 +644,19 @@ class Docker extends Adapter
         // /cache is mounted into the build container, so anything but a regular file is skipped, and
         // the upload reads a copy in /tmp/<runtime>, which no container mounts.
         $snapshot = \dirname($tmpCache) . '/cache-stores.sqfs';
-        if (RegularFile::copy($artifact, $snapshot) === null) {
-            return;
-        }
+        try {
+            if (RegularFile::copy($artifact, $snapshot) === null) {
+                return;
+            }
 
-        $cacheDevice = $this->getBuildCacheDevice();
-        $destinationArtifact = $this->getBuildCacheArtifactPath($cacheDevice, $cacheKey);
+            $cacheDevice = $this->getBuildCacheDevice();
+            $destinationArtifact = $this->getBuildCacheArtifactPath($cacheDevice, $cacheKey);
 
-        if (!$localDevice->copy($snapshot, $destinationArtifact, $cacheDevice)) {
-            throw new \Exception('Failed to store build cache artifact');
+            if (!$localDevice->copy($snapshot, $destinationArtifact, $cacheDevice)) {
+                throw new \Exception('Failed to store build cache artifact');
+            }
+        } finally {
+            @\unlink($snapshot);
         }
     }
 
