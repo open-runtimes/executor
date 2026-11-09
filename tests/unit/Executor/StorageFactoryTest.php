@@ -200,6 +200,52 @@ final class StorageFactoryTest extends TestCase
         StorageFactory::getDevice('/storage/builds/app-test', $connection);
     }
 
+    /**
+     * @return \Iterator<string, array{?string}>
+     */
+    public static function untrustedOverrides(): \Iterator
+    {
+        yield 'url' => ['s3://key:secret@minio.example.com/b?region=us-east-1&url=' . \urlencode('http://169.254.169.254/latest')];
+        yield 'insecure' => ['s3://key:secret@minio.example.com/b?region=us-east-1&insecure=true'];
+        yield 'url spliced in through the bucket' => ['s3://key:secret@minio.example.com/b?url=http://169.254.169.254/latest&insecure=true'];
+        yield 'local scheme' => ['local://localhost'];
+        yield 'file scheme' => ['file:///etc'];
+        yield 'empty' => [''];
+        yield 'null' => [null];
+    }
+
+    #[DataProvider('untrustedOverrides')]
+    public function testUntrustedConnectionCannotReplaceItsEndpoint(?string $connection): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        StorageFactory::getDevice('/', $connection, trusted: false);
+    }
+
+    public function testUntrustedConnectionReachesItsOwnHost(): void
+    {
+        $client = new class () implements ClientInterface, StreamingClientInterface {
+            public string $url = '';
+
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                $this->url = (string) $request->getUri();
+
+                return new Response(200)->withHeader('ETag', '"etag"');
+            }
+
+            public function stream(RequestInterface $request, callable $sink): ResponseInterface
+            {
+                return $this->sendRequest($request);
+            }
+        };
+
+        StorageFactory::getDevice('/', 's3://key:secret@minio.example.com:9000/b?region=us-east-1', $client, trusted: false)
+            ->write(self::OBJECT_KEY, new Stream('wal'), 'application/octet-stream');
+
+        $this->assertSame('https://minio.example.com:9000/b/' . self::OBJECT_KEY, $client->url);
+    }
+
     public function testRefusalDoesNotPrintTheConnection(): void
     {
         $ignoreArgs = \ini_set('zend.exception_ignore_args', '0');

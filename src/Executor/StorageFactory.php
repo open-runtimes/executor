@@ -26,15 +26,20 @@ class StorageFactory
      * @param string $root Root path for storage
      * @param ?string $connection DSN connection string. An empty or null connection means no object storage is configured for this deployment, and a `file` or `local` scheme asks for the local device outright. Both yield the local device rooted at $root.
      * @param (ClientInterface&StreamingClientInterface)|null $client HTTP client for the remote devices, defaulting to the one utopia-php/storage builds
+     * @param bool $trusted False when the connection holds a tenant's values: its host is then final, so the `url` and `insecure` parameters, which replace it, are refused, and so is the local device
      *
-     * @throws InvalidArgumentException When the connection string cannot be parsed or names a scheme with no device
+     * @throws InvalidArgumentException When the connection string cannot be parsed, names a scheme with no device, or is untrusted and asks for what only an operator may
      */
-    public static function getDevice(string $root, #[\SensitiveParameter] ?string $connection = '', (ClientInterface&StreamingClientInterface)|null $client = null): Device
+    public static function getDevice(string $root, #[\SensitiveParameter] ?string $connection = '', (ClientInterface&StreamingClientInterface)|null $client = null, bool $trusted = true): Device
     {
         $connection ??= '';
         $localSchemes = ['file', DeviceType::Local->value];
 
         if ($connection === '' || \in_array(\strtolower((string) \strstr($connection, '://', true)), $localSchemes, true)) {
+            if (!$trusted) {
+                throw new InvalidArgumentException('Untrusted storage DSN must name a remote device');
+            }
+
             return new Local($root);
         }
 
@@ -42,6 +47,10 @@ class StorageFactory
             $dsn = new DSN($connection);
         } catch (\Throwable) {
             throw new InvalidArgumentException('Unable to parse storage DSN');
+        }
+
+        if (!$trusted && ($dsn->getParam('url') !== '' || $dsn->getParam('insecure') !== '')) {
+            throw new InvalidArgumentException('Untrusted storage DSN cannot replace its endpoint');
         }
 
         $scheme = $dsn->getScheme();

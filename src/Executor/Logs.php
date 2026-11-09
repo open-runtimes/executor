@@ -19,12 +19,12 @@ class Logs
         $logsFile = $dir . "/logs.txt";
         $timingsFile = $dir . "/timings.txt";
 
-        if (!\file_exists($logsFile) || !\file_exists($timingsFile)) {
+        // The build container writes both files, so a symlink or anything else reads as empty.
+        $logs = RegularFile::read($logsFile);
+        $timings = RegularFile::read($timingsFile);
+        if ($logs === '' || $timings === '') {
             return [];
         }
-
-        $logs = \file_get_contents($logsFile) ?: '';
-        $timings = \file_get_contents($timingsFile) ?: '';
 
         $offset = 0; // Current offset from timing for reading logs content
         $introOffset = self::getLogOffset($logs);

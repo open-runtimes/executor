@@ -9,6 +9,7 @@ use Utopia\System\System;
 use Utopia\Http\Request;
 use Utopia\Http\Http;
 use Utopia\Http\Response;
+use Utopia\Http\Adapter\Swoole\Response as SwooleResponse;
 use Utopia\Validator\AnyOf;
 use Utopia\Validator\Assoc;
 use Utopia\Validator\Boolean;
@@ -224,27 +225,97 @@ Http::post('/v1/runtimes/:runtimeId/executions')
 
             $variables = array_map(strval(...), $variables);
 
-            $execution = $runner->createExecution(
-                $runtimeId,
-                $payload,
-                $path,
-                $method,
-                $headers,
-                $timeout,
-                $image,
-                $source,
-                $entrypoint,
-                $variables,
-                $cpus,
-                $memory,
-                $version,
-                $runtimeEntrypoint,
-                $logging,
-                $restartPolicy,
-            );
+            $responseFormat = $request->getHeaderLine('x-executor-response-format') ?: '0.10.0'; // Last version without support for array value for headers
+
+            $acceptTypes = \explode(', ', $request->getHeaderLine('accept') ?: 'multipart/form-data');
+            $isJson = array_any($acceptTypes, fn ($acceptType): bool => \str_starts_with((string) $acceptType, 'application/json') || \str_starts_with((string) $acceptType, 'application/*'));
+
+            $multipart = new BodyMultipart();
+            $boundary = $multipart->getBoundary();
+            $headersCallback = null;
+            $bodyCallback = null;
+            $streamStarted = false;
+
+            // Parts are length-prefixed: <hex>\r\n<content>\r\n, closed by 0\r\n\r\n
+            $partHeader = fn (string $name): string => '--' . $boundary . "\r\n"
+                . 'Content-Disposition: form-data; name="' . $name . '"' . "\r\n"
+                . "Content-Transfer-Encoding: chunked\r\n\r\n";
+            $run = fn (string $content): string => $content === '' ? '' : \dechex(\strlen($content)) . "\r\n" . $content . "\r\n";
+            $part = fn (string $name, string $content): string => $partHeader($name) . $run($content) . "0\r\n\r\n";
+
+            if (!$isJson && \version_compare($responseFormat, '0.12.0', '>=')) { // First version with length-prefixed (streamable) parts
+                /**
+                 * @param array<string, mixed> $headers
+                 */
+                $headersCallback = function (int $statusCode, array $headers) use ($response, $multipart, $part, $partHeader, &$streamStarted): void {
+                    $encoded = \json_encode($headers);
+
+                    if ($encoded === false) {
+                        throw new Exception(Exception::GENERAL_UNKNOWN, 'Response headers could not be encoded');
+                    }
+
+                    $response
+                        ->setStatusCode(Response::STATUS_CODE_OK)
+                        ->addHeader('content-type', $multipart->exportHeader())
+                        ->addHeader('x-executor-response-format', '0.12.0');
+
+                    $streamStarted = true;
+                    $response->chunk($part('statusCode', \strval($statusCode)) . $part('headers', $encoded) . $partHeader('body'));
+                };
+
+                $bodyCallback = function (string $chunk) use ($response, $run): void {
+                    if ($chunk !== '') { // Swoole rejects empty chunks
+                        $response->chunk($run($chunk));
+                    }
+                };
+            }
+
+            try {
+                $execution = $runner->createExecution(
+                    $runtimeId,
+                    $payload,
+                    $path,
+                    $method,
+                    $headers,
+                    $timeout,
+                    $image,
+                    $source,
+                    $entrypoint,
+                    $variables,
+                    $cpus,
+                    $memory,
+                    $version,
+                    $runtimeEntrypoint,
+                    $logging,
+                    $restartPolicy,
+                    headersCallback: $headersCallback,
+                    bodyCallback: $bodyCallback,
+                );
+            } catch (\Throwable $throwable) {
+                if (!$streamStarted) {
+                    throw $throwable;
+                }
+
+                // Already streaming, so the error response cannot be sent
+                if ($response instanceof SwooleResponse) {
+                    $response->getSwooleResponse()->close();
+                }
+
+                return;
+            }
+
+            if ($streamStarted) {
+                $trailer = "0\r\n\r\n"; // closes the body part
+                foreach (['logs', 'errors', 'duration', 'startTime'] as $key) {
+                    $trailer .= $part($key, \strval($execution[$key] ?? ''));
+                }
+
+                $response->chunk($trailer . '--' . $boundary . '--', true);
+
+                return;
+            }
 
             // Backwards compatibility for headers
-            $responseFormat = $request->getHeaderLine('x-executor-response-format') ?: '0.10.0'; // Last version without support for array value for headers
             if (version_compare($responseFormat, '0.11.0', '<')) {
                 foreach ($execution['headers'] as $key => $value) {
                     if (\is_array($value)) {
@@ -253,9 +324,6 @@ Http::post('/v1/runtimes/:runtimeId/executions')
                     }
                 }
             }
-
-            $acceptTypes = \explode(', ', $request->getHeaderLine('accept') ?: 'multipart/form-data');
-            $isJson = array_any($acceptTypes, fn ($acceptType): bool => \str_starts_with((string) $acceptType, 'application/json') || \str_starts_with((string) $acceptType, 'application/*'));
 
             if ($isJson) {
                 $executionString = \json_encode($execution, JSON_UNESCAPED_UNICODE);
@@ -295,7 +363,14 @@ Http::init()
     ->inject('request')
     ->action(function (Request $request): void {
         $secretKey = \explode(' ', $request->getHeaderLine('authorization'))[1] ?? '';
-        if ($secretKey === '' || $secretKey === '0' || $secretKey !== System::getEnv('OPR_EXECUTOR_SECRET', '')) {
+
+        // OPR_EXECUTOR_SECRET_PREVIOUS keeps the old secret valid while callers move to a new one.
+        $accepted = \array_filter(
+            [System::getEnv('OPR_EXECUTOR_SECRET', ''), System::getEnv('OPR_EXECUTOR_SECRET_PREVIOUS', '')],
+            fn (string $secret): bool => $secret !== '' && $secret !== '0',
+        );
+
+        if ($secretKey === '' || $secretKey === '0' || \array_filter($accepted, fn (string $secret): bool => \hash_equals($secret, $secretKey)) === []) {
             throw new Exception(Exception::GENERAL_UNAUTHORIZED, 'Missing executor key');
         }
     });

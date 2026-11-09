@@ -250,6 +250,21 @@ class ExecutorTest extends TestCase
         $this->client->setKey($this->key);
     }
 
+    public function testPreviousSecretAuthorizes(): void
+    {
+        // docker-compose.yml sets OPR_EXECUTOR_SECRET_PREVIOUS so a rotation can be exercised end to end.
+        $this->client->setKey('executor-secret-key-previous');
+        $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertIsArray($response['body']);
+
+        $this->client->setKey('executor-secret-key-unknown');
+        $response = $this->client->call(Client::METHOD_GET, '/runtimes', [], []);
+        $this->assertEquals(401, $response['headers']['status-code']);
+
+        $this->client->setKey($this->key);
+    }
+
     public function testCommandsUnauthorized(): void
     {
         $this->client->setKey('');
@@ -407,6 +422,68 @@ class ExecutorTest extends TestCase
 
         /** Delete runtime */
         $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-site-'.$runtimeId, [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
+    }
+
+    public function testBuildOutputSymlinkIsNotUploaded(): void
+    {
+        $output = '';
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
+
+        $runtimeId = \bin2hex(\random_bytes(4));
+
+        // The build leaves a link to /proc/self/environ as its output. Followed, the executor
+        // uploads its own environment, secret included, as a build the owner can download.
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], [
+            'runtimeId' => 'test-build-symlink-' . $runtimeId,
+            'source' => '/storage/functions/node/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-22',
+            'command' => 'ln -sf /proc/self/environ /mnt/code/code.tar.gz',
+            'remove' => true
+        ]);
+
+        $this->assertNotEquals(201, $response['headers']['status-code']);
+        $this->assertArrayNotHasKey('path', (array) $response['body']);
+        $this->assertStringNotContainsString('OPR_EXECUTOR_SECRET', (string) \json_encode($response['body']));
+    }
+
+    public function testExecutionLogSymlinkIsNotFollowed(): void
+    {
+        $output = '';
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/functions/node-log-symlink && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
+
+        $runtimeId = \bin2hex(\random_bytes(4));
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], [
+            'runtimeId' => 'test-build-log-symlink-' . $runtimeId,
+            'source' => '/storage/functions/node-log-symlink/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-22',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"',
+            'remove' => true
+        ]);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        // The function swaps its log files for links to /proc/self/environ. Followed, they return
+        // the executor's own environment, secret included, as the execution's logs.
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-log-symlink-' . $runtimeId . '/executions', [], [
+            'source' => $response['body']['path'],
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-22',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "bash helpers/server.sh"',
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals('OK', $response['body']['body']);
+        $this->assertStringNotContainsString('OPR_EXECUTOR_SECRET', (string) $response['body']['logs']);
+        $this->assertStringNotContainsString('OPR_EXECUTOR_SECRET', (string) $response['body']['errors']);
+
+        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-log-symlink-' . $runtimeId, [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
@@ -811,6 +888,44 @@ class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
+    public function testBuildCacheSymlinkIsNotStored(): void
+    {
+        $output = '';
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/functions/node && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
+
+        $runtimeId = \bin2hex(\random_bytes(4));
+        $cacheKey = 'test-build-cache-symlink-' . $runtimeId;
+
+        // The first build swaps its cache artifact for a link to /proc/self/environ. Followed, the
+        // executor stores its own environment, secret included, as the project's build cache.
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], [
+            'runtimeId' => 'test-build-cache-plant-' . $runtimeId,
+            'source' => '/storage/functions/node/code.tar.gz',
+            'destination' => '/storage/builds/test-cache-plant',
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-18.0',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm install" && ln -sf /proc/self/environ /cache/stores.sqfs',
+            'cacheKey' => $cacheKey,
+            'remove' => true,
+        ]);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        // The second build prints whatever the executor restored as its cache.
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], [
+            'runtimeId' => 'test-build-cache-read-' . $runtimeId,
+            'source' => '/storage/functions/node/code.tar.gz',
+            'destination' => '/storage/builds/test-cache-read',
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-18.0',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && (cat /cache/stores.sqfs || true) && bash helpers/build.sh "npm install"',
+            'cacheKey' => $cacheKey,
+            'remove' => true,
+        ]);
+        $this->assertEquals(201, $response['headers']['status-code']);
+        $this->assertStringNotContainsString('OPR_EXECUTOR_SECRET', (string) \json_encode($response['body']));
+    }
+
     // We also test SSR two Set-cookie here
     public function testSSRLogs(): void
     {
@@ -872,6 +987,64 @@ class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-ssr-exec', [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals('astroCookie1=astroValue1; Max-Age=1800; HttpOnly', $setCookieList[0]);
+    }
+
+    public function testSSRStream(): void
+    {
+        /** Prepare function */
+        $output = '';
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/sites/astro && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
+
+        $params = [
+            'runtimeId' => 'test-ssr-stream-build',
+            'source' => '/storage/sites/astro/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'image' => 'openruntimes/node:v5-22',
+            'outputDirectory' => './dist',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "source /usr/local/server/helpers/astro/env.sh && npm install && npm run build && bash /usr/local/server/helpers/astro/bundle.sh"',
+            'remove' => true
+        ];
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        $params = [
+            'runtimeId' => 'test-ssr-stream-exec',
+            'source' => $response['body']['path'],
+            'image' => 'openruntimes/node:v5-22',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "source /usr/local/server/helpers/astro/env.sh && bash helpers/astro/server.sh"',
+            'path' => '/stream'
+        ];
+
+        /** Execute function */
+        $wire = '';
+        $arrivals = [];
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-ssr-stream-exec/executions', [
+            'x-executor-response-format' => '0.12.0' // First version to stream length-prefixed parts
+        ], $params, false, function (string $data) use (&$wire, &$arrivals): void {
+            $wire .= $data;
+            foreach (['first', 'second', 'third'] as $text) {
+                if (!isset($arrivals[$text]) && \str_contains($wire, $text)) {
+                    $arrivals[$text] = \microtime(true);
+                }
+            }
+        });
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals('0.12.0', $response['headers']['x-executor-response-format']);
+
+        $boundary = \explode('boundary=', (string) $response['headers']['content-type'])[1];
+        $this->assertStringEndsWith('--' . $boundary . '--', $wire);
+
+        // The page renders over 4s; buffered, every piece would arrive together at the end.
+        $this->assertCount(3, $arrivals);
+        $this->assertGreaterThan(1.5, $arrivals['second'] - $arrivals['first']);
+        $this->assertGreaterThan(1.5, $arrivals['third'] - $arrivals['second']);
+
+        /** Delete runtime */
+        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-ssr-stream-exec', [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
     }
 
     public function testRestartPolicy(): void
