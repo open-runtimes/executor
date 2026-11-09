@@ -16,7 +16,7 @@ jobs:
 
     steps:
     - name: Check out the repo
-      uses: actions/checkout@v6
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
     - name: Run Format
       run: |
@@ -29,7 +29,7 @@ jobs:
 
     steps:
     - name: Check out the repo
-      uses: actions/checkout@v6
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
     - name: Run Analyze
       run: |
@@ -42,7 +42,7 @@ jobs:
 
     steps:
     - name: Check out the repo
-      uses: actions/checkout@v6
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
     - name: Run Refactor
       run: |
@@ -55,7 +55,7 @@ jobs:
 
     steps:
     - name: Check out the repo
-      uses: actions/checkout@v6
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
     - name: Run Unit Tests
       run: |
@@ -76,7 +76,7 @@ jobs:
 
     steps:
     - name: Check out the repo
-      uses: actions/checkout@v6
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
     - name: Build Docker image
       run: docker compose build
@@ -85,7 +85,7 @@ jobs:
       run: docker save -o executor-image.tar executor-openruntimes-executor
 
     - name: Upload Docker image artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
       with:
         name: executor-image
         path: executor-image.tar
@@ -98,10 +98,10 @@ jobs:
 
     steps:
     - name: Check out the repo
-      uses: actions/checkout@v6
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
     - name: Download Docker image artifact
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
       with:
         name: executor-image
 
