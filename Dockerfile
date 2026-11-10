@@ -1,5 +1,5 @@
 # Install PHP libraries
-FROM composer:2.8 AS composer
+FROM composer:2.8@sha256:5248900ab8b5f7f880c2d62180e40960cd87f60149ec9a1abfd62ac72a02577c AS composer
 
 WORKDIR /usr/local/src/
 
@@ -9,7 +9,7 @@ RUN composer install --ignore-platform-reqs --optimize-autoloader \
     --no-plugins --no-scripts --prefer-dist
 
 # Executor
-FROM appwrite/utopia-base:php-8.5-2.1.6 AS final
+FROM appwrite/utopia-base:php-8.5-2.1.6@sha256:ce497bb95a006f94efd41fee420ca93432bd8f134cddd5b8911513d67b9be3b6 AS final
 
 RUN apk add --no-cache docker-cli
 
