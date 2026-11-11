@@ -228,7 +228,7 @@ Http::post('/v1/runtimes/:runtimeId/executions')
             $responseFormat = $request->getHeaderLine('x-executor-response-format') ?: '0.10.0'; // Last version without support for array value for headers
 
             $acceptTypes = \explode(', ', $request->getHeaderLine('accept') ?: 'multipart/form-data');
-            $isJson = array_any($acceptTypes, fn ($acceptType): bool => \str_starts_with((string) $acceptType, 'application/json') || \str_starts_with((string) $acceptType, 'application/*'));
+            $isJson = array_any($acceptTypes, fn ($acceptType): bool => \str_starts_with($acceptType, 'application/json') || \str_starts_with($acceptType, 'application/*'));
 
             $multipart = new BodyMultipart();
             $boundary = $multipart->getBoundary();
