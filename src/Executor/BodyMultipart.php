@@ -9,7 +9,7 @@ class BodyMultipart
      */
     private array $parts = [];
 
-    private string $boundary = "";
+    private string $boundary;
 
     public function __construct(?string $boundary = null)
     {
