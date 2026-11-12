@@ -20,6 +20,7 @@ return function ($context) use ($client) {
         'message' => 'Hello Open Runtimes 👋',
         'variable' => \getenv('TEST_VARIABLE'),
         'url' => $context->req->url,
+        'authorization' => $context->req->headers['authorization'] ?? null,
         'todo' => $todo
     ], 200, [
         'x-key' => 'aValue'
