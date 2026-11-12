@@ -1234,17 +1234,19 @@ class Docker extends Adapter
             return $message . '.';
         }
 
+        // tail -c bounds what is buffered, since --tail limits lines and not their length
+        $failed = 'OPR_LOGS_FAILED';
         $logs = '';
-        $code = Console::execute('docker logs --tail 100 ' . \escapeshellarg($runtimeName) . ' 2>&1', '', $logs, $stderr, 5);
+        $code = Console::execute('(docker logs --tail 100 ' . \escapeshellarg($runtimeName) . ' 2>&1 || echo ' . $failed . ') | tail -c ' . (10 * 1024), '', $logs, $stderr, 5);
         $logs = \trim($logs);
-        if ($code !== 0 || $logs === '') {
+        if ($code !== 0 || $logs === '' || \str_ends_with($logs, $failed)) {
             return $message . '.';
         }
 
-        // Invalid UTF-8 would fail the JSON encoding of the error response
+        // Invalid UTF-8, including a character cut by tail, would fail the JSON encoding of the error response
         $logs = \mb_convert_encoding($logs, 'UTF-8', 'UTF-8');
 
-        return $message . ":\n" . \mb_strcut($logs, -10 * 1024);
+        return $message . ":\n" . $logs;
     }
 
     public function getRuntimes(): mixed
