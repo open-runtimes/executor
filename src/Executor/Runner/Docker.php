@@ -998,6 +998,9 @@ class Docker extends Adapter
 
             \curl_setopt($ch, CURLOPT_TIMEOUT, (int) $timeout + 5); // Gives extra 5s after safe timeout to recieve response
             \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+
+            // Runtimes trust x-open-runtimes-* headers (the log id names a file before auth), so only the executor sets them
+            $headers = \array_filter($headers, fn ($key): bool => !\str_starts_with(\strtolower((string) $key), 'x-open-runtimes-'), ARRAY_FILTER_USE_KEY);
             $headers['x-open-runtimes-logging'] = $logging ? 'enabled' : 'disabled';
 
             // Only the static runtime authenticates with Basic auth, and it reads the first Authorization value
