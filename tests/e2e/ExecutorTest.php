@@ -1143,6 +1143,97 @@ class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
     }
 
+    /**
+     * @return \Iterator<string, array{string}>
+     */
+    public static function provideRestartPolicies(): \Iterator
+    {
+        yield 'no' => ['no'];
+        yield 'always' => ['always'];
+    }
+
+    #[DataProvider('provideRestartPolicies')]
+    public function testStartupCrash(string $restartPolicy): void
+    {
+        $output = '';
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/sites/node-crash && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
+
+        $runtimeId = \bin2hex(\random_bytes(4));
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], [
+            'runtimeId' => 'test-build-crash-' . $runtimeId,
+            'source' => '/storage/sites/node-crash/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'image' => 'openruntimes/node:v5-22',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh ""',
+            'remove' => true
+        ]);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        $execution = [
+            'source' => $response['body']['path'],
+            'image' => 'openruntimes/node:v5-22',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "node src/function/server.mjs"',
+            'restartPolicy' => $restartPolicy,
+            'timeout' => 60,
+        ];
+
+        $start = \microtime(true);
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-crash-' . $runtimeId . '/executions', [], $execution);
+
+        $this->assertLessThan(20, \microtime(true) - $start);
+        $this->assertEquals(400, $response['headers']['status-code']);
+        $this->assertStringStartsWith('Runtime crashed while starting', (string) $response['body']['message']);
+        $this->assertStringContainsString("Cannot find package 'missing-package'", (string) $response['body']['message']);
+
+        // The crashed runtime still exists, so this execution inspects it before its first ping
+        $start = \microtime(true);
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-crash-' . $runtimeId . '/executions', [], $execution);
+
+        $this->assertLessThan(5, \microtime(true) - $start);
+        $this->assertEquals(400, $response['headers']['status-code']);
+        $this->assertStringStartsWith('Runtime crashed while starting', (string) $response['body']['message']);
+        $this->assertStringContainsString("Cannot find package 'missing-package'", (string) $response['body']['message']);
+
+        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-crash-' . $runtimeId, [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
+    }
+
+    public function testStartupCrashRecovered(): void
+    {
+        $output = '';
+        $stderr = '';
+        Console::execute('cd /app/tests/resources/sites/node-crash-once && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
+
+        $runtimeId = \bin2hex(\random_bytes(4));
+
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], [
+            'runtimeId' => 'test-build-crash-once-' . $runtimeId,
+            'source' => '/storage/sites/node-crash-once/code.tar.gz',
+            'destination' => '/storage/builds/test',
+            'image' => 'openruntimes/node:v5-22',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh ""',
+            'remove' => true
+        ]);
+        $this->assertEquals(201, $response['headers']['status-code']);
+
+        // The server crashes on its first start and serves after the restart
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-crash-once-' . $runtimeId . '/executions', [], [
+            'source' => $response['body']['path'],
+            'image' => 'openruntimes/node:v5-22',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "node src/function/server.mjs"',
+            'restartPolicy' => 'always',
+            'timeout' => 60,
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals(200, $response['body']['statusCode']);
+
+        $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-crash-once-' . $runtimeId, [], []);
+        $this->assertEquals(200, $response['headers']['status-code']);
+    }
+
     public function testBuildLogLimit(): void
     {
         $size128Kb = 1024 * 128;
