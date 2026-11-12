@@ -204,6 +204,7 @@ docker compose down
 | OPR_EXECUTOR_CONNECTION_STORAGE  | DSN string that represents a connection to your storage device, ex: `file://localhost` for local storage                                      |
 | OPR_EXECUTOR_CONNECTION_BUILD_CACHE_STORAGE  | Optional DSN string for build cache artifacts. Defaults to `OPR_EXECUTOR_CONNECTION_STORAGE` when empty                                      |
 | OPR_EXECUTOR_INACTIVE_THRESHOLD   | Threshold time (in seconds) for detecting inactive runtimes, ex: `60`                                                                         |
+| OPR_EXECUTOR_MEMORY_LIMIT        | PHP memory limit of the executor process, ex: `512M` (default)                                                                                |
 | OPR_EXECUTOR_MAINTENANCE_INTERVAL| Interval (in seconds) at which the Executor performs maintenance tasks, ex: `60`                                                              |
 | OPR_EXECUTOR_NETWORK             | Network used by the executor for runtimes, ex: `openruntimes-runtimes`                                                                        |
 | OPR_EXECUTOR_SECRET              | Secret key used by the executor for authentication                                                                                            |
