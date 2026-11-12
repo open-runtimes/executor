@@ -25,6 +25,9 @@ $settings = [
     'buffer_output_size' => $payloadSize,
 ];
 
+/* Responses are held in memory several times over; PHP's default 128M runs out under a few parallel large responses */
+ini_set('memory_limit', System::getEnv('OPR_EXECUTOR_MEMORY_LIMIT', '512M') ?: '512M');
+
 Runtime::enableCoroutine(SWOOLE_HOOK_ALL);
 
 Http::setMode((string)System::getEnv('OPR_EXECUTOR_ENV', Http::MODE_TYPE_PRODUCTION));
