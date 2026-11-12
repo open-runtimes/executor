@@ -843,6 +843,7 @@ class Docker extends Adapter
 
         $hostname = $runtime->hostname;
         $secret = $runtime->key;
+        $runtimeImage = $runtime->image; // Executions on a running runtime may omit the image
         if ($secret === '' || $secret === '0') {
             throw new \Exception('Runtime secret not found. Please re-create the runtime.', 500);
         }
@@ -920,7 +921,7 @@ class Docker extends Adapter
 
         $streamed = false; // Response is committed once streaming starts
 
-        $executeV5 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $timeout, $runtimeName, $logging, $headersCallback, $bodyCallback, &$streamed): array {
+        $executeV5 = function () use ($path, $method, $headers, $payload, $secret, $hostname, $runtimeImage, $timeout, $runtimeName, $logging, $headersCallback, $bodyCallback, &$streamed): array {
             $statusCode = 0;
             $errNo = -1;
             $executorResponse = '';
@@ -997,9 +998,17 @@ class Docker extends Adapter
 
             \curl_setopt($ch, CURLOPT_TIMEOUT, (int) $timeout + 5); // Gives extra 5s after safe timeout to recieve response
             \curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+
+            // Runtimes trust x-open-runtimes-* headers (the log id names a file before auth), so only the executor sets them
+            $headers = \array_filter($headers, fn ($key): bool => !\str_starts_with(\strtolower((string) $key), 'x-open-runtimes-'), ARRAY_FILTER_USE_KEY);
             $headers['x-open-runtimes-logging'] = $logging ? 'enabled' : 'disabled';
 
-            $headers['Authorization'] = 'Basic ' . \base64_encode('opr:' . $secret);
+            // Only the static runtime authenticates with Basic auth, and it reads the first Authorization value
+            if (\str_starts_with($runtimeImage, 'openruntimes/static:')) {
+                $headers = \array_filter($headers, fn ($key): bool => \strtolower((string) $key) !== 'authorization', ARRAY_FILTER_USE_KEY);
+                $headers['Authorization'] = 'Basic ' . \base64_encode('opr:' . $secret);
+            }
+
             $headers['x-open-runtimes-secret'] = $secret;
 
             $headers['x-open-runtimes-timeout'] = \max(\intval($timeout), 1);

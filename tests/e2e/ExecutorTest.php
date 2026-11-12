@@ -420,6 +420,17 @@ class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(200, $response['body']['statusCode']);
 
+        /** Client authorization does not replace the runtime's */
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-site-'.$runtimeId.'/executions', [], [
+            'path' => '/index.html',
+            'headers' => [
+                'authorization' => 'Bearer client-token'
+            ]
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertEquals(200, $response['body']['statusCode']);
+
         /** Delete runtime */
         $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-site-'.$runtimeId, [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
@@ -660,6 +671,28 @@ class ExecutorTest extends TestCase
         $this->assertEquals(200, $response['headers']['status-code'], 'Failed to execute runtime, response ' . json_encode($response, JSON_PRETTY_PRINT));
         $this->assertEquals(200, $response['body']['statusCode'], 'Failed execute runtime, response ' . json_encode($response, JSON_PRETTY_PRINT));
         $this->assertEquals('aValue', \json_decode((string) $response['body']['headers'], true)['x-key']);
+        $this->assertNull(\json_decode((string) $response['body']['body'], true)['authorization']);
+
+        /** Client authorization reaches the function unchanged */
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions', [], [
+            'headers' => [
+                'authorization' => 'Bearer client-token'
+            ]
+        ]);
+
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertSame('Bearer client-token', \json_decode((string) $response['body']['body'], true)['authorization']);
+
+        /** Client x-open-runtimes-* headers are not forwarded */
+        $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions', [], [
+            'headers' => [
+                'x-open-runtimes-log-id' => 'client-log'
+            ]
+        ]);
+
+        // Forwarded, the runtime would log under this id, which the executor refuses to read
+        $this->assertEquals(200, $response['headers']['status-code']);
+        $this->assertStringContainsString('Sample Log', (string) $response['body']['logs']);
 
         /** Execute on cold-started runtime */
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec/executions', [], [
