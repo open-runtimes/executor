@@ -1155,16 +1155,21 @@ class ExecutorTest extends TestCase
     {
         $output = '';
         $stderr = '';
-        Console::execute('cd /app/tests/resources/sites/node-crash && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
+        Console::execute('cd /app/tests/resources/sites/remix-crash && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
 
         $runtimeId = \bin2hex(\random_bytes(4));
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], [
             'runtimeId' => 'test-build-crash-' . $runtimeId,
-            'source' => '/storage/sites/node-crash/code.tar.gz',
+            'source' => '/storage/sites/remix-crash/code.tar.gz',
             'destination' => '/storage/builds/test',
             'image' => 'openruntimes/node:v5-22',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh ""',
+            'outputDirectory' => './build',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "source /usr/local/server/helpers/remix/env.sh && npm install && npm run build && bash /usr/local/server/helpers/remix/bundle.sh"',
+            // Pruned like production site builds, so restarts unpack quickly
+            'variables' => [
+                'OPEN_RUNTIMES_NFT' => 'enabled'
+            ],
             'remove' => true
         ]);
         $this->assertEquals(201, $response['headers']['status-code']);
@@ -1172,7 +1177,7 @@ class ExecutorTest extends TestCase
         $execution = [
             'source' => $response['body']['path'],
             'image' => 'openruntimes/node:v5-22',
-            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "node src/function/server.mjs"',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "source /usr/local/server/helpers/remix/env.sh && bash helpers/remix/server.sh"',
             'restartPolicy' => $restartPolicy,
             'timeout' => 60,
         ];
@@ -1183,7 +1188,7 @@ class ExecutorTest extends TestCase
         $this->assertLessThan(20, \microtime(true) - $start);
         $this->assertEquals(400, $response['headers']['status-code']);
         $this->assertStringStartsWith('Runtime crashed while starting', (string) $response['body']['message']);
-        $this->assertStringContainsString("Cannot find package 'missing-package'", (string) $response['body']['message']);
+        $this->assertStringContainsString('Error: Crashing at startup', (string) $response['body']['message']);
 
         // The crashed runtime still exists, so this execution inspects it before its first ping
         $start = \microtime(true);
@@ -1192,7 +1197,7 @@ class ExecutorTest extends TestCase
         $this->assertLessThan(5, \microtime(true) - $start);
         $this->assertEquals(400, $response['headers']['status-code']);
         $this->assertStringStartsWith('Runtime crashed while starting', (string) $response['body']['message']);
-        $this->assertStringContainsString("Cannot find package 'missing-package'", (string) $response['body']['message']);
+        $this->assertStringContainsString('Error: Crashing at startup', (string) $response['body']['message']);
 
         $response = $this->client->call(Client::METHOD_DELETE, '/runtimes/test-exec-crash-' . $runtimeId, [], []);
         $this->assertEquals(200, $response['headers']['status-code']);
@@ -1202,16 +1207,21 @@ class ExecutorTest extends TestCase
     {
         $output = '';
         $stderr = '';
-        Console::execute('cd /app/tests/resources/sites/node-crash-once && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
+        Console::execute('cd /app/tests/resources/sites/remix-crash-once && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
 
         $runtimeId = \bin2hex(\random_bytes(4));
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], [
             'runtimeId' => 'test-build-crash-once-' . $runtimeId,
-            'source' => '/storage/sites/node-crash-once/code.tar.gz',
+            'source' => '/storage/sites/remix-crash-once/code.tar.gz',
             'destination' => '/storage/builds/test',
             'image' => 'openruntimes/node:v5-22',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh ""',
+            'outputDirectory' => './build',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "source /usr/local/server/helpers/remix/env.sh && npm install && npm run build && bash /usr/local/server/helpers/remix/bundle.sh"',
+            // Pruned like production site builds, so restarts unpack quickly
+            'variables' => [
+                'OPEN_RUNTIMES_NFT' => 'enabled'
+            ],
             'remove' => true
         ]);
         $this->assertEquals(201, $response['headers']['status-code']);
@@ -1220,7 +1230,7 @@ class ExecutorTest extends TestCase
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-crash-once-' . $runtimeId . '/executions', [], [
             'source' => $response['body']['path'],
             'image' => 'openruntimes/node:v5-22',
-            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "node src/function/server.mjs"',
+            'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "source /usr/local/server/helpers/remix/env.sh && bash helpers/remix/server.sh"',
             'restartPolicy' => 'always',
             'timeout' => 60,
         ]);
