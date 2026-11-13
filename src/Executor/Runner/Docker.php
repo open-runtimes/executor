@@ -1095,11 +1095,24 @@ class Docker extends Adapter
         if ($runtime->listening === 0) {
             // Wait for cold-start to finish (app listening on port)
             $pingStart = \microtime(true);
-            $validator = new TCP();
+            // A gone container's stale address drops the connect instead of refusing it, and the loop pings again anyway
+            $validator = new TCP(1);
+            // The first inspect waits until the runtime is 2s old, also for requests that joined its cold start
+            $crashCheckAt = \max($pingStart, $runtime->created + 2);
             while (true) {
                 // If timeout is passed, stop and return error
                 if (\microtime(true) - $pingStart >= $timeout) {
                     throw new ExecutorException(ExecutorException::RUNTIME_TIMEOUT);
+                }
+
+                // Checked before the ping, which waits out its timeout once the container is gone
+                if (\microtime(true) >= $crashCheckAt) {
+                    $crash = $this->getCrash($runtimeName, $logging);
+                    if ($crash !== null) {
+                        throw new ExecutorException(ExecutorException::RUNTIME_FAILED, $crash);
+                    }
+
+                    $crashCheckAt = \microtime(true) + 3;
                 }
 
                 $online = $validator->isValid($hostname . ':' . 3000);
@@ -1189,6 +1202,51 @@ class Docker extends Adapter
         }
 
         return $execution;
+    }
+
+    /**
+     * Returns why a runtime's server exited, with the tail of its output when logging is enabled, or null while it may still start listening.
+     */
+    private function getCrash(string $runtimeName, bool $logging): ?string
+    {
+        $output = '';
+        $stderr = '';
+        $code = Console::execute('docker container inspect --format ' . \escapeshellarg('{{.State.Status}} {{.State.ExitCode}} {{.State.OOMKilled}}') . ' ' . \escapeshellarg($runtimeName), '', $output, $stderr, 5);
+        if ($code !== 0) {
+            return null;
+        }
+
+        [$status, $exitCode, $oomKilled] = \explode(' ', \trim($output)) + ['', '0', 'false'];
+
+        // A running container may have restarted after a crash and serve now, so only the ping decides it
+        if (!\in_array($status, ['restarting', 'exited', 'dead'], true)) {
+            return null;
+        }
+
+        $details = ['exit code ' . $exitCode];
+        if ($oomKilled === 'true') {
+            $details[] = 'out of memory';
+        }
+
+        $message = 'Runtime crashed while starting (' . \implode(', ', $details) . ')';
+
+        if (!$logging) {
+            return $message . '.';
+        }
+
+        // tail -c bounds what is buffered, since --tail limits lines and not their length
+        $failed = 'OPR_LOGS_FAILED';
+        $logs = '';
+        $code = Console::execute('(docker logs --tail 100 ' . \escapeshellarg($runtimeName) . ' 2>&1 || echo ' . $failed . ') | tail -c ' . (10 * 1024), '', $logs, $stderr, 5);
+        $logs = \trim($logs);
+        if ($code !== 0 || $logs === '' || \str_ends_with($logs, $failed)) {
+            return $message . '.';
+        }
+
+        // Invalid UTF-8, including a character cut by tail, would fail the JSON encoding of the error response
+        $logs = \mb_convert_encoding($logs, 'UTF-8', 'UTF-8');
+
+        return $message . ":\n" . $logs;
     }
 
     public function getRuntimes(): mixed
