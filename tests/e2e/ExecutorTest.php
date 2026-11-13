@@ -1084,19 +1084,19 @@ class ExecutorTest extends TestCase
     {
         $output = '';
         $stderr = '';
-        Console::execute('cd /app/tests/resources/functions/php-exit && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
+        Console::execute('cd /app/tests/resources/functions/node-exit && tar --exclude code.tar.gz -czf code.tar.gz .', '', $output, $stderr);
 
-        $command = 'php src/server.php';
+        $command = 'bash helpers/server.sh';
 
         /** Build runtime */
 
         $params = [
             'runtimeId' => 'test-build-restart-policy',
-            'source' => '/storage/functions/php-exit/code.tar.gz',
+            'source' => '/storage/functions/node-exit/code.tar.gz',
             'destination' => '/storage/builds/test-restart-policy',
-            'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v5-8.1',
-            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh ""'
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-22',
+            'command' => 'tar -zxf /tmp/code.tar.gz -C /mnt/code && bash helpers/build.sh "npm i"'
         ];
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes', [], $params);
@@ -1107,14 +1107,12 @@ class ExecutorTest extends TestCase
         /** Execute function */
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-restart-policy/executions', [], [
             'source' => $buildPath,
-            'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v5-8.1',
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-22',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"',
             'restartPolicy' => 'always'
         ]);
-        // The runtime reports the function's exit() as a failed execution, so the
-        // executor call itself succeeds and carries statusCode 500. The server
-        // process still dies afterwards, which is what the restart count asserts.
+        // The function answers 500 and then ends the server process, which is what the restart count asserts.
         $this->assertEquals(200, $response['headers']['status-code']);
         $this->assertEquals(500, $response['body']['statusCode']);
 
@@ -1122,8 +1120,8 @@ class ExecutorTest extends TestCase
 
         $response = $this->client->call(Client::METHOD_POST, '/runtimes/test-exec-restart-policy/executions', [], [
             'source' => $buildPath,
-            'entrypoint' => 'index.php',
-            'image' => 'openruntimes/php:v5-8.1',
+            'entrypoint' => 'index.js',
+            'image' => 'openruntimes/node:v5-22',
             'runtimeEntrypoint' => 'cp /tmp/code.tar.gz /mnt/code/code.tar.gz && nohup helpers/start.sh "' . $command . '"'
         ]);
         $this->assertEquals(200, $response['headers']['status-code']);
