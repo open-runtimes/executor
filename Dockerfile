@@ -11,6 +11,7 @@ RUN composer install --ignore-platform-reqs --optimize-autoloader \
 # Executor
 FROM appwrite/utopia-base:php-8.5-2.1.7@sha256:aa123546fa6cdd6e710107a79b977274f373b08b6186cabb6c16f1937fe1db05 AS final
 
+RUN apk upgrade --no-cache
 RUN apk add --no-cache docker-cli
 
 WORKDIR /usr/local
