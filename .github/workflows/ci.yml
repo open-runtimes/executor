@@ -16,7 +16,7 @@ jobs:
 
     steps:
     - name: Check out the repo
-      uses: actions/checkout@v6
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Run Format
       run: |
@@ -29,7 +29,7 @@ jobs:
 
     steps:
     - name: Check out the repo
-      uses: actions/checkout@v6
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Run Analyze
       run: |
@@ -42,7 +42,7 @@ jobs:
 
     steps:
     - name: Check out the repo
-      uses: actions/checkout@v6
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Run Refactor
       run: |
@@ -55,7 +55,7 @@ jobs:
 
     steps:
     - name: Check out the repo
-      uses: actions/checkout@v6
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Run Unit Tests
       run: |
@@ -76,7 +76,7 @@ jobs:
 
     steps:
     - name: Check out the repo
-      uses: actions/checkout@v6
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Build Docker image
       run: docker compose build
@@ -98,7 +98,7 @@ jobs:
 
     steps:
     - name: Check out the repo
-      uses: actions/checkout@v6
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Download Docker image artifact
       uses: actions/download-artifact@v7
