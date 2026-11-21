@@ -751,7 +751,8 @@ class Docker extends Adapter
                 \curl_setopt($ch, CURLOPT_HTTPHEADER, [
                     'Content-Type: application/json',
                     'Content-Length: ' . \strlen($body ?: ''),
-                    'authorization: Bearer ' . System::getEnv('OPR_EXECUTOR_SECRET', '')
+                    'authorization: Bearer ' . System::getEnv('OPR_EXECUTOR_SECRET', ''),
+                    'Expect:' // Disable curl's "Expect: 100-continue" for large bodies
                 ]);
 
                 $executorResponse = \curl_exec($ch);
@@ -872,7 +873,8 @@ class Docker extends Adapter
                 'Content-Type: application/json',
                 'Content-Length: ' . \strlen($body ?: ''),
                 'x-internal-challenge: ' . $secret,
-                'host: null'
+                'host: null',
+                'Expect:' // Disable curl's "Expect: 100-continue" for large bodies
             ]);
 
             $executorResponse = \curl_exec($ch);
@@ -1016,6 +1018,9 @@ class Docker extends Adapter
             foreach ($headers as $key => $value) {
                 $headersArr[] = $key . ': ' . $value;
             }
+
+            // Disable curl's "Expect: 100-continue" for bodies over 1 MiB, runtimes don't answer it
+            $headersArr[] = 'Expect:';
 
             \curl_setopt($ch, CURLOPT_HEADEROPT, CURLHEADER_UNIFIED);
             \curl_setopt($ch, CURLOPT_HTTPHEADER, $headersArr);
